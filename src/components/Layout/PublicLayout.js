@@ -1,10 +1,14 @@
 import { Outlet } from 'react-router-dom';
+import PropTypes from 'prop-types';
 import Header from './Header';
 import Footer from './Footer';
 
-export default function PublicLayout() {
+/**
+ * Layout for public pages with header and footer
+ */
+export default function PublicLayout({ className = '' }) {
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className={`flex flex-col min-h-screen overflow-hidden ${className}`}>
       <Header />
       <main className="flex-grow">
         <Outlet />
@@ -12,4 +16,8 @@ export default function PublicLayout() {
       <Footer />
     </div>
   );
-} 
+}
+
+PublicLayout.propTypes = {
+  className: PropTypes.string
+};

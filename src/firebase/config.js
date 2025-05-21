@@ -3,8 +3,9 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+/**
+ * Firebase configuration object built from environment variables
+ */
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
   authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
@@ -15,10 +16,29 @@ const firebaseConfig = {
   measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const storage = getStorage(app);
+// Validate required configuration
+const requiredConfigs = ['apiKey', 'authDomain', 'projectId'];
+const missingConfigs = requiredConfigs.filter(field => !firebaseConfig[field]);
+
+if (missingConfigs.length > 0) {
+  console.error(`Missing required Firebase config: ${missingConfigs.join(', ')}`);
+  throw new Error(`Firebase initialization failed due to missing config: ${missingConfigs.join(', ')}`);
+}
+
+let app;
+let auth;
+let db;
+let storage;
+
+try {
+  // Initialize Firebase
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  db = getFirestore(app);
+  storage = getStorage(app);
+} catch (error) {
+  console.error("Error initializing Firebase:", error);
+  throw new Error("Firebase initialization failed. Check your configuration.");
+}
 
 export { auth, db, storage };

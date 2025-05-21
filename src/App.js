@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { ROUTES, ROLES } from './routes';
 
 // Layouts
 import PublicLayout from './components/Layout/PublicLayout';
@@ -34,32 +35,32 @@ function App() {
       <Router>
         <Routes>
           {/* Public Routes */}
-          <Route path="/" element={<PublicLayout />}>
+          <Route path={ROUTES.HOME} element={<PublicLayout />}>
             <Route index element={<Home />} />
-            <Route path="about" element={<About />} />
-            <Route path="contact" element={<Contact />} />
+            <Route path={ROUTES.ABOUT.slice(1)} element={<About />} />
+            <Route path={ROUTES.CONTACT.slice(1)} element={<Contact />} />
           </Route>
 
           {/* Auth Routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path={ROUTES.LOGIN} element={<Login />} />
+          <Route path={ROUTES.REGISTER} element={<Register />} />
+          <Route path={ROUTES.FORGOT_PASSWORD} element={<ForgotPassword />} />
+          <Route path={ROUTES.VERIFY_EMAIL} element={<VerifyEmail />} />
 
           {/* Dashboard Routes */}
           <Route 
-            path="/dashboard" 
+            path={ROUTES.DASHBOARD.ROOT} 
             element={
               <ProtectedRoute>
                 <DashboardLayout />
               </ProtectedRoute>
             }
           >
-            <Route index element={<Navigate to="/dashboard/client" replace />} />
+            <Route index element={<Navigate to={ROUTES.DASHBOARD.CLIENT} replace />} />
             <Route 
               path="freelancer" 
               element={
-                <RoleRoute roles={['freelancer', 'admin']}>
+                <RoleRoute roles={[ROLES.FREELANCER, ROLES.ADMIN]}>
                   <FreelancerDashboard />
                 </RoleRoute>
               } 
@@ -67,7 +68,7 @@ function App() {
             <Route 
               path="client" 
               element={
-                <RoleRoute roles={['client', 'admin']}>
+                <RoleRoute roles={[ROLES.CLIENT, ROLES.ADMIN]}>
                   <ClientDashboard />
                 </RoleRoute>
               } 
@@ -75,7 +76,7 @@ function App() {
             <Route 
               path="admin" 
               element={
-                <RoleRoute roles={['admin']}>
+                <RoleRoute roles={[ROLES.ADMIN]}>
                   <AdminDashboard />
                 </RoleRoute>
               } 
@@ -84,7 +85,7 @@ function App() {
 
           {/* Profile Routes */}
           <Route 
-            path="/profile" 
+            path={ROUTES.PROFILE.ROOT} 
             element={
               <ProtectedRoute>
                 <PublicLayout />

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
@@ -8,19 +8,47 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
-  const { login, loginWithGoogle } = useAuth();
+  const { login, loginWithGoogle, error: authError, currentUser } = useAuth();
+
+  // Redirect if user is already logged in
+  useEffect(() => {
+    if (currentUser) {
+      navigate('/dashboard');
+    }
+  }, [currentUser, navigate]);
+
+  // Update local error state when auth error changes
+  useEffect(() => {
+    if (authError) {
+      // Convert Firebase error messages to user-friendly messages
+      if (authError.includes('user-not-found') || authError.includes('wrong-password')) {
+        setError('Invalid email or password. Please try again.');
+      } else if (authError.includes('too-many-requests')) {
+        setError('Too many failed login attempts. Please try again later or reset your password.');
+      } else if (authError.includes('network')) {
+        setError('Network error. Please check your internet connection and try again.');
+      } else {
+        setError(authError || 'An error occurred during login.');
+      }
+    }
+  }, [authError]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!email || !password) {
+      setError('Please enter both email and password.');
+      return;
+    }
     
     try {
       setError('');
       setLoading(true);
       await login(email, password);
-      navigate('/dashboard');
+      // Navigation is handled by the useEffect watching currentUser
     } catch (error) {
-      console.error(error);
-      setError('Failed to log in. Please check your credentials.');
+      // Error state is handled by the useEffect watching authError
+      console.error('Login error:', error);
     } finally {
       setLoading(false);
     }
@@ -31,10 +59,10 @@ export default function Login() {
       setError('');
       setLoading(true);
       await loginWithGoogle();
-      navigate('/dashboard');
+      // Navigation is handled by the useEffect watching currentUser
     } catch (error) {
-      console.error(error);
-      setError('Failed to log in with Google.');
+      // Error state is handled by the useEffect watching authError
+      console.error('Google login error:', error);
     } finally {
       setLoading(false);
     }
@@ -44,6 +72,11 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-md">
         <div>
+          <div className="flex justify-center">
+            <Link to="/" className="block text-center">
+              <span className="text-2xl font-bold cursor-pointer bg-gradient-to-r from-[#010042] to-[#0100a3] bg-clip-text text-transparent" style={{letterSpacing: "0.5px"}}>SkillNusa</span>
+            </Link>
+          </div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">Sign in to your account</h2>
           <p className="mt-2 text-center text-sm text-gray-600">
             Or{' '}
@@ -68,7 +101,7 @@ export default function Login() {
           </div>
         )}
         
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit} noValidate>
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
               <label htmlFor="email-address" className="sr-only">Email address</label>
@@ -124,7 +157,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#010042] hover:bg-[#0100a3] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#010042]"
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#010042] hover:bg-[#0100a3] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#010042] disabled:opacity-70"
             >
               {loading ? 'Signing in...' : 'Sign in'}
             </button>
@@ -145,7 +178,8 @@ export default function Login() {
             <button
               onClick={handleGoogleLogin}
               disabled={loading}
-              className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#010042]"
+              className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#010042] disabled:opacity-70"
+              type="button"
             >
               <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24">
                 <g transform="matrix(1, 0, 0, 1, 27.009001, -39.238998)">

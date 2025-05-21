@@ -1,6 +1,22 @@
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { ROUTES } from '../routes';
 
 export default function About() {
+  const { currentUser } = useAuth();
+  const navigate = useNavigate();
+
+  // Fungsi untuk menangani klik pada link yang memerlukan login
+  const handleAuthRequiredClick = (e, targetPath) => {
+    if (!currentUser) {
+      e.preventDefault();
+      navigate(ROUTES.LOGIN);
+    } else {
+      navigate(targetPath);
+    }
+  };
+
   return (
     <div className="bg-gray-50 py-20">
       <div className="max-w-7xl mx-auto px-6">
@@ -21,6 +37,61 @@ export default function About() {
               <li>Menciptakan ekosistem freelance yang transparan, aman, dan profesional</li>
               <li>Mendorong perkembangan ekonomi digital Indonesia</li>
             </ul>
+          </div>
+          
+          {/* How SkillNusa Works Section */}
+          <div className="bg-white rounded-xl shadow-md p-8 md:p-10 mb-10">
+            <h2 className="text-2xl font-semibold text-[#010042] mb-6">How SkillNusa Works</h2>
+            <p className="text-gray-700 mb-6">
+              Our platform makes it easy to connect with skilled professionals or find clients for your services.
+            </p>
+            
+            <div className="grid md:grid-cols-3 gap-8 mt-8">
+              <div 
+                className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer"
+                onClick={(e) => handleAuthRequiredClick(e, '/services')}
+              >
+                <div className="w-16 h-16 rounded-xl flex items-center justify-center bg-[#010042] bg-opacity-10 mb-6">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-[#010042]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold mb-3 text-[#010042]">Find Services</h3>
+                <p className="text-gray-600">
+                  Browse through various categories to find the perfect freelancer for your project needs.
+                </p>
+              </div>
+
+              <div 
+                className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer"
+                onClick={(e) => handleAuthRequiredClick(e, '/connect')}
+              >
+                <div className="w-16 h-16 rounded-xl flex items-center justify-center bg-[#010042] bg-opacity-10 mb-6">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-[#010042]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold mb-3 text-[#010042]">Connect & Collaborate</h3>
+                <p className="text-gray-600">
+                  Communicate with freelancers, discuss your project details, and agree on deliverables.
+                </p>
+              </div>
+
+              <div 
+                className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer"
+                onClick={(e) => handleAuthRequiredClick(e, '/projects')}
+              >
+                <div className="w-16 h-16 rounded-xl flex items-center justify-center bg-[#010042] bg-opacity-10 mb-6">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-[#010042]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold mb-3 text-[#010042]">Get Work Done</h3>
+                <p className="text-gray-600">
+                  Pay securely and receive quality work from skilled Indonesian freelancers.
+                </p>
+              </div>
+            </div>
           </div>
           
           <div className="bg-white rounded-xl shadow-md p-8 md:p-10 mb-10">
