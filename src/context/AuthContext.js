@@ -6,8 +6,6 @@ import {
   signOut,
   sendPasswordResetEmail,
   updateProfile,
-  GoogleAuthProvider,
-  signInWithPopup,
   sendEmailVerification
 } from 'firebase/auth';
 import { doc, getDoc, serverTimestamp } from 'firebase/firestore';
@@ -94,45 +92,18 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     setError(null);
     try {
-      return await signInWithEmailAndPassword(auth, email, password);
-    } catch (error) {
-      console.error("Login error:", error);
-      setError(error.message);
-      throw error;
-    }
-  };
-
-  const loginWithGoogle = async () => {
-    setError(null);
-    const provider = new GoogleAuthProvider();
-    try {
-      const result = await signInWithPopup(auth, provider);
-      const { user } = result;
+      const result = await signInWithEmailAndPassword(auth, email, password);
       
-      // Check if user exists in Firestore
-      const userDoc = await getDoc(doc(db, COLLECTIONS.USERS, user.uid));
-      
-      if (!userDoc.exists()) {
-        // New user, create profile
-        await createUserDocument(user.uid, {
-          uid: user.uid,
-          email: user.email,
-          username: user.displayName || user.email.split('@')[0],
-          displayName: user.displayName || user.email.split('@')[0],
-          role: USER_ROLES.CLIENT, // Default role for OAuth users
-          profilePhoto: user.photoURL || null,
-          bio: '',
-          isActive: true,
-          emailVerified: user.emailVerified
-        });
-        
-        // Create profile document
-        await createProfileDocument(user.uid);
+      // Check if email is verified
+      if (!result.user.emailVerified) {
+        // Sign out the user immediately
+        await signOut(auth);
+        throw new Error('email-not-verified');
       }
       
-      return user;
+      return result;
     } catch (error) {
-      console.error("Google login error:", error);
+      console.error("Login error:", error);
       setError(error.message);
       throw error;
     }
@@ -210,7 +181,6 @@ export function AuthProvider({ children }) {
     error,
     signup,
     login,
-    loginWithGoogle,
     logout,
     resetPassword,
     fetchUserProfile

@@ -1,0 +1,22 @@
+export const industries = [
+  { id: 'technology', name: 'Teknologi & IT' },
+  { id: 'ecommerce', name: 'E-commerce' },
+  { id: 'finance', name: 'Keuangan & Perbankan' },
+  { id: 'education', name: 'Pendidikan' },
+  { id: 'healthcare', name: 'Kesehatan' },
+  { id: 'manufacturing', name: 'Manufaktur' },
+  { id: 'retail', name: 'Retail & Perdagangan' },
+  { id: 'media', name: 'Media & Hiburan' },
+  { id: 'hospitality', name: 'Perhotelan & Pariwisata' },
+  { id: 'construction', name: 'Konstruksi & Properti' },
+  { id: 'logistics', name: 'Logistik & Transportasi' },
+  { id: 'agriculture', name: 'Pertanian & Perkebunan' },
+  { id: 'fmcg', name: 'FMCG (Barang Konsumsi)' },
+  { id: 'consulting', name: 'Konsultan & Jasa Profesional' },
+  { id: 'energy', name: 'Energi & Pertambangan' },
+  { id: 'automotive', name: 'Otomotif' },
+  { id: 'government', name: 'Pemerintahan' },
+  { id: 'ngo', name: 'LSM & Organisasi Non-Profit' },
+  { id: 'creative', name: 'Industri Kreatif' },
+  { id: 'other', name: 'Lainnya' }
+]; 

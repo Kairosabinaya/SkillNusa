@@ -1,0 +1,93 @@
+import BaseRepository from './BaseRepository';
+import User from '../models/User';
+import { COLLECTIONS } from '../utils/constants';
+
+/**
+ * User repository for user-related database operations
+ */
+export default class UserRepository extends BaseRepository {
+  constructor() {
+    super(COLLECTIONS.USERS, User);
+  }
+
+  /**
+   * Get a user by email
+   * @param {string} email - User email
+   * @returns {Promise<User|null>} User or null if not found
+   */
+  async findByEmail(email) {
+    try {
+      const users = await this.find({
+        filters: [
+          { field: 'email', operator: '==', value: email }
+        ]
+      });
+
+      return users.length > 0 ? users[0] : null;
+    } catch (error) {
+      console.error('Error finding user by email:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get users by role
+   * @param {string} role - User role
+   * @returns {Promise<Array<User>>} Array of users with the role
+   */
+  async findByRole(role) {
+    try {
+      return await this.find({
+        filters: [
+          { field: 'role', operator: '==', value: role }
+        ]
+      });
+    } catch (error) {
+      console.error('Error finding users by role:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create or update user from Firebase auth user
+   * @param {Object} authUser - Firebase auth user
+   * @param {Object} additionalData - Additional user data
+   * @returns {Promise<string>} User ID
+   */
+  async createOrUpdateFromAuth(authUser, additionalData = {}) {
+    try {
+      const { uid, email, displayName, photoURL, emailVerified } = authUser;
+      
+      const userData = {
+        uid,
+        email,
+        username: displayName || email.split('@')[0],
+        displayName: displayName || email.split('@')[0],
+        profilePhoto: photoURL || null,
+        emailVerified,
+        isActive: true,
+        ...additionalData
+      };
+      
+      return await this.create(uid, userData, true);
+    } catch (error) {
+      console.error('Error creating/updating user from auth:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update user active status
+   * @param {string} userId - User ID
+   * @param {boolean} isActive - Active status
+   * @returns {Promise<void>}
+   */
+  async updateActiveStatus(userId, isActive) {
+    try {
+      return await this.update(userId, { isActive });
+    } catch (error) {
+      console.error('Error updating user active status:', error);
+      throw error;
+    }
+  }
+} 
