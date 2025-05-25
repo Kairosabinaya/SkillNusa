@@ -4,8 +4,30 @@ import { useAuth } from '../../context/AuthContext';
 import { sendEmailVerification } from 'firebase/auth';
 
 export default function Login() {
-  const [email, setEmail] = useState('');
+  const [emailOrUsername, setEmailOrUsername] = useState('');
   const [password, setPassword] = useState('');
+  
+  // Handler untuk memformat input email/username
+  const handleEmailOrUsernameChange = (e) => {
+    const rawValue = e.target.value;
+    let sanitizedValue;
+    
+    // Cek apakah input berisi @ (kemungkinan email)
+    if (rawValue.includes('@')) {
+      // Format untuk email: huruf kecil, angka, dan karakter email yang valid
+      sanitizedValue = rawValue.toLowerCase().replace(/[^a-z0-9@._-]/g, '');
+    } else {
+      // Format untuk username: hanya huruf kecil dan angka
+      sanitizedValue = rawValue.toLowerCase().replace(/[^a-z0-9]/g, '');
+    }
+    
+    // Update field value jika nilai berubah
+    if (rawValue !== sanitizedValue) {
+      e.target.value = sanitizedValue;
+    }
+    
+    setEmailOrUsername(sanitizedValue);
+  };
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showVerificationOption, setShowVerificationOption] = useState(false);
@@ -45,8 +67,8 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!email || !password) {
-      setError('Silakan masukkan email dan kata sandi.');
+    if (!emailOrUsername || !password) {
+      setError('Silakan masukkan email/username dan kata sandi.');
       return;
     }
     
@@ -55,7 +77,7 @@ export default function Login() {
       setLoading(true);
       setShowVerificationOption(false);
       setResendSuccess(false);
-      await login(email, password);
+      await login(emailOrUsername, password);
       // Navigation is handled by the useEffect watching currentUser
     } catch (error) {
       // Error state is handled by the useEffect watching authError
@@ -70,7 +92,7 @@ export default function Login() {
       setResendLoading(true);
       
       // Create a temporary authentication to get the user object
-      const tempAuth = await login(email, password).catch(() => null);
+      const tempAuth = await login(emailOrUsername, password).catch(() => null);
       
       if (tempAuth && tempAuth.user) {
         await sendEmailVerification(tempAuth.user);
@@ -97,7 +119,11 @@ export default function Login() {
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">Masuk ke akun Anda</h2>
           <p className="mt-2 text-center text-sm text-gray-600">
             Atau{' '}
-            <Link to="/register" className="font-medium text-[#010042] hover:text-[#0100a3]">
+            <Link 
+              to="/register" 
+              state={{ resetForm: true }}
+              className="font-medium text-[#010042] hover:text-[#0100a3]"
+            >
               buat akun baru
             </Link>
           </p>
@@ -149,18 +175,20 @@ export default function Login() {
         <form className="mt-8 space-y-6" onSubmit={handleSubmit} noValidate>
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
-              <label htmlFor="email-address" className="sr-only">Alamat Email</label>
-              <input
-                id="email-address"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-[#010042] focus:border-[#010042] focus:z-10 sm:text-sm"
-                placeholder="Alamat Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
+              <label htmlFor="emailOrUsername" className="block text-sm font-medium text-gray-700">Email atau Username</label>
+              <div className="mt-1">
+                <input
+                  id="emailOrUsername"
+                  name="emailOrUsername"
+                  type="text"
+                  autoComplete="username"
+                  required
+                  value={emailOrUsername}
+                  onChange={handleEmailOrUsernameChange}
+                  placeholder="Masukkan email atau username"
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#010042] focus:border-[#010042] sm:text-sm"
+                />
+              </div>
             </div>
             <div>
               <label htmlFor="password" className="sr-only">Kata Sandi</label>

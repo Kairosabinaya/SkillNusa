@@ -1,5 +1,5 @@
 import BaseModel from './BaseModel';
-import { USER_ROLES } from '../utils/constants';
+import { USER_ROLES, FREELANCER_STATUS } from '../utils/constants';
 
 /**
  * User model representing a user in the system
@@ -19,7 +19,18 @@ export default class User extends BaseModel {
     this.phoneNumber = data.phoneNumber || '';
     this.gender = data.gender || '';
     this.birthDate = data.birthDate || '';
+    
+    // Multi-role architecture
+    this.roles = data.roles || [USER_ROLES.CLIENT]; // Array, default ['client']
+    this.activeRole = data.activeRole || USER_ROLES.CLIENT; // Currently active role
+    this.isFreelancer = data.isFreelancer || false; // Quick check flag
+    this.freelancerStatus = data.freelancerStatus || null; // 'pending', 'approved', 'rejected'
+    this.freelancerAppliedAt = data.freelancerAppliedAt || null;
+    this.freelancerApprovedAt = data.freelancerApprovedAt || null;
+    
+    // Legacy support for single-role field (deprecated)
     this.role = data.role || USER_ROLES.CLIENT;
+    
     this.profilePhoto = data.profilePhoto || null;
     this.bio = data.bio || '';
     this.isActive = data.isActive !== undefined ? data.isActive : true;
@@ -32,7 +43,7 @@ export default class User extends BaseModel {
    * @returns {boolean} True if user has the role
    */
   hasRole(role) {
-    return this.role === role || this.role === USER_ROLES.ADMIN;
+    return this.roles.includes(role) || this.roles.includes(USER_ROLES.ADMIN);
   }
 
   /**
@@ -40,7 +51,7 @@ export default class User extends BaseModel {
    * @returns {boolean} True if user is admin
    */
   isAdmin() {
-    return this.role === USER_ROLES.ADMIN;
+    return this.roles.includes(USER_ROLES.ADMIN);
   }
 
   /**
@@ -48,7 +59,7 @@ export default class User extends BaseModel {
    * @returns {boolean} True if user is freelancer
    */
   isFreelancer() {
-    return this.role === USER_ROLES.FREELANCER;
+    return this.roles.includes(USER_ROLES.FREELANCER);
   }
 
   /**
@@ -56,6 +67,14 @@ export default class User extends BaseModel {
    * @returns {boolean} True if user is client
    */
   isClient() {
-    return this.role === USER_ROLES.CLIENT;
+    return this.roles.includes(USER_ROLES.CLIENT);
+  }
+  
+  /**
+   * Check if user can switch to freelancer role
+   * @returns {boolean} True if user can switch to freelancer role
+   */
+  canSwitchToFreelancer() {
+    return this.isFreelancer && this.freelancerStatus === FREELANCER_STATUS.APPROVED;
   }
 } 

@@ -17,11 +17,19 @@ export const createUserProfile = async (userId, profileData) => {
   }
   
   try {
-    // Update user document with basic info
+    // Update user document with basic info and multi-role fields
     await firebaseService.updateDocument(COLLECTIONS.USERS, userId, {
+      // Basic info
       displayName: profileData.displayName,
       username: profileData.username,
+      // Legacy support
       role: profileData.role,
+      // Multi-role architecture fields
+      roles: profileData.roles || [profileData.role],
+      activeRole: profileData.activeRole || profileData.role,
+      isFreelancer: profileData.isFreelancer || false,
+      freelancerStatus: profileData.freelancerStatus || null,
+      // Profile data
       profilePhoto: profileData.profilePhoto,
       phoneNumber: profileData.phoneNumber,
       dateOfBirth: profileData.dateOfBirth,
@@ -31,38 +39,38 @@ export const createUserProfile = async (userId, profileData) => {
       updatedAt: serverTimestamp()
     });
     
-    // Update profile document with role-specific info
-    await firebaseService.updateDocument(COLLECTIONS.PROFILES, userId, {
+    // Create client profile for the new multi-role architecture
+    await firebaseService.setDocument(COLLECTIONS.CLIENT_PROFILES, userId, {
       // Common fields
+      userId,
       phoneNumber: profileData.phoneNumber,
       dateOfBirth: profileData.dateOfBirth,
       gender: profileData.gender,
       location: profileData.location,
       bio: profileData.bio,
       
-      // Role-specific fields
-      ...(profileData.role === 'freelancer' 
-        ? {
-            skills: profileData.skills || [],
-            experienceLevel: profileData.experienceLevel,
-            portfolioLinks: profileData.portfolioLinks || [],
-            hourlyRate: profileData.hourlyRate,
-            availability: profileData.availability
-          }
-        : {
-            companyName: profileData.companyName,
-            industry: profileData.industry,
-            companySize: profileData.companySize,
-            budgetRange: profileData.budgetRange,
-            primaryNeeds: profileData.primaryNeeds || []
-          }
-      ),
-      
       // Preferences
       marketingEmails: profileData.marketingEmails || false,
       
+      // Timestamps
+      createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     });
+    
+    // Create freelancer profile if user is registering directly as freelancer (admin flow)
+    if (profileData.role === 'freelancer' || profileData.isFreelancer) {
+      await firebaseService.setDocument(COLLECTIONS.FREELANCER_PROFILES, userId, {
+        userId,
+        skills: profileData.skills || [],
+        experienceLevel: profileData.experienceLevel || '',
+        portfolioLinks: profileData.portfolioLinks || [],
+        hourlyRate: profileData.hourlyRate || 0,
+        availability: profileData.availability || '',
+        bio: profileData.bio || '',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+    }
     
   } catch (error) {
     console.error("Error creating user profile:", error);

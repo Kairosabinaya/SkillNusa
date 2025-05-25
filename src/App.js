@@ -24,6 +24,7 @@ import ClientDashboard from './pages/Dashboard/ClientDashboard';
 import AdminDashboard from './pages/Dashboard/AdminDashboard';
 import Profile from './pages/Profile/Profile';
 import EditProfile from './pages/Profile/EditProfile';
+import BecomeFreelancer from './pages/Profile/BecomeFreelancer';
 
 // Protected Routes
 import ProtectedRoute from './components/ProtectedRoute';
@@ -59,11 +60,7 @@ function App() {
             <Route index element={<Navigate to={ROUTES.DASHBOARD.CLIENT} replace />} />
             <Route 
               path="freelancer" 
-              element={
-                <RoleRoute roles={[ROLES.FREELANCER, ROLES.ADMIN]}>
-                  <FreelancerDashboard />
-                </RoleRoute>
-              } 
+              element={<FreelancerDashboard />} 
             />
             <Route 
               path="client" 
@@ -94,6 +91,18 @@ function App() {
           >
             <Route index element={<Profile />} />
             <Route path="edit" element={<EditProfile />} />
+          </Route>
+
+          {/* Become Freelancer Route */}
+          <Route 
+            path="/become-freelancer" 
+            element={
+              <ProtectedRoute>
+                <PublicLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<BecomeFreelancer />} />
           </Route>
 
           {/* Catch all - 404 */}

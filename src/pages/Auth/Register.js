@@ -1,21 +1,29 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import RegisterStep1 from '../../components/Auth/RegisterStep1';
 import RegisterStep2 from '../../components/Auth/RegisterStep2';
-import RegisterStep3 from '../../components/Auth/RegisterStep3';
-import RegisterStep4 from '../../components/Auth/RegisterStep4';
+import RegisterStep3 from '../../components/Auth/RegisterStep3'; // Previously RegisterStep4
 import { USER_ROLES } from '../../utils/constants';
 import { createUserProfile } from '../../services/profileService';
 
 export default function Register() {
+  const location = useLocation();
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const { signup } = useAuth();
+  
+  // Reset form data when directly navigating to Register page
+  useEffect(() => {
+    // If the user directly clicked on register link, clear previous form data
+    if (location.state && location.state.resetForm) {
+      localStorage.removeItem('skillnusa_register_form');
+    }
+  }, [location]);
 
   // Retrieve saved form data from localStorage if available
   const savedFormValues = localStorage.getItem('skillnusa_register_form');
@@ -28,7 +36,8 @@ export default function Register() {
         confirmPassword: '',
         fullName: '',
         username: '',
-        role: USER_ROLES.FREELANCER,
+        // All users register as clients by default in the new architecture
+        role: USER_ROLES.CLIENT,
         
         // Step 2 - Profile Details
         profilePhoto: null,
@@ -39,21 +48,7 @@ export default function Register() {
         location: '',
         bio: '',
         
-        // Step 3 - Role-Specific Info (Freelancer)
-        skills: [],
-        experienceLevel: '',
-        portfolioLinks: ['', '', ''],
-        hourlyRate: '',
-        availability: '',
-        
-        // Step 3 - Role-Specific Info (Client)
-        companyName: '',
-        industry: '',
-        companySize: '',
-        budgetRange: '',
-        primaryNeeds: [],
-        
-        // Step 4 - Terms & Verification
+        // Step 3 - Terms & Verification (previously Step 4)
         agreeToTerms: false,
         agreeToPrivacy: false,
         agreeToMarketing: false
@@ -69,6 +64,26 @@ export default function Register() {
     localStorage.removeItem('skillnusa_register_form');
   };
   
+  // Handle tab close and navigation away from registration page
+  useEffect(() => {
+    // Function to handle beforeunload event (tab close/refresh)
+    const handleBeforeUnload = (e) => {
+      const formData = localStorage.getItem('skillnusa_register_form');
+      if (formData) {
+        // Standard way to show a confirmation dialog
+        e.preventDefault();
+        e.returnValue = 'Anda yakin ingin keluar dari halaman pendaftaran? Data yang sudah dimasukkan akan hilang.';
+        return e.returnValue;
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
+  
   const handleNextStep = () => {
     setCurrentStep(currentStep + 1);
   };
@@ -78,7 +93,7 @@ export default function Register() {
   };
   
   const handleSubmit = async (values, { setSubmitting }) => {
-    if (currentStep < 4) {
+    if (currentStep < 3) {
       saveFormProgress(values);
       handleNextStep();
       setSubmitting(false);
@@ -89,49 +104,50 @@ export default function Register() {
     setLoading(true);
     
     try {
-      // Register user with Firebase Auth
-      const user = await signup(values.email, values.password, values.username, values.role);
+      // Register user with Firebase Auth (always as client in new architecture)
+      const user = await signup(values.email, values.password, values.username, USER_ROLES.CLIENT);
       
-      // Create complete user profile
+      // Create complete user profile with multi-role architecture
       await createUserProfile(user.uid, {
         displayName: values.fullName,
         username: values.username,
-        role: values.role,
+        // Multi-role fields
+        roles: [USER_ROLES.CLIENT],
+        activeRole: USER_ROLES.CLIENT,
+        isFreelancer: false,
+        // Legacy support
+        role: USER_ROLES.CLIENT,
+        // Profile fields
         profilePhoto: values.profilePhotoURL,
         phoneNumber: values.phoneNumber,
         dateOfBirth: values.dateOfBirth,
         gender: values.gender,
         location: values.location,
         bio: values.bio,
-        // Role-specific fields
-        ...(values.role === USER_ROLES.FREELANCER 
-          ? {
-              skills: values.skills,
-              experienceLevel: values.experienceLevel,
-              portfolioLinks: values.portfolioLinks.filter(link => link !== ''),
-              hourlyRate: values.hourlyRate,
-              availability: values.availability
-            }
-          : {
-              companyName: values.companyName,
-              industry: values.industry,
-              companySize: values.companySize,
-              budgetRange: values.budgetRange,
-              primaryNeeds: values.primaryNeeds
-            }
-        ),
         // Preferences
         marketingEmails: values.agreeToMarketing
       });
       
-      // Clear saved form data
+      // Successful registration
       clearSavedFormData();
-      
-      // Redirect to email verification page
       navigate('/verify-email');
     } catch (error) {
-      console.error(error);
-      setError('Gagal membuat akun. ' + (error.message || ''));
+      console.error('Registration error:', error);
+      
+      // Provide user-friendly error messages in Indonesian
+      if (error.code === 'auth/email-already-in-use') {
+        setError('Email ini sudah terdaftar. Silakan masuk atau gunakan email lain.');
+      } else if (error.code === 'auth/weak-password') {
+        setError('Password terlalu lemah. Gunakan minimal 6 karakter dengan kombinasi huruf dan angka.');
+      } else if (error.code === 'auth/invalid-email') {
+        setError('Format email tidak valid. Periksa kembali email Anda.');
+      } else if (error.code === 'auth/network-request-failed') {
+        setError('Koneksi internet bermasalah. Periksa koneksi Anda dan coba lagi.');
+      } else if (error.code) {
+        setError(`Terjadi kesalahan: ${error.code}. Silakan coba lagi.`);
+      } else {
+        setError('Terjadi kesalahan saat mendaftar. Silakan coba lagi.');
+      }
     } finally {
       setLoading(false);
       setSubmitting(false);
@@ -160,10 +176,8 @@ export default function Register() {
         .min(3, 'Username minimal 3 karakter')
         .max(20, 'Username maksimal 20 karakter')
         .matches(/^[a-zA-Z0-9_]+$/, 'Username hanya boleh berisi huruf, angka, dan underscore')
-        .required('Username wajib diisi'),
-      role: Yup.string()
-        .oneOf([USER_ROLES.FREELANCER, USER_ROLES.CLIENT], 'Pilih peran yang valid')
-        .required('Peran wajib dipilih')
+        .required('Username wajib diisi')
+      // Removed role validation as users always register as clients
     }),
     
     // Step 2 - Profile Details
@@ -180,86 +194,10 @@ export default function Register() {
       location: Yup.string()
         .required('Kota wajib dipilih'),
       bio: Yup.string()
-        .when('role', ([role]) => {
-          return role === USER_ROLES.FREELANCER
-            ? Yup.string()
-                .min(50, 'Bio minimal 50 karakter')
-                .max(500, 'Bio maksimal 500 karakter')
-                .required('Bio wajib diisi untuk Freelancer')
-            : Yup.string();
-        }),
+        .max(500, 'Bio maksimal 500 karakter')
     }),
     
-    // Step 3 - Role-Specific Info
-    Yup.object().shape({
-      // Freelancer fields
-      skills: Yup.array()
-        .when('role', ([role]) => {
-          return role === USER_ROLES.FREELANCER
-            ? Yup.array()
-                .min(3, 'Pilih minimal 3 keahlian')
-                .required('Keahlian wajib dipilih')
-            : Yup.array();
-        }),
-      experienceLevel: Yup.string()
-        .when('role', ([role]) => {
-          return role === USER_ROLES.FREELANCER
-            ? Yup.string()
-                .oneOf(['Beginner', 'Intermediate', 'Expert'], 'Pilih level pengalaman yang valid')
-                .required('Level pengalaman wajib dipilih')
-            : Yup.string();
-        }),
-      portfolioLinks: Yup.array()
-        .when('role', ([role]) => {
-          return role === USER_ROLES.FREELANCER
-            ? Yup.array().of(
-                Yup.string().url('URL tidak valid').nullable()
-              )
-            : Yup.array();
-        }),
-      availability: Yup.string()
-        .when('role', ([role]) => {
-          return role === USER_ROLES.FREELANCER
-            ? Yup.string()
-                .oneOf(['Full-time', 'Part-time', 'Project-based'], 'Pilih ketersediaan yang valid')
-                .required('Ketersediaan wajib dipilih')
-            : Yup.string();
-        }),
-      
-      // Client fields
-      industry: Yup.string()
-        .when('role', ([role]) => {
-          return role === USER_ROLES.CLIENT
-            ? Yup.string()
-                .required('Industri wajib dipilih')
-            : Yup.string();
-        }),
-      companySize: Yup.string()
-        .when('role', ([role]) => {
-          return role === USER_ROLES.CLIENT
-            ? Yup.string()
-                .oneOf(['1-10', '11-50', '51-200', '200+', 'Individual'], 'Pilih ukuran perusahaan yang valid')
-                .required('Ukuran perusahaan wajib dipilih')
-            : Yup.string();
-        }),
-      budgetRange: Yup.string()
-        .when('role', ([role]) => {
-          return role === USER_ROLES.CLIENT
-            ? Yup.string()
-                .required('Rentang budget wajib dipilih')
-            : Yup.string();
-        }),
-      primaryNeeds: Yup.array()
-        .when('role', ([role]) => {
-          return role === USER_ROLES.CLIENT
-            ? Yup.array()
-                .min(1, 'Pilih minimal 1 kebutuhan')
-                .required('Kebutuhan utama wajib dipilih')
-            : Yup.array();
-        })
-    }),
-    
-    // Step 4 - Terms & Verification
+    // Step 3 - Terms & Verification (previously Step 4)
     Yup.object({
       agreeToTerms: Yup.boolean()
         .oneOf([true], 'Anda harus menyetujui Syarat & Ketentuan')
@@ -275,15 +213,41 @@ export default function Register() {
       <div className="max-w-2xl w-full space-y-6 bg-white p-8 rounded-xl shadow-md">
         <div>
           <div className="flex justify-center">
-            <Link to="/" className="block text-center">
+            <Link 
+              to="/" 
+              className="block text-center"
+              onClick={(e) => {
+                if (localStorage.getItem('skillnusa_register_form')) {
+                  const confirmed = window.confirm('Anda yakin ingin keluar dari halaman pendaftaran? Data yang sudah dimasukkan akan hilang.');
+                  if (confirmed) {
+                    clearSavedFormData();
+                  } else {
+                    e.preventDefault();
+                  }
+                }
+              }}
+            >
               <span className="text-2xl font-bold cursor-pointer bg-gradient-to-r from-[#010042] to-[#0100a3] bg-clip-text text-transparent" style={{letterSpacing: "0.5px"}}>SkillNusa</span>
             </Link>
           </div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">Buat Akun</h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Atau{' '}
-            <Link to="/login" className="font-medium text-[#010042] hover:text-[#0100a3]">
-              masuk jika sudah memiliki akun
+            Sudah memiliki akun?{' '}
+            <Link 
+              to="/login" 
+              className="font-medium text-[#010042] hover:text-[#0100a3]"
+              onClick={(e) => {
+                if (localStorage.getItem('skillnusa_register_form')) {
+                  const confirmed = window.confirm('Anda yakin ingin keluar dari halaman pendaftaran? Data yang sudah dimasukkan akan hilang.');
+                  if (confirmed) {
+                    clearSavedFormData();
+                  } else {
+                    e.preventDefault();
+                  }
+                }
+              }}
+            >
+              Masuk di sini
             </Link>
           </p>
         </div>
@@ -291,7 +255,7 @@ export default function Register() {
         {/* Progress Indicator */}
         <div className="w-full">
           <div className="flex justify-between items-center mb-4">
-            {[1, 2, 3, 4].map((step) => (
+            {[1, 2, 3].map((step) => (
               <div key={step} className="flex flex-col items-center">
                 <div 
                   className={`w-10 h-10 flex items-center justify-center rounded-full ${
@@ -313,8 +277,7 @@ export default function Register() {
                 <span className="text-xs mt-2 text-gray-600">
                   {step === 1 && "Akun"}
                   {step === 2 && "Profil"}
-                  {step === 3 && "Detail"}
-                  {step === 4 && "Syarat"}
+                  {step === 3 && "Syarat"}
                 </span>
               </div>
             ))}
@@ -322,7 +285,7 @@ export default function Register() {
           <div className="relative w-full h-2 bg-gray-200 rounded-full">
             <div 
               className="absolute top-0 left-0 h-2 bg-[#010042] rounded-full transition-all duration-300"
-              style={{ width: `${(currentStep / 4) * 100}%` }}
+              style={{ width: `${(currentStep / 3) * 100}%` }}
             />
           </div>
         </div>
@@ -372,16 +335,9 @@ export default function Register() {
                   />
                 )}
                 
-                {/* Step 3 - Role-Specific Info */}
+                {/* Step 3 - Terms & Verification (previously Step 4) */}
                 {currentStep === 3 && (
                   <RegisterStep3 
-                    formikProps={formikProps}
-                  />
-                )}
-                
-                {/* Step 4 - Terms & Verification */}
-                {currentStep === 4 && (
-                  <RegisterStep4 
                     formikProps={formikProps}
                   />
                 )}
@@ -399,22 +355,35 @@ export default function Register() {
                     <div></div>
                   )}
                   
-            <button
-              type="submit"
-                    disabled={loading || (currentStep === 4 && (!formikProps.values.agreeToTerms || !formikProps.values.agreeToPrivacy))}
+                  <button
+                    type="submit"
+                    disabled={loading || (currentStep === 3 && (!formikProps.values.agreeToTerms || !formikProps.values.agreeToPrivacy))}
                     className="group relative py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#010042] hover:bg-[#0100a3] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#010042] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-                    {loading ? 'Memproses...' : currentStep < 4 ? 'Lanjut' : 'Daftar'}
-            </button>
-          </div>
+                  >
+                    {loading ? 'Memproses...' : currentStep < 3 ? 'Lanjut' : 'Daftar'}
+                  </button>
+                </div>
 
-          <div className="flex items-center justify-center">
-            <div className="text-sm">
-              <Link to="/login" className="font-medium text-[#010042] hover:text-[#0100a3]">
+                <div className="flex items-center justify-center">
+                  <div className="text-sm">
+                    <Link 
+                      to="/login" 
+                      className="font-medium text-[#010042] hover:text-[#0100a3]"
+                      onClick={(e) => {
+                        if (localStorage.getItem('skillnusa_register_form')) {
+                          const confirmed = window.confirm('Anda yakin ingin keluar dari halaman pendaftaran? Data yang sudah dimasukkan akan hilang.');
+                          if (confirmed) {
+                            clearSavedFormData();
+                          } else {
+                            e.preventDefault();
+                          }
+                        }
+                      }}
+                    >
                       Sudah punya akun? Masuk
-              </Link>
-            </div>
-          </div>
+                    </Link>
+                  </div>
+                </div>
               </Form>
             );
           }}

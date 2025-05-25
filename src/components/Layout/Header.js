@@ -1,9 +1,43 @@
 import { Link } from 'react-router-dom';
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/react';
 import { useAuth } from '../../context/AuthContext';
+import { useState, useEffect } from 'react';
+import { getUserProfile } from '../../services/userProfileService';
 
 export default function Header() {
   const { currentUser, userProfile, logout } = useAuth();
+  const [profileData, setProfileData] = useState(null);
+  const [userRegistrationData, setUserRegistrationData] = useState(null);
+  const [combinedUserData, setCombinedUserData] = useState(null);
+
+  // Fetch complete profile data using the service
+  useEffect(() => {
+    async function fetchProfileData() {
+      if (!currentUser) return;
+      
+      try {
+        // Use the centralized service to get complete profile data
+        const completeProfile = await getUserProfile(currentUser.uid);
+        if (completeProfile) {
+          setProfileData(completeProfile);
+        }
+      } catch (error) {
+        console.error("Error fetching profile data in header:", error);
+      }
+    }
+
+    fetchProfileData();
+  }, [currentUser]);
+
+  // Combine all profile data sources
+  useEffect(() => {
+    if (currentUser) {
+      setCombinedUserData({
+        ...userProfile,
+        ...profileData
+      });
+    }
+  }, [currentUser, userProfile, profileData]);
 
   const handleLogout = async () => {
     try {
@@ -40,10 +74,17 @@ export default function Header() {
                   <MenuButton className="bg-white rounded-full flex text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#010042]">
                     <span className="sr-only">Buka menu pengguna</span>
                     <div className="h-8 w-8 rounded-full bg-[#010042]/10 flex items-center justify-center text-[#010042] overflow-hidden border border-gray-200 hover:border-[#010042] transition-all duration-200">
-                      {userProfile?.profilePhoto ? (
-                        <img className="h-8 w-8 rounded-full object-cover" src={userProfile.profilePhoto} alt={userProfile.displayName} />
+                      {combinedUserData?.profilePhoto ? (
+                        <img 
+                          className="h-8 w-8 rounded-full object-cover" 
+                          src={combinedUserData.profilePhoto} 
+                          alt={combinedUserData.displayName || currentUser.email} 
+                        />
                       ) : (
-                        <span className="text-sm font-semibold">{userProfile?.displayName?.charAt(0).toUpperCase() || 'U'}</span>
+                        <span className="text-sm font-semibold">
+                          {(combinedUserData?.displayName || currentUser?.displayName)?.charAt(0).toUpperCase() || 
+                           currentUser?.email?.charAt(0).toUpperCase() || 'U'}
+                        </span>
                       )}
                     </div>
                   </MenuButton>
@@ -53,10 +94,10 @@ export default function Header() {
                   >
                     <div className="border-b border-gray-100 pb-2 pt-1 px-4">
                       <p className="text-sm font-medium text-gray-900 truncate">
-                        {userProfile?.displayName || 'Pengguna'}
+                        {combinedUserData?.displayName || currentUser?.displayName || 'Pengguna'}
                       </p>
                       <p className="text-xs text-gray-500 truncate">
-                        {userProfile?.email}
+                        {combinedUserData?.email || currentUser?.email}
                       </p>
                     </div>
                     <div className="py-1">
@@ -67,16 +108,6 @@ export default function Header() {
                               <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                             </svg>
                             Profil Saya
-                          </Link>
-                        )}
-                      </MenuItem>
-                      <MenuItem>
-                        {({ active }) => (
-                          <Link to="/profile/edit" className={`${active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'} group flex items-center px-4 py-2 text-sm`}>
-                            <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-[#010042]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
-                            </svg>
-                            Pengaturan
                           </Link>
                         )}
                       </MenuItem>

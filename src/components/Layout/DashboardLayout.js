@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { Outlet, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import Header from './Header';
+import RoleSwitcher from '../UI/RoleSwitcher';
+import FreelancerCTA from '../UI/FreelancerCTA';
 
 export default function DashboardLayout() {
-  const { userProfile } = useAuth();
+  const { userProfile, activeRole } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const menuItems = {
@@ -31,8 +33,11 @@ export default function DashboardLayout() {
     ],
   };
 
-  const role = userProfile?.role || 'client';
-  const navigation = menuItems[role] || [];
+  // Use activeRole from AuthContext, fall back to roles array, then to legacy role field
+  const role = activeRole || 
+    (userProfile?.roles && userProfile.roles.length > 0 ? userProfile.roles[0] : userProfile?.role) || 
+    'client';
+  const navigation = menuItems[role] || menuItems['client'];
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
@@ -43,8 +48,9 @@ export default function DashboardLayout() {
         <div className="hidden md:flex md:flex-shrink-0">
           <div className="flex flex-col w-64 border-r border-gray-200 bg-white">
             <div className="h-0 flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
-              <div className="flex items-center flex-shrink-0 px-4">
+              <div className="flex items-center flex-shrink-0 px-4 justify-between">
                 <span className="text-xl font-semibold bg-gradient-to-r from-[#010042] to-[#0100a3] bg-clip-text text-transparent">{role.charAt(0).toUpperCase() + role.slice(1)} Dashboard</span>
+                <RoleSwitcher />
               </div>
               <nav className="mt-5 flex-1 px-2 bg-white space-y-1">
                 {navigation.map((item) => (
@@ -132,9 +138,11 @@ export default function DashboardLayout() {
 
         {/* Main content */}
         <main className="flex-1 overflow-y-auto focus:outline-none p-6">
+          {/* Show Freelancer CTA in client dashboard only */}
+          {role === 'client' && <div className="mb-6"><FreelancerCTA variant="dashboard" /></div>}
           <Outlet />
         </main>
       </div>
     </div>
   );
-} 
+}

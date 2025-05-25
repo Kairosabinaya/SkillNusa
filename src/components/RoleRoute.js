@@ -6,9 +6,10 @@ import { useEffect, useState } from 'react';
 
 /**
  * A route wrapper component that checks if the user has the required role(s)
+ * Updated to support the multi-role architecture
  */
 export default function RoleRoute({ roles, children, redirectTo = ROUTES.DASHBOARD.ROOT }) {
-  const { userProfile, currentUser, loading } = useAuth();
+  const { userProfile, currentUser, loading, activeRole } = useAuth();
   const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
@@ -24,8 +25,21 @@ export default function RoleRoute({ roles, children, redirectTo = ROUTES.DASHBOA
     return <div className="flex items-center justify-center h-screen">Loading...</div>;
   }
 
-  // If user is not authenticated or doesn't have required role, redirect
-  if (!currentUser || !userProfile || !roles.includes(userProfile.role)) {
+  // If user is not authenticated, redirect
+  if (!currentUser || !userProfile) {
+    return <Navigate to={ROUTES.LOGIN} replace />;
+  }
+  
+  // Check if user has the required role
+  // First check activeRole (for the multi-role architecture)
+  // Then fall back to checking roles array
+  // Finally fall back to legacy role field
+  const hasRequiredRole = 
+    (activeRole && roles.includes(activeRole)) || 
+    (userProfile.roles && userProfile.roles.some(role => roles.includes(role))) ||
+    (userProfile.role && roles.includes(userProfile.role));
+    
+  if (!hasRequiredRole) {
     return <Navigate to={redirectTo} replace />;
   }
 

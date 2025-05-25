@@ -3,6 +3,7 @@ import { TypeAnimation } from 'react-type-animation';
 import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../routes';
 import { useState, useRef, useEffect } from 'react';
+import FreelancerCTA from '../components/UI/FreelancerCTA';
 
 export default function Home() {
   const { currentUser } = useAuth();
@@ -239,8 +240,18 @@ export default function Home() {
   // Take only 18 gigs for display (6x3 grid)
   const displayedGigs = filteredGigs.slice(0, 18);
 
+  // Periksa apakah pengguna adalah klien (non-freelancer) untuk menampilkan CTA
+  // Dalam arsitektur multi-role, kita perlu memeriksa apakah user adalah client dan belum menjadi freelancer
+  const showFreelancerCTA = currentUser && 
+    ((currentUser.activeRole === 'client') || 
+     (currentUser.roles && currentUser.roles.includes('client') && !currentUser.roles.includes('freelancer'))) && 
+    !currentUser.isFreelancer;
+
   return (
-    <div>
+    <div className="font-sans">
+      {/* Freelancer CTA Banner - hanya ditampilkan untuk klien yang login */}
+      {showFreelancerCTA && <FreelancerCTA variant="banner" />}
+      
       {/* Hero Section */}
       <div className="relative min-h-[85vh] flex items-center">
         <div className="absolute inset-0 bg-gradient-to-b from-[#010042] to-[#0100a3]"></div>
@@ -357,6 +368,15 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* Freelancer CTA Section - Only shown to logged-in clients */}
+      {currentUser && (
+        <div className="bg-white py-8">
+          <div className="max-w-7xl mx-auto px-3 sm:px-4">
+            <FreelancerCTA variant="home" />
+          </div>
+        </div>
+      )}
 
       {/* SkillBot AI Banner Section */}
       <div className="bg-white py-12">

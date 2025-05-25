@@ -25,10 +25,24 @@ export const USER_ROLES = {
  */
 export const COLLECTIONS = {
   USERS: 'users',
-  PROFILES: 'profiles',
+  // Tidak lagi menggunakan koleksi 'profiles' (legacy)
+  // PROFILES: 'profiles',
+  
+  // Menggunakan format yang konsisten sesuai dengan yang ada di Firestore
+  CLIENT_PROFILES: 'client_profiles',
+  FREELANCER_PROFILES: 'freelancer_profiles',
   PROJECTS: 'projects',
   PROPOSALS: 'proposals',
   MESSAGES: 'messages'
+};
+
+/**
+ * Freelancer application status
+ */
+export const FREELANCER_STATUS = {
+  PENDING: 'pending',
+  APPROVED: 'approved',
+  REJECTED: 'rejected'
 };
 
 /**
