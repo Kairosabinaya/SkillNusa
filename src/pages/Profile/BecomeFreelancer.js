@@ -8,27 +8,43 @@ import { FREELANCER_STATUS } from '../../utils/constants';
 import BecomeFreelancerStep1 from '../../components/Profile/BecomeFreelancerStep1';
 import BecomeFreelancerStep2 from '../../components/Profile/BecomeFreelancerStep2';
 import BecomeFreelancerStep3 from '../../components/Profile/BecomeFreelancerStep3';
+import BecomeFreelancerStep4 from '../../components/Profile/BecomeFreelancerStep4';
 
 export default function BecomeFreelancer() {
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
-  const { user, refreshUserData } = useAuth();
+  const { currentUser, userProfile, refreshUserData, loading: authLoading } = useAuth();
+  
+  // Redirect to login if user is not authenticated
+  useEffect(() => {
+    if (!authLoading && !currentUser) {
+      navigate('/login', { 
+        state: { 
+          message: 'Anda harus login terlebih dahulu untuk menjadi freelancer', 
+          type: 'warning' 
+        } 
+      });
+    }
+  }, [currentUser, authLoading, navigate]);
   
   // Initial form values
   const initialValues = {
     // Step 1: Skills & Experience
-    skills: [],
-    experienceLevel: '',
-    bio: user?.bio || '',
+    skills: [], // Menyimpan array objek {skill, experienceLevel}
+    bio: userProfile?.bio || '',
     
-    // Step 2: Portfolio & Rates
-    portfolioLinks: ['', '', ''],
-    hourlyRate: '',
+    // Step 2: Education & Certification
+    education: [], // Array objek education {country, university, degree, fieldOfStudy, graduationYear}
+    certifications: [], // Array objek certifications {name, issuedBy, year}
+    
+    // Step 3: Portfolio & Availability
+    portfolioLink: '', // Hanya 1 link portfolio
     availability: '',
+    workingHours: '', // Menambahkan working hours
     
-    // Step 3: Verification & Agreement
+    // Step 4: Verification & Agreement
     agreeToFreelancerTerms: false,
     agreeToQualityStandards: false
   };
@@ -38,35 +54,42 @@ export default function BecomeFreelancer() {
     // Step 1: Skills & Experience
     Yup.object({
       skills: Yup.array()
-        .min(3, 'Pilih minimal 3 keahlian')
+        .min(3, 'Tambahkan minimal 3 keahlian')
         .required('Keahlian wajib dipilih'),
-      experienceLevel: Yup.string()
-        .oneOf(['Beginner', 'Intermediate', 'Expert'], 'Pilih level pengalaman yang valid')
-        .required('Level pengalaman wajib dipilih'),
       bio: Yup.string()
         .min(50, 'Bio minimal 50 karakter')
         .max(500, 'Bio maksimal 500 karakter')
         .required('Bio wajib diisi untuk Freelancer')
     }),
     
-    // Step 2: Portfolio & Rates
+    // Step 2: Education & Certification
     Yup.object({
-      hourlyRate: Yup.number()
-        .min(0, 'Tarif per jam tidak boleh negatif')
-        .required('Tarif per jam wajib diisi'),
-      availability: Yup.string()
-        .oneOf(['Full-time', 'Part-time', 'Project-based'], 'Pilih ketersediaan yang valid')
-        .required('Ketersediaan wajib dipilih')
+      // Education is now optional
+      education: Yup.array(),
+      // Certifications is optional
+      certifications: Yup.array()
     }),
     
-    // Step 3: Verification & Agreement
+    // Step 3: Portfolio & Availability
+    Yup.object({
+      // Portfolio link is optional
+      portfolioLink: Yup.string()
+        .url('URL tidak valid'),
+      availability: Yup.string()
+        .oneOf(['Part-time', 'Full-time', 'Weekends'], 'Pilih ketersediaan yang valid')
+        .required('Ketersediaan wajib dipilih'),
+      workingHours: Yup.string()
+        .required('Jam kerja wajib diisi')
+    }),
+    
+    // Step 4: Verification & Agreement
     Yup.object({
       agreeToFreelancerTerms: Yup.boolean()
-        .oneOf([true], 'Anda harus menyetujui Ketentuan Freelancer')
-        .required('Anda harus menyetujui Ketentuan Freelancer'),
+        .oneOf([true], 'Anda harus menyetujui ketentuan freelancer')
+        .required('Anda harus menyetujui ketentuan freelancer'),
       agreeToQualityStandards: Yup.boolean()
-        .oneOf([true], 'Anda harus menyetujui Standar Kualitas')
-        .required('Anda harus menyetujui Standar Kualitas')
+        .oneOf([true], 'Anda harus menyetujui standar kualitas')
+        .required('Anda harus menyetujui standar kualitas')
     })
   ];
   
@@ -82,7 +105,7 @@ export default function BecomeFreelancer() {
   
   // Handle form submission
   const handleSubmit = async (values, { setSubmitting }) => {
-    if (currentStep < 3) {
+    if (currentStep < 4) {
       handleNextStep();
       setSubmitting(false);
       return;
@@ -92,14 +115,16 @@ export default function BecomeFreelancer() {
     setLoading(true);
     
     try {
-      // Apply as freelancer
-      await applyAsFreelancer(user.uid, {
+      // Apply as freelancer - langsung menjadi freelancer tanpa persetujuan
+      await applyAsFreelancer(currentUser.uid, {
         skills: values.skills,
-        experienceLevel: values.experienceLevel,
         bio: values.bio,
-        portfolioLinks: values.portfolioLinks.filter(link => link !== ''),
-        hourlyRate: values.hourlyRate,
-        availability: values.availability
+        education: values.education,
+        certifications: values.certifications,
+        portfolioLink: values.portfolioLink,
+        availability: values.availability,
+        workingHours: values.workingHours,
+        freelancerStatus: FREELANCER_STATUS.APPROVED // Langsung disetujui
       });
       
       // Refresh user data to update role and freelancer status
@@ -108,21 +133,34 @@ export default function BecomeFreelancer() {
       // Redirect to profile page
       navigate('/profile', { 
         state: { 
-          message: 'Permohonan menjadi freelancer berhasil dikirim! Akun Anda sedang ditinjau.', 
+          message: 'Selamat! Anda telah berhasil terdaftar sebagai freelancer.', 
           type: 'success' 
         } 
       });
     } catch (error) {
       console.error(error);
-      setError('Gagal mengirim permohonan. ' + (error.message || ''));
+      setError('Gagal mendaftar sebagai freelancer. ' + (error.message || ''));
     } finally {
       setLoading(false);
       setSubmitting(false);
     }
   };
   
+  // Mostrar indicador de carga mientras se verifica la autenticación
+  if (authLoading) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-10 flex justify-center items-center">
+        <svg className="animate-spin h-8 w-8 text-[#010042]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span className="ml-3 text-lg font-medium text-gray-700">Memuat...</span>
+      </div>
+    );
+  }
+  
   // Check if user is already a freelancer
-  if (user?.isFreelancer) {
+  if (userProfile?.isFreelancer) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-10">
         <div className="bg-white shadow rounded-lg p-6">
@@ -136,9 +174,9 @@ export default function BecomeFreelancer() {
               </div>
               <div className="ml-3 flex-1 md:flex md:justify-between">
                 <p className="text-sm text-blue-700">
-                  {user.freelancerStatus === FREELANCER_STATUS.PENDING ? 
+                  {userProfile?.freelancerStatus === FREELANCER_STATUS.PENDING ? 
                     'Permohonan Anda sedang ditinjau. Kami akan memberi tahu Anda setelah selesai.' :
-                    user.freelancerStatus === FREELANCER_STATUS.APPROVED ?
+                    userProfile?.freelancerStatus === FREELANCER_STATUS.APPROVED ?
                     'Anda sudah terdaftar sebagai freelancer! Anda dapat beralih ke dashboard freelancer dari menu profil.' :
                     'Permohonan Anda telah ditolak. Silakan hubungi dukungan untuk informasi lebih lanjut.'}
                 </p>
@@ -163,7 +201,7 @@ export default function BecomeFreelancer() {
         {/* Progress Indicator */}
         <div className="w-full mb-8">
           <div className="flex justify-between items-center mb-4">
-            {[1, 2, 3].map((step) => (
+            {[1, 2, 3, 4].map((step) => (
               <div key={step} className="flex flex-col items-center">
                 <div 
                   className={`w-10 h-10 flex items-center justify-center rounded-full ${
@@ -184,8 +222,9 @@ export default function BecomeFreelancer() {
                 </div>
                 <span className="text-xs mt-2 text-gray-600">
                   {step === 1 && "Keahlian"}
-                  {step === 2 && "Portfolio"}
-                  {step === 3 && "Verifikasi"}
+                  {step === 2 && "Pendidikan"}
+                  {step === 3 && "Portfolio"}
+                  {step === 4 && "Verifikasi"}
                 </span>
               </div>
             ))}
@@ -193,7 +232,7 @@ export default function BecomeFreelancer() {
           <div className="relative w-full h-2 bg-gray-200 rounded-full">
             <div 
               className="absolute top-0 left-0 h-2 bg-[#010042] rounded-full transition-all duration-300"
-              style={{ width: `${(currentStep / 3) * 100}%` }}
+              style={{ width: `${(currentStep / 4) * 100}%` }}
             />
           </div>
         </div>
@@ -228,14 +267,19 @@ export default function BecomeFreelancer() {
                 <BecomeFreelancerStep1 formikProps={formikProps} />
               )}
               
-              {/* Step 2: Portfolio & Rates */}
+              {/* Step 2: Education & Certification */}
               {currentStep === 2 && (
                 <BecomeFreelancerStep2 formikProps={formikProps} />
               )}
               
-              {/* Step 3: Verification & Agreement */}
+              {/* Step 3: Portfolio & Availability */}
               {currentStep === 3 && (
                 <BecomeFreelancerStep3 formikProps={formikProps} />
+              )}
+              
+              {/* Step 4: Verification & Agreement */}
+              {currentStep === 4 && (
+                <BecomeFreelancerStep4 formikProps={formikProps} />
               )}
               
               <div className="flex justify-between items-center">
@@ -256,7 +300,7 @@ export default function BecomeFreelancer() {
                   disabled={loading}
                   className="py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#010042] hover:bg-[#0100a3] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#010042] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? 'Memproses...' : currentStep < 3 ? 'Lanjut' : 'Kirim Permohonan'}
+                  {loading ? 'Memproses...' : currentStep < 4 ? 'Lanjut' : 'Daftar Sekarang'}
                 </button>
               </div>
             </Form>

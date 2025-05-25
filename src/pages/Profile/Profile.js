@@ -269,6 +269,16 @@ export default function Profile() {
   return (
     <div className="max-w-7xl mx-auto px-6 py-12">
       <div className="max-w-4xl mx-auto">
+        {/* Freelancer CTA Banner - Dipindahkan ke bagian atas profil */}
+        {((combinedUserData?.activeRole === 'client') || 
+          (combinedUserData?.roles && combinedUserData.roles.includes('client') && !combinedUserData.roles.includes('freelancer')) ||
+          combinedUserData?.role === 'client') && 
+         !combinedUserData?.isFreelancer && (
+          <div className="mb-6">
+            <FreelancerCTA variant="profile" />
+          </div>
+        )}
+        
         <div className="bg-white rounded-xl shadow-md overflow-hidden">
           <div className="p-8">
             <div className="flex flex-col md:flex-row md:items-end">
@@ -350,52 +360,20 @@ export default function Profile() {
                    combinedUserData?.role === 'client' || (combinedUserData?.roles && combinedUserData.roles.includes('client')) ? 'Klien' : 
                    combinedUserData?.role === 'admin' ? 'Administrator' : 'Pengguna'}
                 </div>
+                
                 <div className="flex flex-wrap gap-2 mt-4">
-                  {isEditing ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={saveProfileChanges}
-                        disabled={saving || uploadingPhoto}
-                        className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#010042] hover:bg-[#0100a3] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#010042] disabled:opacity-50"
-                      >
-                        {saving || uploadingPhoto ? (
-                          <>
-                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            {uploadingPhoto ? 'Mengunggah Foto...' : 'Menyimpan...'}
-                          </>
-                        ) : 'Simpan Perubahan'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={toggleEditMode}
-                        disabled={saving || uploadingPhoto}
-                        className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#010042] disabled:opacity-50"
-                      >
-                        Batal
-                      </button>
-                    </>
-                  ) : (
+                  {/* Tombol Edit Profil */}
+                  {!isEditing && (
                     <button
+                      type="button"
                       onClick={toggleEditMode}
-                      className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#010042] hover:bg-[#0100a3] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#010042]"
+                      className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#010042]"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
                         <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
                       </svg>
                       Edit Profil
                     </button>
-                  )}
-                  {combinedUserData?.role === 'freelancer' && (
-                    <Link
-                      to="/services/new"
-                      className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#010042]"
-                    >
-                      Buat Layanan
-                    </Link>
                   )}
                 </div>
               </div>
@@ -521,10 +499,13 @@ export default function Profile() {
                     onChange={handleInputChange}
                     placeholder="Tuliskan bio singkat tentang diri Anda"
                     rows="4"
+                    maxLength={500}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#010042] focus:border-[#010042] text-sm"
+                    style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
                   />
+                  
                 ) : (
-                  <p className="text-gray-600">
+                  <p className="text-gray-600 whitespace-pre-wrap break-words">
                     {combinedUserData?.bio || 'Belum ada informasi bio.'}
                   </p>
                 )}
@@ -565,15 +546,7 @@ export default function Profile() {
               </div>
             </div>
             
-            {/* Freelancer CTA Banner - Only shown for clients who aren't freelancers yet */}
-            {((combinedUserData?.activeRole === 'client') || 
-              (combinedUserData?.roles && combinedUserData.roles.includes('client') && !combinedUserData.roles.includes('freelancer')) ||
-              combinedUserData?.role === 'client') && 
-             !combinedUserData?.isFreelancer && (
-              <div className="mt-8 border-t border-gray-200 pt-8">
-                <FreelancerCTA variant="profile" />
-              </div>
-            )}
+            {/* Tombol Simpan dipindahkan ke bagian paling bawah */}
 
             {combinedUserData?.role === 'freelancer' && (
               <div className="mt-8 border-t border-gray-200 pt-8">
@@ -650,6 +623,38 @@ export default function Profile() {
                   >
                     Jelajahi Layanan
                   </Link>
+                </div>
+              </div>
+            )}
+            
+            {/* Tombol Simpan Perubahan - dipindahkan ke bagian paling bawah profil */}
+            {isEditing && (
+              <div className="mt-10 border-t border-gray-200 pt-6 flex justify-center">
+                <div className="flex flex-wrap gap-4">
+                  <button
+                    type="button"
+                    onClick={saveProfileChanges}
+                    disabled={saving || uploadingPhoto}
+                    className="inline-flex items-center px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-[#010042] hover:bg-[#0100a3] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#010042] disabled:opacity-50"
+                  >
+                    {saving || uploadingPhoto ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        {uploadingPhoto ? 'Mengunggah Foto...' : 'Menyimpan...'}
+                      </>
+                    ) : 'Simpan Perubahan'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={toggleEditMode}
+                    disabled={saving || uploadingPhoto}
+                    className="inline-flex items-center px-6 py-3 border border-gray-300 rounded-md shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#010042] disabled:opacity-50"
+                  >
+                    Batal
+                  </button>
                 </div>
               </div>
             )}

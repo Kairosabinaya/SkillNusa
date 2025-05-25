@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Field, ErrorMessage } from 'formik';
 import { getIndonesianCities } from '../../services/profileService';
 import { USER_ROLES } from '../../utils/constants';
@@ -363,25 +363,32 @@ export default function RegisterStep2({ formikProps }) {
         <label htmlFor="bio" className="block text-sm font-medium text-gray-700">
           Tentang Saya {values.role === USER_ROLES.FREELANCER && <span className="text-red-500">*</span>}
         </label>
-        <div className="mt-1">
-          <Field
-            as="textarea"
-            id="bio"
-            name="bio"
-            rows={4}
-            placeholder={values.role === USER_ROLES.FREELANCER ? 
-              "Deskripsikan diri Anda, keahlian, dan pengalaman Anda (minimal 50 karakter)" : 
-              "Deskripsikan diri Anda (opsional)"}
-            className={`appearance-none block w-full px-3 py-2 border ${
-              errors.bio && touched.bio ? 'border-red-300' : 'border-gray-300'
-            } rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#010042] focus:border-[#010042] sm:text-sm`}
-          />
-          <div className="mt-1 flex justify-between">
-            <ErrorMessage name="bio" component="div" className="text-sm text-red-600" />
-            <div className="text-xs text-gray-500">
-              {values.bio ? values.bio.length : 0}/500 karakter
-            </div>
-          </div>
+        <div className="mt-1 relative">
+          <Field name="bio">
+            {({ field, form }) => (
+              <div>
+                <textarea
+                  {...field}
+                  id="bio"
+                  rows={3}
+                  maxLength={500}
+                  placeholder={values.role === USER_ROLES.FREELANCER ? 
+                    "Deskripsikan diri Anda, keahlian, dan pengalaman Anda (minimal 50 karakter)" : 
+                    "Deskripsikan diri Anda (opsional)"}
+                  className={`appearance-none block w-full px-3 py-2 border ${
+                    errors.bio && touched.bio ? 'border-red-300' : 'border-gray-300'
+                  } rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#010042] focus:border-[#010042] sm:text-sm`}
+                  style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
+                />
+                <div className="flex justify-between items-center mt-1">
+                  <ErrorMessage name="bio" component="div" className="text-sm text-red-600" />
+                  <div className={`text-xs ${values.role === USER_ROLES.FREELANCER && field.value.length < 50 ? 'text-red-500' : field.value.length > 400 ? 'text-orange-500' : 'text-green-600'} font-medium`}>
+                    {field.value.length}/500 karakter {values.role === USER_ROLES.FREELANCER && field.value.length < 50 ? `(min. 50)` : ''}
+                  </div>
+                </div>
+              </div>
+            )}
+          </Field>
         </div>
       </div>
       

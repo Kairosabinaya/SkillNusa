@@ -1,114 +1,155 @@
+import React, { useState, useEffect } from 'react';
 import { Field, ErrorMessage } from 'formik';
 
-export default function BecomeFreelancerStep3({ formikProps }) {
-  const { values, errors, touched } = formikProps;
+const BecomeFreelancerStep3 = ({ formikProps }) => {
+  const { values, errors, touched, setFieldValue } = formikProps;
+  
+  // Parse existing working hours if present
+  const parseExistingHours = () => {
+    if (values.workingHours && values.workingHours.includes(' - ')) {
+      const parts = values.workingHours.split(' - ');
+      return {
+        start: parts[0],
+        end: parts[1].replace(' WIB', '')
+      };
+    }
+    return { start: '08:00', end: '17:00' };
+  };
+  
+  // State for working hours selection
+  const [startHour, setStartHour] = useState(parseExistingHours().start);
+  const [endHour, setEndHour] = useState(parseExistingHours().end);
+  
+  // Available time options
+  const availabilityOptions = [
+    { value: 'Full-time', label: 'Full-time' },
+    { value: 'Part-time', label: 'Part-time' },
+    { value: 'Weekends', label: 'Akhir Pekan' }
+  ];
+  
+  // Generate time options (24-hour format)
+  const timeOptions = [];
+  for (let i = 0; i < 24; i++) {
+    const hour = i.toString().padStart(2, '0');
+    timeOptions.push(`${hour}:00`);
+    timeOptions.push(`${hour}:30`);
+  }
+  
+  // Update working hours when start or end time changes
+  useEffect(() => {
+    if (startHour && endHour) {
+      setFieldValue('workingHours', `${startHour} - ${endHour} WIB`);
+    }
+  }, [startHour, endHour, setFieldValue]);
   
   return (
     <div className="space-y-6">
-      <h2 className="text-lg font-medium text-gray-900">Verifikasi & Persetujuan</h2>
+      <h2 className="text-lg font-medium text-gray-900">Portfolio & Ketersediaan</h2>
       
-      <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
-        <p className="text-sm text-gray-600 mb-4">
-          Sebelum menyelesaikan pendaftaran sebagai freelancer, silakan baca dan setujui ketentuan berikut:
-        </p>
-        
-        <div className="space-y-4">
-          {/* Freelancer Terms */}
-          <div className="flex items-start">
-            <div className="flex items-center h-5">
-              <Field
-                id="agreeToFreelancerTerms"
-                name="agreeToFreelancerTerms"
-                type="checkbox"
-                className="h-4 w-4 text-[#010042] focus:ring-[#010042] border-gray-300 rounded"
-              />
-            </div>
-            <div className="ml-3 text-sm">
-              <label htmlFor="agreeToFreelancerTerms" className={`font-medium ${errors.agreeToFreelancerTerms && touched.agreeToFreelancerTerms ? 'text-red-700' : 'text-gray-700'}`}>
-                Saya setuju dengan <a href="/freelancer-terms" target="_blank" className="text-[#010042] hover:underline">Ketentuan Freelancer</a> <span className="text-red-500">*</span>
-              </label>
-              <ErrorMessage name="agreeToFreelancerTerms" component="div" className="mt-1 text-sm text-red-600" />
-            </div>
-          </div>
-          
-          {/* Quality Standards */}
-          <div className="flex items-start">
-            <div className="flex items-center h-5">
-              <Field
-                id="agreeToQualityStandards"
-                name="agreeToQualityStandards"
-                type="checkbox"
-                className="h-4 w-4 text-[#010042] focus:ring-[#010042] border-gray-300 rounded"
-              />
-            </div>
-            <div className="ml-3 text-sm">
-              <label htmlFor="agreeToQualityStandards" className={`font-medium ${errors.agreeToQualityStandards && touched.agreeToQualityStandards ? 'text-red-700' : 'text-gray-700'}`}>
-                Saya berkomitmen untuk mematuhi <a href="/quality-standards" target="_blank" className="text-[#010042] hover:underline">Standar Kualitas</a> SkillNusa <span className="text-red-500">*</span>
-              </label>
-              <ErrorMessage name="agreeToQualityStandards" component="div" className="mt-1 text-sm text-red-600" />
-            </div>
-          </div>
+      {/* Portfolio Link */}
+      <div>
+        <label htmlFor="portfolioLink" className="block text-sm font-medium text-gray-700">
+          Link Portfolio/Website
+        </label>
+        <div className="mt-1">
+          <Field
+            type="url"
+            name="portfolioLink"
+            id="portfolioLink"
+            placeholder="https://portfolio-saya.com"
+            className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#010042] focus:border-[#010042] sm:text-sm"
+          />
         </div>
+        <p className="mt-1 text-sm text-gray-500">
+          Tambahkan link ke portfolio atau website pribadi Anda (opsional)
+        </p>
+        <ErrorMessage name="portfolioLink" component="div" className="mt-1 text-sm text-red-600" />
       </div>
       
-      <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
-        <h4 className="text-sm font-medium text-blue-800 mb-2">Proses Selanjutnya</h4>
-        <ul className="list-disc pl-5 text-sm text-blue-700 space-y-1">
-          <li>Permohonan Anda akan ditinjau oleh tim kami dalam 1-3 hari kerja</li>
-          <li>Setelah disetujui, Anda dapat beralih antara peran Client dan Freelancer</li>
-          <li>Anda tetap dapat menggunakan akun Client Anda selama proses peninjauan</li>
+      {/* Availability */}
+      <div>
+        <label htmlFor="availability" className="block text-sm font-medium text-gray-700">
+          Ketersediaan <span className="text-red-500">*</span>
+        </label>
+        <div className="mt-1">
+          <Field
+            as="select"
+            name="availability"
+            id="availability"
+            className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#010042] focus:border-[#010042] sm:text-sm"
+          >
+            <option value="">Pilih ketersediaan</option>
+            {availabilityOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Field>
+        </div>
+        <ErrorMessage name="availability" component="div" className="mt-1 text-sm text-red-600" />
+      </div>
+      
+      {/* Working Hours */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700">
+          Jam Kerja <span className="text-red-500">*</span>
+        </label>
+        <div className="mt-1 grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
+          <div className="md:col-span-2">
+            <label htmlFor="startHour" className="block text-sm font-medium text-gray-500 mb-1">Jam Mulai</label>
+            <select
+              id="startHour"
+              value={startHour}
+              onChange={(e) => setStartHour(e.target.value)}
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#010042] focus:border-[#010042] sm:text-sm"
+            >
+              {timeOptions.map((time) => (
+                <option key={`start-${time}`} value={time}>{time}</option>
+              ))}
+            </select>
+          </div>
+          
+          <div className="hidden md:flex justify-center items-center">
+            <span className="text-gray-500">sampai</span>
+          </div>
+          
+          <div className="md:col-span-2">
+            <label htmlFor="endHour" className="block text-sm font-medium text-gray-500 mb-1">Jam Selesai</label>
+            <select
+              id="endHour"
+              value={endHour}
+              onChange={(e) => setEndHour(e.target.value)}
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#010042] focus:border-[#010042] sm:text-sm"
+            >
+              {timeOptions.map((time) => (
+                <option key={`end-${time}`} value={time}>{time}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="mt-2">
+          <Field
+            type="hidden"
+            name="workingHours"
+            id="workingHours"
+          />
+          <p className="text-sm text-gray-500">
+            Zona waktu: WIB (Waktu Indonesia Barat)
+          </p>
+        </div>
+        <ErrorMessage name="workingHours" component="div" className="mt-1 text-sm text-red-600" />
+      </div>
+      
+      <div className="bg-yellow-50 p-4 rounded-md border border-yellow-200">
+        <h4 className="text-sm font-medium text-yellow-800 mb-2">Tips</h4>
+        <ul className="list-disc pl-5 text-sm text-yellow-700 space-y-1">
+          <li>Tambahkan portfolio untuk meningkatkan peluang mendapatkan project</li>
+          <li>Pastikan Anda dapat memenuhi ketersediaan yang Anda pilih</li>
+          <li>Tentukan jam kerja yang realistis sesuai dengan zona waktu Anda</li>
         </ul>
-      </div>
-      
-      <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
-        <h4 className="text-sm font-medium text-gray-800 mb-2">Ringkasan Profil Freelancer</h4>
-        
-        <div className="space-y-3 text-sm text-gray-600">
-          <div className="grid grid-cols-2 gap-2">
-            <div className="font-medium">Level Pengalaman:</div>
-            <div>
-              {values.experienceLevel === 'Beginner' && 'Pemula (< 1 tahun)'}
-              {values.experienceLevel === 'Intermediate' && 'Menengah (1-3 tahun)'}
-              {values.experienceLevel === 'Expert' && 'Ahli (3+ tahun)'}
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-2">
-            <div className="font-medium">Tarif per Jam:</div>
-            <div>Rp {parseInt(values.hourlyRate || 0).toLocaleString('id-ID')}</div>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-2">
-            <div className="font-medium">Ketersediaan:</div>
-            <div>{values.availability}</div>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-2">
-            <div className="font-medium">Portfolio:</div>
-            <div>
-              {values.portfolioLinks.filter(link => link).length > 0 ? (
-                <ul className="list-disc pl-5">
-                  {values.portfolioLinks.filter(link => link).map((link, index) => (
-                    <li key={index}>
-                      <a href={link} target="_blank" rel="noopener noreferrer" className="text-[#010042] hover:underline truncate block">
-                        {link}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <span className="text-gray-400">Tidak ada</span>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <div className="pt-2">
-        <p className="text-xs text-gray-500">
-          <span className="text-red-500">*</span> Wajib diisi
-        </p>
       </div>
     </div>
   );
-}
+};
+
+export default BecomeFreelancerStep3;
