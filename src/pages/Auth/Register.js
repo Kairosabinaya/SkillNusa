@@ -8,6 +8,7 @@ import RegisterStep2 from '../../components/Auth/RegisterStep2';
 import RegisterStep3 from '../../components/Auth/RegisterStep3'; // Previously RegisterStep4
 import { USER_ROLES } from '../../utils/constants';
 import { createUserProfile } from '../../services/profileService';
+import ParticleBackground from '../../components/UI/ParticleBackground';
 
 export default function Register() {
   const location = useLocation();
@@ -209,8 +210,9 @@ export default function Register() {
   ];
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-6 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-2xl w-full space-y-6 bg-white p-8 rounded-xl shadow-md">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 py-8 px-4 sm:px-6 lg:px-8 relative">
+      <ParticleBackground />
+      <div className="max-w-md w-full space-y-6 bg-white p-8 rounded-xl shadow-md relative z-10">
         <div>
           <div className="flex justify-center">
             <Link 

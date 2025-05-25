@@ -6,9 +6,9 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-6 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
           <div>
-            <h3 className="text-lg font-semibold text-[#010042] mb-4">About SkillNusa</h3>
+            <h3 className="text-lg font-semibold text-[#010042] mb-4">Tentang SkillNusa</h3>
             <p className="text-sm text-gray-600 mb-4">
-              SkillNusa is an Indonesian freelance marketplace connecting skilled professionals with clients looking for quality services.
+              SkillNusa adalah marketplace freelance Indonesia yang menghubungkan profesional terampil dengan klien yang mencari layanan berkualitas.
             </p>
             <div className="flex space-x-4">
               <a href="https://x.com" className="text-gray-400 hover:text-[#010042] transition-colors" target="_blank" rel="noreferrer">
@@ -30,49 +30,53 @@ export default function Footer() {
           </div>
 
           <div>
-            <h3 className="text-lg font-semibold text-[#010042] mb-4">Services</h3>
+            <h3 className="text-lg font-semibold text-[#010042] mb-4">Layanan</h3>
             <ul className="space-y-2">
               <li>
-                <a href="#" className="text-sm text-gray-600 hover:text-[#010042] transition-colors">Design & Creative</a>
+                <a href="#" className="text-sm text-gray-600 hover:text-[#010042] transition-colors">Desain & Kreatif</a>
               </li>
               <li>
-                <a href="#" className="text-sm text-gray-600 hover:text-[#010042] transition-colors">Programming & Tech</a>
+                <a href="#" className="text-sm text-gray-600 hover:text-[#010042] transition-colors">Pemrograman & Teknologi</a>
               </li>
               <li>
-                <a href="#" className="text-sm text-gray-600 hover:text-[#010042] transition-colors">Digital Marketing</a>
+                <a href="#" className="text-sm text-gray-600 hover:text-[#010042] transition-colors">Pemasaran Digital</a>
               </li>
               <li>
-                <a href="#" className="text-sm text-gray-600 hover:text-[#010042] transition-colors">Writing & Translation</a>
+                <a href="#" className="text-sm text-gray-600 hover:text-[#010042] transition-colors">Penulisan & Terjemahan</a>
               </li>
             </ul>
           </div>
 
           <div>
-            <h3 className="text-lg font-semibold text-[#010042] mb-4">Contact</h3>
+            <h3 className="text-lg font-semibold text-[#010042] mb-4">Kontak</h3>
             <ul className="space-y-2">
               <li className="text-sm text-gray-600">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 inline-block mr-2 text-[#010042]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-                support@skillnusa.com
+                <a href="mailto:support@skillnusa.com" className="hover:text-[#010042] transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 inline-block mr-2 text-[#010042]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  support@skillnusa.com
+                </a>
               </li>
               <li className="text-sm text-gray-600">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 inline-block mr-2 text-[#010042]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                Jakarta, Indonesia
+                <a href="https://maps.google.com/?q=Jakarta,Indonesia" target="_blank" rel="noreferrer" className="hover:text-[#010042] transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 inline-block mr-2 text-[#010042]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  Jakarta, Indonesia
+                </a>
               </li>
             </ul>
           </div>
 
           <div>
-            <h3 className="text-lg font-semibold text-[#010042] mb-4">Stay Updated</h3>
-            <p className="text-sm text-gray-600 mb-4">Subscribe to get updates about new services and features.</p>
+            <h3 className="text-lg font-semibold text-[#010042] mb-4">Dapatkan Update</h3>
+            <p className="text-sm text-gray-600 mb-4">Berlangganan untuk mendapatkan info terbaru tentang layanan dan fitur baru.</p>
             <form className="flex gap-2">
-              <input type="email" placeholder="Enter your email" className="flex-1 px-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent" />
+              <input type="email" placeholder="Masukkan email Anda" className="flex-1 px-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent" />
               <button type="submit" className="px-4 py-2 text-sm text-white bg-[#010042] rounded-lg hover:bg-opacity-90 transition-colors">
-                Subscribe
+                Langganan
               </button>
             </form>
           </div>
@@ -81,11 +85,11 @@ export default function Footer() {
         <div className="pt-8 border-t border-gray-100">
           <div className="text-center transform transition-all duration-300 hover:-translate-y-1">
             <p className="text-sm font-medium text-gray-500 hover:text-gray-600 transition-colors duration-200">
-              © {new Date().getFullYear()} SkillNusa. All rights reserved.
+              {new Date().getFullYear()} SkillNusa. Hak Cipta Dilindungi.
             </p>
           </div>
         </div>
       </div>
     </footer>
   );
-} 
+}

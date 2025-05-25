@@ -330,12 +330,12 @@ export default function Home() {
       <div className="bg-gray-50 py-10">
         <div className="max-w-7xl mx-auto px-3 sm:px-4">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-[#010042]">Popular Categories</h2>
+            <h2 className="text-2xl font-bold text-[#010042] mb-4">Kategori Populer</h2>
             <button 
               className="text-sm text-[#010042] hover:underline flex items-center gap-2 bg-transparent hover:text-[#0100a3] transition-all duration-200"
               onClick={(e) => handleAuthRequiredClick(e, '/browse')}
             >
-              View all categories
+              Lihat semua kategori
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
@@ -344,15 +344,15 @@ export default function Home() {
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 xl:grid-cols-9 gap-4">
             {[
-              { icon: "M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4", name: "Programming & Tech" },
-              { icon: "M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z", name: "Graphics & Design" },
-              { icon: "M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z", name: "Digital Marketing" },
-              { icon: "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z", name: "Writing & Translation" },
-              { icon: "M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z", name: "Video & Animation" },
-              { icon: "M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z", name: "AI Services" },
-              { icon: "M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3", name: "Music & Audio" },
-              { icon: "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10", name: "Business" },
-              { icon: "M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z", name: "Consulting" }
+              { icon: "M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4", name: "Pemrograman & Teknologi" },
+              { icon: "M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z", name: "Grafis & Desain" },
+              { icon: "M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z", name: "Pemasaran Digital" },
+              { icon: "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z", name: "Penulisan & Terjemahan" },
+              { icon: "M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z", name: "Video & Animasi" },
+              { icon: "M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z", name: "Layanan AI" },
+              { icon: "M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3", name: "Musik & Audio" },
+              { icon: "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10", name: "Bisnis" },
+              { icon: "M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z", name: "Konsultasi" }
             ].map((category, index) => (
               <div key={index} className="group cursor-pointer" onClick={(e) => handleAuthRequiredClick(e, '/browse')}>
                 <div className="bg-white rounded-lg p-4 border border-gray-200 transition-all duration-300 hover:shadow-md hover:border-[#010042]/30 h-full flex flex-col items-start gap-3">
@@ -394,7 +394,7 @@ export default function Home() {
                   to="/no-page"
                   className="inline-flex items-center px-6 py-3 bg-white rounded-lg text-[#010042] font-medium transition-all hover:bg-opacity-90 hover:shadow-md hover:transform hover:scale-105 text-base"
                 >
-                  Try SkillBot
+                  Coba SkillBot
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
                   </svg>
@@ -420,7 +420,7 @@ export default function Home() {
               className="text-sm text-[#010042] hover:underline flex items-center gap-2 bg-transparent hover:text-[#0100a3] transition-all duration-200"
               onClick={(e) => handleAuthRequiredClick(e, '/browse')}
             >
-              View all gigs
+              Lihat semua gigs
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
@@ -438,7 +438,7 @@ export default function Home() {
                     : 'bg-white text-gray-700 hover:bg-gray-100'
                 }`}
               >
-                All
+                Semua
               </button>
               
               {categories.map((category, index) => (
@@ -500,7 +500,7 @@ export default function Home() {
               onClick={(e) => handleAuthRequiredClick(e, '/browse')}
               className="px-6 py-2 text-sm font-medium bg-transparent border border-[#010042] text-[#010042] rounded-lg transition-all duration-300 hover:bg-[#010042] hover:text-white hover:shadow-md hover:transform hover:scale-105"
             >
-              View All Gigs
+              Lihat Semua Gigs
             </button>
           </div>
         </div>
@@ -520,19 +520,19 @@ export default function Home() {
             {[
               {
                 image: "/images/guide-profile.jpg",
-                title: "How to Create an Outstanding Profile",
+                title: "Cara Membuat Profil yang Menonjol",
                 description: "Pelajari cara membuat profil SkillNusa Anda menonjol di hadapan calon klien.",
                 youtubeUrl: "https://youtube.com/watch?v=example1"
               },
               {
                 image: "/images/guide-pricing.jpg",
-                title: "Pricing Strategies for Freelancers",
+                title: "Strategi Penetapan Harga yang Efektif",
                 description: "Temukan strategi penetapan harga yang efektif untuk memaksimalkan penghasilan Anda.",
                 youtubeUrl: "https://youtube.com/watch?v=example2"
               },
               {
                 image: "/images/guide-communication.jpg",
-                title: "Communication Skills for Success",
+                title: "Keterampilan Berkomunikasi untuk Sukses",
                 description: "Menguasai keterampilan berkomunikasi dengan klien untuk memastikan kelancaran proyek.",
                 youtubeUrl: "https://youtube.com/watch?v=example3"
               }
@@ -581,19 +581,19 @@ export default function Home() {
             {[
               {
                 image: "/images/guide-brief.jpg",
-                title: "How to Write Effective Project Briefs",
+                title: "Cara Menulis Penjelasan Proyek yang Efektif",
                 description: "Membuat penjelasan proyek yang jelas untuk menarik freelancer yang tepat.",
                 youtubeUrl: "https://youtube.com/watch?v=example4"
               },
               {
                 image: "/images/guide-porto.jpg",
-                title: "Evaluating Freelancer Portfolios",
+                title: "Mengulas Portofolio Freelancer",
                 description: "Pelajari cara menilai portofolio freelancer untuk menemukan yang tepat.",
                 youtubeUrl: "https://youtube.com/watch?v=example5"
               },
               {
                 image: "/images/guide-manage.jpg",
-                title: "Managing Remote Freelance Teams",
+                title: "Mengelola Tim Freelance Jarak Jauh",
                 description: "Saran dan strategi untuk memantau freelancer secara efektif dari jarak jauh.",
                 youtubeUrl: "https://youtube.com/watch?v=example6"
               }
@@ -614,8 +614,8 @@ export default function Home() {
                     <div className="w-14 h-14 rounded-full bg-white bg-opacity-80 flex items-center justify-center hover:bg-opacity-100 transition-all">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-[#010042]" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                  </svg>
-                </div>
+                    </svg>
+                  </div>
                   </a>
                 </div>
                 <div className="p-5">
@@ -632,22 +632,16 @@ export default function Home() {
       <div className="bg-gradient-to-r from-[#010042] to-[#0100a3] py-12">
         <div className="max-w-7xl mx-auto px-3 sm:px-4">
           <div className="text-center">
-            <h2 className="text-2xl font-bold text-white mb-4">Ready to get started with SkillNusa?</h2>
+            <h2 className="text-2xl font-bold text-white mb-4">Siap untuk memulai dengan SkillNusa?</h2>
             <p className="text-lg text-gray-200 mb-6 max-w-2xl mx-auto">
               Bergabung dengan ribuan freelancer dan klien yang sudah menumbuhkan bisnisnya dengan SkillNusa.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex justify-center">
               <Link
                 to="/register"
                 className="text-sm px-6 py-3 rounded-lg bg-white text-[#010042] font-medium transition duration-300 hover:bg-opacity-90 hover:shadow-lg hover:transform hover:scale-105"
               >
-                Sign Up as Freelancer
-              </Link>
-              <Link
-                to="/register"
-                className="text-sm px-6 py-3 rounded-lg bg-[#0100a3] text-white border border-white font-medium transition duration-300 hover:bg-[#0100a3]/80 hover:transform hover:scale-105"
-              >
-                Hire a Freelancer
+                Daftar Sekarang!
               </Link>
             </div>
           </div>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { sendEmailVerification } from 'firebase/auth';
+import ParticleBackground from '../../components/UI/ParticleBackground';
 
 export default function Login() {
   const [emailOrUsername, setEmailOrUsername] = useState('');
@@ -108,8 +109,9 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-md">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 relative">
+      <ParticleBackground />
+      <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-md relative z-10">
         <div>
           <div className="flex justify-center">
             <Link to="/" className="block text-center">
