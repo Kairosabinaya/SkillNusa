@@ -104,7 +104,6 @@ export const RegistrationProvider = ({ children }) => {
         publicId: uploadResult.publicId
       };
     } catch (error) {
-      console.error('Error uploading profile photo:', error);
       throw error;
     }
   };
@@ -174,7 +173,6 @@ export const RegistrationProvider = ({ children }) => {
       // Redirect to email verification page
       navigate('/verify-email');
     } catch (error) {
-      console.error('Registration error:', error);
       setError(error.message);
       throw error;
     } finally {

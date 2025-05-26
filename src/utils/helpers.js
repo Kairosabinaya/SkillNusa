@@ -20,7 +20,6 @@ export const formatDate = (date, options = {}) => {
     const dateToFormat = date instanceof Date ? date : new Date(date);
     return new Intl.DateTimeFormat('en-US', defaultOptions).format(dateToFormat);
   } catch (error) {
-    console.error('Error formatting date:', error);
     return '';
   }
 };
@@ -59,7 +58,6 @@ export const formatPrice = (amount, currency = 'USD') => {
       currency
     }).format(amount);
   } catch (error) {
-    console.error('Error formatting price:', error);
     return '';
   }
 }; 

@@ -138,7 +138,6 @@ export default function BecomeFreelancer() {
         } 
       });
     } catch (error) {
-      console.error(error);
       setError('Gagal mendaftar sebagai freelancer. ' + (error.message || ''));
     } finally {
       setLoading(false);

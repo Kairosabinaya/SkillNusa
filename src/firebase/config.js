@@ -40,7 +40,6 @@ try {
   db = getFirestore(app);
   storage = getStorage(app);
 } catch (error) {
-  console.error("Error initializing Firebase:", error);
   throw new Error("Firebase initialization failed. Check your configuration.");
 }
 

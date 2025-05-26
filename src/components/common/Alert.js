@@ -1,13 +1,40 @@
-import React from 'react';
-import classNames from 'classnames';
+import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 
-export const Alert = ({
+/**
+ * Unified Alert Component
+ * Combines functionality of both previous Alert implementations
+ * with auto-close, manual close, and flexible styling options
+ */
+const Alert = ({
   type = 'info',
   title,
   message,
-  className,
+  className = '',
+  onClose,
+  autoClose = false,
+  autoCloseTime = 5000,
+  showIcon = true,
   ...props
 }) => {
+  const [isVisible, setIsVisible] = useState(true);
+
+  useEffect(() => {
+    if (autoClose && isVisible) {
+      const timer = setTimeout(() => {
+        handleClose();
+      }, autoCloseTime);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [autoClose, isVisible, autoCloseTime]);
+
+  const handleClose = () => {
+    setIsVisible(false);
+    if (onClose) onClose();
+  };
+
+  if (!isVisible) return null;
   const typeClasses = {
     info: 'bg-blue-50 text-blue-800',
     success: 'bg-green-50 text-green-800',
@@ -83,32 +110,58 @@ export const Alert = ({
 
   return (
     <div
-      className={classNames(
-        'rounded-md p-4',
-        typeClasses[type],
-        className
-      )}
+      className={`rounded-md p-4 ${typeClasses[type]} ${className}`}
       {...props}
     >
       <div className="flex">
-        <div className="flex-shrink-0">
-          <div className={iconClasses[type]}>
-            {icons[type]}
+        {showIcon && (
+          <div className="flex-shrink-0">
+            <div className={iconClasses[type]}>
+              {icons[type]}
+            </div>
           </div>
-        </div>
-        <div className="ml-3">
+        )}
+        <div className={showIcon ? "ml-3 flex-1" : "flex-1"}>
           {title && (
             <h3 className="text-sm font-medium">
               {title}
             </h3>
           )}
           {message && (
-            <div className="mt-2 text-sm">
+            <div className={title ? "mt-2 text-sm" : "text-sm"}>
               <p>{message}</p>
             </div>
           )}
         </div>
+        {onClose && (
+          <div className="pl-3 ml-auto">
+            <button
+              type="button"
+              className={`inline-flex rounded-md p-1.5 ${typeClasses[type]} hover:bg-opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors`}
+              onClick={handleClose}
+            >
+              <span className="sr-only">Dismiss</span>
+              <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
-}; 
+};
+
+Alert.propTypes = {
+  type: PropTypes.oneOf(['info', 'success', 'warning', 'error']),
+  title: PropTypes.string,
+  message: PropTypes.string.isRequired,
+  className: PropTypes.string,
+  onClose: PropTypes.func,
+  autoClose: PropTypes.bool,
+  autoCloseTime: PropTypes.number,
+  showIcon: PropTypes.bool
+};
+
+export default Alert;
+export { Alert }; 

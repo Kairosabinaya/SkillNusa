@@ -4,7 +4,7 @@ import * as Yup from 'yup';
 import { Input } from '../../common/Input';
 import { Select } from '../../common/Select';
 import { useRegistration } from '../../../context/RegistrationContext';
-import { cities } from '../../../data/cities';
+import { indonesianCities as cities } from '../../../data/cities';
 
 const SUPPORTED_FORMATS = ['image/jpg', 'image/jpeg', 'image/png'];
 const FILE_SIZE = 2 * 1024 * 1024; // 2MB

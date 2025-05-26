@@ -25,7 +25,6 @@ export default class UserRepository extends BaseRepository {
 
       return users.length > 0 ? users[0] : null;
     } catch (error) {
-      console.error('Error finding user by email:', error);
       throw error;
     }
   }
@@ -43,7 +42,6 @@ export default class UserRepository extends BaseRepository {
         ]
       });
     } catch (error) {
-      console.error('Error finding users by role:', error);
       throw error;
     }
   }
@@ -71,7 +69,6 @@ export default class UserRepository extends BaseRepository {
       
       return await this.create(uid, userData, true);
     } catch (error) {
-      console.error('Error creating/updating user from auth:', error);
       throw error;
     }
   }
@@ -86,7 +83,6 @@ export default class UserRepository extends BaseRepository {
     try {
       return await this.update(userId, { isActive });
     } catch (error) {
-      console.error('Error updating user active status:', error);
       throw error;
     }
   }

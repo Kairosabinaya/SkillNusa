@@ -37,7 +37,6 @@ export const applyAsFreelancer = async (userId, freelancerData) => {
     
     return true;
   } catch (error) {
-    console.error('Error applying as freelancer:', error);
     throw error;
   }
 };
@@ -58,7 +57,6 @@ export const getFreelancerProfile = async (userId) => {
       return null;
     }
   } catch (error) {
-    console.error('Error fetching freelancer profile:', error);
     throw error;
   }
 };
@@ -81,7 +79,6 @@ export const updateFreelancerProfile = async (userId, profileData) => {
     await updateDoc(docRef, updatedData);
     return true;
   } catch (error) {
-    console.error('Error updating freelancer profile:', error);
     throw error;
   }
 };

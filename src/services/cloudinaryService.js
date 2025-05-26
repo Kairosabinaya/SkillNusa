@@ -79,7 +79,6 @@ export const uploadImage = async (file, options = {}) => {
       bytes: result.bytes,
     };
   } catch (error) {
-    console.error('Cloudinary upload error:', error);
     throw new Error(`Failed to upload image: ${error.message}`);
   }
 };
@@ -146,15 +145,12 @@ export const deleteImage = async (publicId) => {
 
   // Note: For security reasons, deletion from the frontend should be limited
   // In production, consider moving this to your backend with proper authentication
-  console.warn('Image deletion from frontend. Consider moving to backend for security.');
-  
   try {
     // This requires a signed request or backend implementation
     // For now, we'll just return a success message
     // In production, implement this in your backend
     return { message: 'Deletion should be handled by backend for security' };
   } catch (error) {
-    console.error('Cloudinary deletion error:', error);
     throw new Error(`Failed to delete image: ${error.message}`);
   }
 };

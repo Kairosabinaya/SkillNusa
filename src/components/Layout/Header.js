@@ -23,8 +23,7 @@ export default function Header() {
           setProfileData(completeProfile);
         }
       } catch (error) {
-        console.error("Error fetching profile data in header:", error);
-      }
+        }
     }
 
     fetchProfileData();
@@ -44,8 +43,7 @@ export default function Header() {
     try {
       await logout();
     } catch (error) {
-      console.error("Failed to log out", error);
-    }
+      }
   };
 
   // Check if the user has both client and freelancer roles

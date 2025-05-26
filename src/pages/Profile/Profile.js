@@ -42,8 +42,7 @@ export default function Profile() {
         const citiesData = await getIndonesianCities();
         setCities(citiesData);
       } catch (error) {
-        console.error('Error fetching cities:', error);
-      } finally {
+        } finally {
         setLoadingCities(false);
       }
     };
@@ -63,8 +62,7 @@ export default function Profile() {
           setProfileData(profileData);
         }
       } catch (error) {
-        console.error("Error fetching profile data:", error);
-      } finally {
+        } finally {
         setLoading(false);
       }
     }
@@ -118,24 +116,19 @@ export default function Profile() {
       if (uploadingPhoto) {
         setUploadingPhoto(false);
         alert('Waktu upload foto habis. Silakan coba lagi.');
-        console.error('Upload timeout reached');
-      }
+        }
     }, 15000); // 15 detik timeout
     
     try {
       setUploadingPhoto(true);
-      console.log('Mulai upload foto ke Cloudinary...');
-      
       // Upload ke Cloudinary
       const uploadResult = await uploadToCloudinary(photoFile, currentUser.uid);
       
-      console.log('Upload foto berhasil ke Cloudinary');
       return {
         url: uploadResult.url,
         publicId: uploadResult.publicId
       };
     } catch (error) {
-      console.error('Error uploading photo to Cloudinary:', error);
       alert('Gagal mengunggah foto: ' + error.message);
       return null;
     } finally {
@@ -185,19 +178,15 @@ export default function Profile() {
       if (saving) {
         setSaving(false);
         alert('Proses penyimpanan terlalu lama. Silakan coba lagi.');
-        console.error('Save timeout reached');
-      }
+        }
     }, 20000); // 20 detik timeout
     
     try {
       setSaving(true);
-      console.log('Memulai proses menyimpan profil...');
-      
       // Penanganan foto baru menggunakan Cloudinary
       let photoURL = null;
       let photoPublicId = null;
       if (photoFile) {
-        console.log('Foto baru terdeteksi, memulai upload...');
         try {
           const uploadResult = await uploadProfilePhotoToCloudinary();
           if (!uploadResult) {
@@ -206,9 +195,7 @@ export default function Profile() {
           }
           photoURL = uploadResult.url;
           photoPublicId = uploadResult.publicId;
-          console.log('Upload foto berhasil:', photoURL);
-        } catch (photoError) {
-          console.error('Error pada upload foto:', photoError);
+          } catch (photoError) {
           throw new Error('Gagal mengupload foto: ' + (photoError.message || 'Unknown error'));
         }
       }
@@ -220,19 +207,13 @@ export default function Profile() {
       
       // Add photo URL and public ID if uploaded
       if (photoURL) {
-        console.log('Menambahkan URL foto ke data profil');
         updateData.profilePhoto = photoURL;
         updateData.profilePhotoPublicId = photoPublicId;
       }
       
-      console.log('Data yang akan diupdate:', updateData);
-      
       // Update profile using the centralized service
       const success = await updateUserProfile(currentUser.uid, updateData, true);
-      console.log('Hasil update profil:', success ? 'Berhasil' : 'Gagal');
-      
       if (success) {
-        console.log('Mengambil data profil terbaru...');
         // Fetch updated profile data
         const updatedProfile = await getUserProfile(currentUser.uid);
         setProfileData(updatedProfile);
@@ -246,14 +227,11 @@ export default function Profile() {
         setPhotoFile(null);
         setPhotoPreview(null);
         setEditedData({});
-        console.log('Profil berhasil diperbarui!');
         alert('Profil berhasil diperbarui!');
       } else {
-        console.error('Update profil gagal');
         alert('Gagal menyimpan perubahan profil. Silakan coba lagi.');
       }
     } catch (error) {
-      console.error('Error saving profile changes:', error);
       alert('Gagal menyimpan perubahan profil: ' + (error.message || 'Unknown error'));
     } finally {
       clearTimeout(saveTimeout);

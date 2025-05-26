@@ -13,7 +13,6 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const searchBoxRef = useRef(null);
-  
 
   // Handle clicks outside the search box
   useEffect(() => {
@@ -249,8 +248,6 @@ export default function Home() {
   const userData = currentUser ? { ...currentUser, ...userProfile } : null;
   
   // Logging untuk debug
-  console.log('Raw user data:', { currentUser, userProfile, combined: userData });
-  
   // Periksa jika user sudah login dan role-nya
   // User bisa dianggap client jika:
   // 1. Memiliki role = 'client'
@@ -280,16 +277,6 @@ export default function Home() {
   const showFreelancerCTA = !!currentUser && isClient && !isFreelancer && !isPendingFreelancer;
   
   // Logging detail untuk debugging
-  console.log('Debug FreelancerCTA:', { 
-    userLoggedIn: !!currentUser, 
-    userData, 
-    isClient, 
-    isFreelancer, 
-    isPendingFreelancer,
-    showBanner: showFreelancerCTA,
-    bannerShouldAppear: !!currentUser && isClient && !isFreelancer && !isPendingFreelancer
-  });
-
   return (
     <div className="font-sans">
       {/* Main content for logged in or non-logged in users */}
@@ -340,7 +327,7 @@ export default function Home() {
               <div className="grid lg:grid-cols-2 gap-10 items-center">
                 <div className="lg:flex lg:flex-col lg:justify-center space-y-8">
                   <h1 className="text-4xl md:text-5xl lg:text-8xl font-bold text-white lg:max-w-xl">
-                    SKILLNUSA
+                    SkillNusa
                   </h1>
                   <div className="text-xl sm:text-2xl lg:text-3xl text-gray-200 leading-relaxed mb-1 lg:max-w-xl h-32">
                     <TypeAnimation

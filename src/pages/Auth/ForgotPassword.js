@@ -19,7 +19,6 @@ export default function ForgotPassword() {
       await resetPassword(email);
       setMessage('Check your email for further instructions.');
     } catch (error) {
-      console.error(error);
       setError('Failed to reset password.');
     } finally {
       setLoading(false);

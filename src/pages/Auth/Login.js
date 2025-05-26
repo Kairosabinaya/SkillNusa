@@ -82,8 +82,7 @@ export default function Login() {
       // Navigation is handled by the useEffect watching currentUser
     } catch (error) {
       // Error state is handled by the useEffect watching authError
-      console.error('Login error:', error);
-    } finally {
+      } finally {
       setLoading(false);
     }
   };
@@ -101,7 +100,6 @@ export default function Login() {
         setError('');
       }
     } catch (error) {
-      console.error('Error resending verification:', error);
       setError('Gagal mengirim ulang email verifikasi. Silakan coba lagi nanti.');
     } finally {
       setResendLoading(false);

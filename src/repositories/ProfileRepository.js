@@ -20,7 +20,6 @@ export default class ProfileRepository extends BaseRepository {
       // In our case, the profile document ID is the same as the user ID
       return await this.findById(userId);
     } catch (error) {
-      console.error('Error finding profile by user ID:', error);
       throw error;
     }
   }
@@ -38,7 +37,6 @@ export default class ProfileRepository extends BaseRepository {
         ]
       });
     } catch (error) {
-      console.error('Error finding profiles by skill:', error);
       throw error;
     }
   }
@@ -53,7 +51,6 @@ export default class ProfileRepository extends BaseRepository {
     try {
       return await this.update(userId, { isOnline });
     } catch (error) {
-      console.error('Error updating online status:', error);
       throw error;
     }
   }
@@ -68,7 +65,6 @@ export default class ProfileRepository extends BaseRepository {
     try {
       return await this.update(userId, { skills });
     } catch (error) {
-      console.error('Error updating profile skills:', error);
       throw error;
     }
   }
@@ -92,7 +88,6 @@ export default class ProfileRepository extends BaseRepository {
         ...profileData 
       });
     } catch (error) {
-      console.error('Error creating profile for user:', error);
       throw error;
     }
   }

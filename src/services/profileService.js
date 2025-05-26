@@ -73,7 +73,6 @@ export const createUserProfile = async (userId, profileData) => {
     }
     
   } catch (error) {
-    console.error("Error creating user profile:", error);
     throw error;
   }
 };
@@ -104,7 +103,6 @@ export const uploadProfilePhoto = async (userId, photoFile) => {
     
     return uploadResult.url;
   } catch (error) {
-    console.error("Error uploading profile photo:", error);
     throw error;
   }
 };
@@ -219,7 +217,6 @@ export const getIndonesianCities = async () => {
     
     return cities;
   } catch (error) {
-    console.error("Error getting Indonesian cities:", error);
     return [];
   }
 };
@@ -266,7 +263,6 @@ export const getSkillSuggestions = async () => {
       { id: 'shopify', name: 'Shopify' }
     ];
   } catch (error) {
-    console.error("Error getting skill suggestions:", error);
     return [];
   }
 };
@@ -303,7 +299,6 @@ export const getIndustryOptions = async () => {
       { id: 'other', name: 'Lainnya' }
     ];
   } catch (error) {
-    console.error("Error getting industry options:", error);
     return [];
   }
 };
@@ -326,7 +321,6 @@ export const getBudgetRangeOptions = async () => {
       { id: 'negotiable', name: 'Fleksibel / Dapat dinegosiasi' }
     ];
   } catch (error) {
-    console.error("Error getting budget range options:", error);
     return [];
   }
 };
@@ -358,7 +352,6 @@ export const getPrimaryNeedsOptions = async () => {
       { id: 'other', name: 'Lainnya' }
     ];
   } catch (error) {
-    console.error("Error getting primary needs options:", error);
     return [];
   }
 }; 

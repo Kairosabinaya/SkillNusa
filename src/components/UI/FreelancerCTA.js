@@ -20,17 +20,10 @@ export default function FreelancerCTA({ variant = 'home' }) {
   if (!userData || 
       userData.isFreelancer || 
       userData.freelancerStatus === FREELANCER_STATUS.PENDING) {
-    console.log("FreelancerCTA not showing because:", {
-      noUserData: !userData,
-      isFreelancer: userData?.isFreelancer,
-      pendingStatus: userData?.freelancerStatus === FREELANCER_STATUS.PENDING
-    });
     return null;
   }
   
   // Debugging - log when we are showing the CTA
-  console.log("Showing FreelancerCTA with variant:", variant);
-  
   // Home page variant (large, prominent)
   if (variant === 'home') {
     return (

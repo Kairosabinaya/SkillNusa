@@ -75,6 +75,26 @@ export default function RegisterStep1({ formikProps }) {
   return (
     <div className="space-y-5">
       <h3 className="text-lg font-medium text-gray-900">Informasi Akun Dasar</h3>
+
+      {/* Full Name Field */}
+      <div>
+        <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">
+          Nama Lengkap <span className="text-red-500">*</span>
+        </label>
+        <div className="mt-1">
+          <Field
+            id="fullName"
+            name="fullName"
+            type="text"
+            autoComplete="name"
+            placeholder="Masukkan nama lengkap Anda"
+            className={`appearance-none block w-full px-3 py-2 border ${
+              errors.fullName && touched.fullName ? 'border-red-300' : 'border-gray-300'
+            } rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#010042] focus:border-[#010042] sm:text-sm`}
+          />
+          <ErrorMessage name="fullName" component="div" className="mt-1 text-sm text-red-600" />
+        </div>
+      </div>
       
       {/* Email Field */}
       <div>
@@ -148,26 +168,6 @@ export default function RegisterStep1({ formikProps }) {
         </div>
       </div>
       
-      {/* Full Name Field */}
-      <div>
-        <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">
-          Nama Lengkap <span className="text-red-500">*</span>
-        </label>
-        <div className="mt-1">
-          <Field
-            id="fullName"
-            name="fullName"
-            type="text"
-            autoComplete="name"
-            placeholder="Masukkan nama lengkap Anda"
-            className={`appearance-none block w-full px-3 py-2 border ${
-              errors.fullName && touched.fullName ? 'border-red-300' : 'border-gray-300'
-            } rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#010042] focus:border-[#010042] sm:text-sm`}
-          />
-          <ErrorMessage name="fullName" component="div" className="mt-1 text-sm text-red-600" />
-        </div>
-      </div>
-      
       {/* Username Field */}
       <div>
         <label htmlFor="username" className="block text-sm font-medium text-gray-700">
@@ -203,10 +203,9 @@ export default function RegisterStep1({ formikProps }) {
           </p>
         </div>
       </div>
-      
 
       
-      <div className="pt-2">
+      <div className="pt-0">
         <p className="text-xs text-gray-500">
           <span className="text-red-500">*</span> Wajib diisi
         </p>

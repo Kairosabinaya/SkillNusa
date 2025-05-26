@@ -112,4 +112,4 @@ export default function RegisterStep3({ formikProps }) {
       </div>
     </div>
   );
-}
+} 

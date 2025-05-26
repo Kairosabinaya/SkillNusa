@@ -5,7 +5,7 @@ import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import RegisterStep1 from '../../components/Auth/RegisterStep1';
 import RegisterStep2 from '../../components/Auth/RegisterStep2';
-import RegisterStep3 from '../../components/Auth/RegisterStep3'; // Previously RegisterStep4
+import RegisterStep3 from '../../components/Auth/RegisterStep3';
 import { USER_ROLES } from '../../utils/constants';
 import { createUserProfile } from '../../services/profileService';
 import ParticleBackground from '../../components/UI/ParticleBackground';
@@ -133,8 +133,6 @@ export default function Register() {
       clearSavedFormData();
       navigate('/verify-email');
     } catch (error) {
-      console.error('Registration error:', error);
-      
       // Provide user-friendly error messages in Indonesian
       if (error.code === 'auth/email-already-in-use') {
         setError('Email ini sudah terdaftar. Silakan masuk atau gunakan email lain.');
