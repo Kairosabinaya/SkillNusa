@@ -1,6 +1,85 @@
-# Getting Started with Create React App
+# SkillNusa - Freelance Platform
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Platform freelance modern yang menghubungkan klien dengan freelancer terbaik di Indonesia.
+
+## 🚀 Tech Stack
+
+- **Frontend**: React 18 + Tailwind CSS
+- **Authentication & Database**: Firebase (Firestore)
+- **Image Storage**: Cloudinary
+- **Routing**: React Router v6
+- **Form Handling**: Formik + Yup
+- **UI Components**: Headless UI + Heroicons
+
+## 📋 Prerequisites
+
+- Node.js (v16 atau lebih baru)
+- npm atau yarn
+- Akun Firebase (gratis)
+- Akun Cloudinary (gratis)
+
+## ⚙️ Setup & Installation
+
+### 1. Clone Repository
+
+```bash
+git clone <repository-url>
+cd skillnusa
+npm install
+```
+
+### 2. Environment Setup
+
+1. Copy file `env.example` menjadi `.env.local`
+2. Ikuti panduan lengkap di [SETUP_GUIDE.md](./SETUP_GUIDE.md) untuk:
+   - Setup Firebase Authentication & Firestore
+   - Setup Cloudinary untuk image storage
+   - Konfigurasi environment variables
+
+### 3. Start Development Server
+
+```bash
+npm start
+```
+
+Buka [http://localhost:3000](http://localhost:3000) di browser.
+
+## 📁 Project Structure
+
+```
+src/
+├── components/          # Reusable UI components
+│   ├── Auth/           # Authentication components
+│   ├── UI/             # General UI components
+│   └── common/         # Common components
+├── context/            # React Context providers
+├── firebase/           # Firebase configuration
+├── pages/              # Page components
+├── services/           # API services & business logic
+├── utils/              # Utility functions
+└── validation/         # Form validation schemas
+```
+
+## 🔧 Key Features
+
+- ✅ **Authentication**: Email/password dengan Firebase Auth
+- ✅ **Multi-role System**: Client dan Freelancer dalam satu akun
+- ✅ **Profile Management**: Upload foto dengan Cloudinary
+- ✅ **Responsive Design**: Mobile-first dengan Tailwind CSS
+- ✅ **Form Validation**: Comprehensive validation dengan Yup
+- ✅ **Real-time Database**: Firestore untuk data persistence
+
+## 🔐 Security
+
+- Firebase Security Rules untuk data protection
+- Environment variables untuk sensitive data
+- Input validation dan sanitization
+- Secure image upload dengan Cloudinary
+
+## 📚 Documentation
+
+- [Setup Guide](./SETUP_GUIDE.md) - Panduan lengkap setup Firebase & Cloudinary
+- [Environment Variables](./env.example) - Template environment variables
 
 ## Available Scripts
 

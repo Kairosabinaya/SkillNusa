@@ -4,8 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import LoadingSpinner from '../../components/UI/LoadingSpinner';
 import FreelancerCTA from '../../components/UI/FreelancerCTA';
 import ParticleBackground from '../../components/UI/ParticleBackground';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from '../../firebase/config';
+import { uploadProfilePhoto as uploadToCloudinary } from '../../services/cloudinaryService';
 import { getUserProfile, updateUserProfile } from '../../services/userProfileService';
 import { getIndonesianCities } from '../../services/profileService';
 
@@ -110,8 +109,8 @@ export default function Profile() {
     reader.readAsDataURL(file);
   };
   
-  // Fungsi upload foto dengan timeout dan error handling yang lebih baik
-  const uploadProfilePhoto = async () => {
+  // Fungsi upload foto menggunakan Cloudinary dengan timeout dan error handling
+  const uploadProfilePhotoToCloudinary = async () => {
     if (!photoFile || !currentUser) return null;
     
     // Set timeout untuk mencegah infinite loading
@@ -125,27 +124,18 @@ export default function Profile() {
     
     try {
       setUploadingPhoto(true);
-      console.log('Mulai upload foto...');
+      console.log('Mulai upload foto ke Cloudinary...');
       
-      // Reference ke Firebase Storage - gunakan format berbeda
-      const uniqueId = new Date().getTime();
-      const storageRef = ref(storage, `profile_photos/${currentUser.uid}_${uniqueId}.jpg`);
+      // Upload ke Cloudinary
+      const uploadResult = await uploadToCloudinary(photoFile, currentUser.uid);
       
-      // Upload file secara langsung
-      await uploadBytes(storageRef, photoFile);
-      
-      // Get download URL dengan try-catch terpisah
-      try {
-        const photoURL = await getDownloadURL(storageRef);
-        console.log('URL foto berhasil didapat');
-        return photoURL;
-      } catch (urlError) {
-        console.error('Error getting download URL:', urlError);
-        alert('Foto terupload tapi gagal mendapatkan URL. Coba refresh halaman.');
-        return null;
-      }
+      console.log('Upload foto berhasil ke Cloudinary');
+      return {
+        url: uploadResult.url,
+        publicId: uploadResult.publicId
+      };
     } catch (error) {
-      console.error('Error uploading photo:', error);
+      console.error('Error uploading photo to Cloudinary:', error);
       alert('Gagal mengunggah foto: ' + error.message);
       return null;
     } finally {
@@ -203,16 +193,19 @@ export default function Profile() {
       setSaving(true);
       console.log('Memulai proses menyimpan profil...');
       
-      // Penanganan foto baru lebih ketat
+      // Penanganan foto baru menggunakan Cloudinary
       let photoURL = null;
+      let photoPublicId = null;
       if (photoFile) {
         console.log('Foto baru terdeteksi, memulai upload...');
         try {
-          photoURL = await uploadProfilePhoto();
-          if (!photoURL) {
+          const uploadResult = await uploadProfilePhotoToCloudinary();
+          if (!uploadResult) {
             // Jika upload foto gagal, hentikan proses update profil
             throw new Error('Gagal mengupload foto profil');
           }
+          photoURL = uploadResult.url;
+          photoPublicId = uploadResult.publicId;
           console.log('Upload foto berhasil:', photoURL);
         } catch (photoError) {
           console.error('Error pada upload foto:', photoError);
@@ -225,10 +218,11 @@ export default function Profile() {
         ...editedData
       };
       
-      // Add photo URL if uploaded
+      // Add photo URL and public ID if uploaded
       if (photoURL) {
         console.log('Menambahkan URL foto ke data profil');
         updateData.profilePhoto = photoURL;
+        updateData.profilePhotoPublicId = photoPublicId;
       }
       
       console.log('Data yang akan diupdate:', updateData);
