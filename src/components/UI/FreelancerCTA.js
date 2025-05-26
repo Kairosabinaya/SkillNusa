@@ -59,20 +59,32 @@ export default function FreelancerCTA({ variant = 'home' }) {
   // Profile page variant (contextual)
   if (variant === 'profile') {
     return (
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg overflow-hidden">
-        <div className="px-6 py-6 flex flex-col md:flex-row items-center justify-between">
-          <div>
-            <h3 className="text-lg font-semibold text-indigo-800 mb-1">Jadilah Freelancer di SkillNusa</h3>
-            <p className="text-indigo-600 text-sm">
-              Dapatkan pendapatan tambahan dengan keahlian yang Anda miliki
+      <div className="bg-gradient-to-r from-[#010042]/90 to-[#0100a3]/90 rounded-xl overflow-hidden shadow-lg">
+        <div className="px-8 py-8 md:py-10 flex flex-col md:flex-row items-center justify-between">
+          <div className="mb-6 md:mb-0 md:max-w-2xl">
+            <h3 className="text-2xl md:text-3xl font-bold text-white mb-3">
+              Meet SkillBot: Your AI-Powered Freelancer Finder
+            </h3>
+            <p className="text-white/90 text-base md:text-lg mb-6">
+              Sistem rekomendasi AI kami membantu mencocokkan freelancer terbaik untuk proyek spesifik Anda. Biarkan SkillBot menemukan talenta yang tepat.
             </p>
+            <Link
+              to="/skillbot"
+              className="inline-flex items-center px-6 py-3 bg-white rounded-lg text-[#010042] font-semibold transition-all hover:bg-opacity-90 hover:shadow-md hover:transform hover:scale-105"
+            >
+              Coba SkillBot
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </Link>
           </div>
-          <Link
-            to="/become-freelancer"
-            className="mt-4 md:mt-0 inline-block bg-indigo-600 text-white font-medium px-5 py-2 rounded-md hover:bg-indigo-700 transition duration-300"
-          >
-            Menjadi Freelancer
-          </Link>
+          <div className="hidden md:block md:ml-8">
+            <img
+              src="/images/robot.png"
+              alt="AI Matching"
+              className="rounded-lg shadow-lg h-32 w-auto object-contain"
+            />
+          </div>
         </div>
       </div>
     );

@@ -33,7 +33,9 @@ export const getUserProfile = async (userId) => {
     // Get user basic data from users collection
     const userDoc = await getDoc(doc(db, COLLECTIONS.USERS, userId));
     if (userDoc.exists()) {
-      Object.assign(profileData, userDoc.data());
+      const userData = userDoc.data();
+
+      Object.assign(profileData, userData);
     }
     
     // Check clientProfiles collection (string format)
@@ -74,6 +76,7 @@ export const getUserProfile = async (userId) => {
       }
     }
     
+
     return profileData;
   } catch (error) {
     return null;

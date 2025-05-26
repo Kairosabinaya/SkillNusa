@@ -26,11 +26,32 @@ export default function Profile() {
   // Update combinedUserData when component data changes
   useEffect(() => {
     if (userProfile || profileData || userRegistrationData) {
-      setCombinedUserData({
+      const combined = {
         ...userProfile,
         ...profileData,
         ...userRegistrationData
-      });
+      };
+      
+      // Ensure critical freelancer-related fields are preserved from userProfile (from users collection)
+      // These fields should come from the authoritative users collection
+      if (userProfile) {
+        if (typeof userProfile.isFreelancer !== 'undefined') {
+          combined.isFreelancer = userProfile.isFreelancer;
+        }
+        if (userProfile.roles) {
+          combined.roles = userProfile.roles;
+        }
+        if (userProfile.role) {
+          combined.role = userProfile.role;
+        }
+        if (userProfile.activeRole) {
+          combined.activeRole = userProfile.activeRole;
+        }
+      }
+      
+
+      
+      setCombinedUserData(combined);
     }
   }, [userProfile, profileData, userRegistrationData]);
   
@@ -125,7 +146,7 @@ export default function Profile() {
       const uploadResult = await uploadToCloudinary(photoFile, currentUser.uid);
       
       return {
-        url: uploadResult.url,
+        url: uploadResult.profileUrl || uploadResult.url, // Use profileUrl for optimized display
         publicId: uploadResult.publicId
       };
     } catch (error) {
@@ -244,12 +265,16 @@ export default function Profile() {
                       (combinedUserData?.roles && combinedUserData.roles.includes('freelancer')) || 
                       combinedUserData?.role === 'freelancer';
 
+
+
   return (
-    <div className="max-w-7xl mx-auto px-6 py-12 relative">
+    <div className="min-h-screen bg-gray-50/50 relative">
       {/* Particle Background */}
-      <div className="absolute inset-0 overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden opacity-80">
         <ParticleBackground />
       </div>
+      
+      <div className="max-w-7xl mx-auto px-6 py-12 pb-24 relative">
       
       {/* Display FreelancerCTA if user is a client and not a freelancer */}
       {!isFreelancer && (
@@ -561,6 +586,7 @@ export default function Profile() {
             )}
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

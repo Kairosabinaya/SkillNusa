@@ -93,15 +93,16 @@ export const uploadProfilePhoto = async (userId, photoFile) => {
     // Upload to Cloudinary with optimizations
     const uploadResult = await uploadToCloudinary(photoFile, userId);
     
-    // Update user profile with photo URL
+    // Update user profile with photo URL (use profileUrl for optimized display)
+    const photoUrl = uploadResult.profileUrl || uploadResult.url;
     const userDocRef = doc(db, COLLECTIONS.USERS, userId);
     await updateDoc(userDocRef, {
-      profilePhoto: uploadResult.url,
+      profilePhoto: photoUrl,
       profilePhotoPublicId: uploadResult.publicId, // Store public ID for future management
       updatedAt: serverTimestamp()
     });
     
-    return uploadResult.url;
+    return photoUrl;
   } catch (error) {
     throw error;
   }

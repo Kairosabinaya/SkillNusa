@@ -100,7 +100,7 @@ export const RegistrationProvider = ({ children }) => {
     try {
       const uploadResult = await uploadToCloudinary(file, userId || `temp_${Date.now()}`);
       return {
-        url: uploadResult.url,
+        url: uploadResult.profileUrl || uploadResult.url, // Use profileUrl for optimized display
         publicId: uploadResult.publicId
       };
     } catch (error) {

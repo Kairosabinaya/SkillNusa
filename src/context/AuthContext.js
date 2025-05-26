@@ -230,7 +230,11 @@ export function AuthProvider({ children }) {
     
     try {
       const userData = await firebaseService.getUser(currentUser.uid);
+      
       if (userData) {
+        console.log('AuthContext DEBUG: userData loaded successfully');
+        console.log('AuthContext DEBUG: userData.isFreelancer:', userData.isFreelancer);
+        
         // Set active role and available roles for the multi-role architecture
         if (userData.roles && userData.roles.length > 0) {
           setAvailableRoles(userData.roles);
@@ -243,9 +247,12 @@ export function AuthProvider({ children }) {
         
         setUserProfile(userData);
         return userData;
+      } else {
+        console.log('AuthContext DEBUG: userData is null/undefined');
       }
       return null;
     } catch (error) {
+      console.error('AuthContext DEBUG: Error in fetchUserProfile:', error);
       setError(error.message);
       return null;
     }

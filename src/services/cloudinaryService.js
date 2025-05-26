@@ -17,6 +17,30 @@ const validateConfig = () => {
 };
 
 /**
+ * Build Cloudinary transformation string from object
+ * @param {Object} transformation - Transformation parameters object
+ * @returns {string} Cloudinary transformation string
+ */
+const buildTransformationString = (transformation) => {
+  if (!transformation || typeof transformation !== 'object') {
+    return '';
+  }
+
+  const params = [];
+  
+  // Map transformation properties to Cloudinary parameters
+  if (transformation.width) params.push(`w_${transformation.width}`);
+  if (transformation.height) params.push(`h_${transformation.height}`);
+  if (transformation.crop) params.push(`c_${transformation.crop}`);
+  if (transformation.gravity) params.push(`g_${transformation.gravity}`);
+  if (transformation.quality) params.push(`q_${transformation.quality}`);
+  if (transformation.fetch_format) params.push(`f_${transformation.fetch_format}`);
+  if (transformation.format) params.push(`f_${transformation.format}`);
+  
+  return params.join(',');
+};
+
+/**
  * Upload image to Cloudinary
  * @param {File} file - Image file to upload
  * @param {Object} options - Upload options
@@ -50,9 +74,8 @@ export const uploadImage = async (file, options = {}) => {
     formData.append('folder', options.folder);
   }
   
-  if (options.transformation) {
-    formData.append('transformation', JSON.stringify(options.transformation));
-  }
+  // Note: transformations are not allowed in unsigned uploads
+  // Transformations will be applied when generating URLs for display
 
   try {
     const response = await fetch(
@@ -84,51 +107,73 @@ export const uploadImage = async (file, options = {}) => {
 };
 
 /**
- * Upload profile photo with specific transformations
+ * Upload profile photo to designated folder
  * @param {File} file - Image file to upload
  * @param {string} userId - User ID for folder organization
- * @returns {Promise<Object>} Upload result
+ * @returns {Promise<Object>} Upload result with transformed URL
  */
 export const uploadProfilePhoto = async (file, userId) => {
-  return uploadImage(file, {
-    folder: `skillnusa/profile-photos/${userId}`,
-    transformation: [
-      { width: 400, height: 400, crop: 'fill', gravity: 'face' },
-      { quality: 'auto', fetch_format: 'auto' }
-    ]
+  const result = await uploadImage(file, {
+    folder: `skillnusa/profile-photos/${userId}`
   });
+  
+  // Add transformed URL for profile display
+  result.profileUrl = getOptimizedImageUrl(result.publicId, {
+    width: 400,
+    height: 400,
+    crop: 'fill',
+    gravity: 'face',
+    quality: 'auto',
+    fetch_format: 'auto'
+  });
+  
+  return result;
 };
 
 /**
- * Upload portfolio image with specific transformations
+ * Upload portfolio image to designated folder
  * @param {File} file - Image file to upload
  * @param {string} userId - User ID for folder organization
- * @returns {Promise<Object>} Upload result
+ * @returns {Promise<Object>} Upload result with transformed URL
  */
 export const uploadPortfolioImage = async (file, userId) => {
-  return uploadImage(file, {
-    folder: `skillnusa/portfolio/${userId}`,
-    transformation: [
-      { width: 800, height: 600, crop: 'limit' },
-      { quality: 'auto', fetch_format: 'auto' }
-    ]
+  const result = await uploadImage(file, {
+    folder: `skillnusa/portfolio/${userId}`
   });
+  
+  // Add transformed URL for portfolio display
+  result.portfolioUrl = getOptimizedImageUrl(result.publicId, {
+    width: 800,
+    height: 600,
+    crop: 'limit',
+    quality: 'auto',
+    fetch_format: 'auto'
+  });
+  
+  return result;
 };
 
 /**
- * Upload project image with specific transformations
+ * Upload project image to designated folder
  * @param {File} file - Image file to upload
  * @param {string} projectId - Project ID for folder organization
- * @returns {Promise<Object>} Upload result
+ * @returns {Promise<Object>} Upload result with transformed URL
  */
 export const uploadProjectImage = async (file, projectId) => {
-  return uploadImage(file, {
-    folder: `skillnusa/projects/${projectId}`,
-    transformation: [
-      { width: 1200, height: 800, crop: 'limit' },
-      { quality: 'auto', fetch_format: 'auto' }
-    ]
+  const result = await uploadImage(file, {
+    folder: `skillnusa/projects/${projectId}`
   });
+  
+  // Add transformed URL for project display
+  result.projectUrl = getOptimizedImageUrl(result.publicId, {
+    width: 1200,
+    height: 800,
+    crop: 'limit',
+    quality: 'auto',
+    fetch_format: 'auto'
+  });
+  
+  return result;
 };
 
 /**
@@ -170,18 +215,57 @@ export const getOptimizedImageUrl = (publicId, transformations = {}) => {
 
   const baseUrl = `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/image/upload`;
   
-  // Build transformation string
-  const transformParams = [];
+  // Use the same transformation string builder for consistency
+  const transformString = buildTransformationString(transformations);
+  const transformPath = transformString ? transformString + '/' : '';
   
-  if (transformations.width) transformParams.push(`w_${transformations.width}`);
-  if (transformations.height) transformParams.push(`h_${transformations.height}`);
-  if (transformations.crop) transformParams.push(`c_${transformations.crop}`);
-  if (transformations.quality) transformParams.push(`q_${transformations.quality}`);
-  if (transformations.format) transformParams.push(`f_${transformations.format}`);
-  
-  const transformString = transformParams.length > 0 ? transformParams.join(',') + '/' : '';
-  
-  return `${baseUrl}/${transformString}${publicId}`;
+  return `${baseUrl}/${transformPath}${publicId}`;
+};
+
+/**
+ * Get profile photo URL with standard transformations
+ * @param {string} publicId - Public ID of the uploaded image
+ * @returns {string} Transformed profile photo URL
+ */
+export const getProfilePhotoUrl = (publicId) => {
+  return getOptimizedImageUrl(publicId, {
+    width: 400,
+    height: 400,
+    crop: 'fill',
+    gravity: 'face',
+    quality: 'auto',
+    fetch_format: 'auto'
+  });
+};
+
+/**
+ * Get portfolio image URL with standard transformations
+ * @param {string} publicId - Public ID of the uploaded image
+ * @returns {string} Transformed portfolio image URL
+ */
+export const getPortfolioImageUrl = (publicId) => {
+  return getOptimizedImageUrl(publicId, {
+    width: 800,
+    height: 600,
+    crop: 'limit',
+    quality: 'auto',
+    fetch_format: 'auto'
+  });
+};
+
+/**
+ * Get project image URL with standard transformations
+ * @param {string} publicId - Public ID of the uploaded image
+ * @returns {string} Transformed project image URL
+ */
+export const getProjectImageUrl = (publicId) => {
+  return getOptimizedImageUrl(publicId, {
+    width: 1200,
+    height: 800,
+    crop: 'limit',
+    quality: 'auto',
+    fetch_format: 'auto'
+  });
 };
 
 export default {
@@ -191,4 +275,7 @@ export default {
   uploadProjectImage,
   deleteImage,
   getOptimizedImageUrl,
+  getProfilePhotoUrl,
+  getPortfolioImageUrl,
+  getProjectImageUrl,
 }; 

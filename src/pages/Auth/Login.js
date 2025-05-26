@@ -40,7 +40,7 @@ export default function Login() {
   // Redirect if user is already logged in
   useEffect(() => {
     if (currentUser) {
-      navigate('/profile');
+      navigate('/');
     }
   }, [currentUser, navigate]);
 

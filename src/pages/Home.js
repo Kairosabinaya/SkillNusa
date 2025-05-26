@@ -7,7 +7,7 @@ import FreelancerCTA from '../components/UI/FreelancerCTA';
 import MeshGradientBackground from '../components/UI/MeshGradientBackground';
 
 export default function Home() {
-  const { currentUser, userProfile } = useAuth();
+  const { currentUser, userProfile, loading } = useAuth();
   const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -245,7 +245,33 @@ export default function Home() {
   // PENTING: Dalam arsitektur multi-role, kita perlu memeriksa berbagai kombinasi kemungkinan
   
   // Gabungkan data user dari currentUser dan userProfile untuk mendapatkan gambaran lengkap
-  const userData = currentUser ? { ...currentUser, ...userProfile } : null;
+  // PENTING: userProfile harus didahulukan untuk memastikan field isFreelancer dari users collection digunakan
+  let userData = null;
+  
+  // Hanya proses data jika tidak sedang loading dan ada currentUser
+  if (!loading && currentUser) {
+    userData = { ...userProfile, ...currentUser };
+    
+    // Pastikan field penting dari userProfile (authoritative source) tidak tertimpa
+    if (userProfile) {
+      if (typeof userProfile.isFreelancer !== 'undefined') {
+        userData.isFreelancer = userProfile.isFreelancer;
+      }
+      if (userProfile.roles) {
+        userData.roles = userProfile.roles;
+      }
+      if (userProfile.role) {
+        userData.role = userProfile.role;
+      }
+      if (userProfile.freelancerStatus) {
+        userData.freelancerStatus = userProfile.freelancerStatus;
+      }
+    }
+  }
+  
+  // CRITICAL: Don't show freelancer banner if data is still loading or userProfile is null
+  // This prevents the race condition where banner shows before data loads
+  const isDataReady = !loading && currentUser && userProfile !== null;
   
   // Logging untuk debug
   // Periksa jika user sudah login dan role-nya
@@ -273,10 +299,25 @@ export default function Home() {
   const isPendingFreelancer = !!userData && userData.freelancerStatus === 'pending';
                        
   // Menentukan apakah perlu menampilkan FreelancerCTA 
-  // Syarat: user login + client + bukan freelancer + bukan pending freelancer
-  const showFreelancerCTA = !!currentUser && isClient && !isFreelancer && !isPendingFreelancer;
+  // Syarat: data ready + user login + client + bukan freelancer + bukan pending freelancer
+  const showFreelancerCTA = isDataReady && !!currentUser && isClient && !isFreelancer && !isPendingFreelancer;
   
   // Logging detail untuk debugging
+  console.log('HOME.js DEBUG - Data Sources:');
+  console.log('- loading:', loading);
+  console.log('- currentUser:', currentUser);
+  console.log('- userProfile:', userProfile);
+  console.log('- userData (combined):', userData);
+  console.log('- isDataReady:', isDataReady);
+  console.log('');
+  console.log('HOME.js DEBUG - Freelancer Detection:');
+  console.log('- userData.isFreelancer:', userData?.isFreelancer);
+  console.log('- userData.role:', userData?.role);
+  console.log('- userData.roles:', userData?.roles);
+  console.log('- isClient:', isClient);
+  console.log('- isFreelancer:', isFreelancer);
+  console.log('- isPendingFreelancer:', isPendingFreelancer);
+  console.log('- showFreelancerCTA:', showFreelancerCTA);
   return (
     <div className="font-sans">
       {/* Main content for logged in or non-logged in users */}
@@ -284,31 +325,31 @@ export default function Home() {
         // Logged in view (client or freelancer)
         <>
           {/* SkillBot AI Banner Section - untuk semua user yang sudah login */}
-          <div className="bg-white py-6">
+          <div className="bg-gray-50 py-12">
             <div className="max-w-7xl mx-auto px-3 sm:px-4">
-              <div className="bg-gradient-to-r from-[#010042]/90 to-[#0100a3]/90 rounded-xl p-5 md:p-6 shadow-lg">
-                <div className="md:flex items-center justify-between">
-                  <div className="mb-4 md:mb-0 md:max-w-2xl">
-                    <h2 className="text-xl md:text-2xl font-bold text-white mb-2">
+              <div className="bg-gradient-to-r from-[#010042]/95 to-[#0100a3]/95 rounded-xl p-8 md:p-12 shadow-xl">
+                <div className="flex flex-col md:flex-row items-center justify-between">
+                  <div className="mb-6 md:mb-0 md:max-w-2xl">
+                    <h2 className="text-2xl md:text-4xl font-bold text-white mb-4">
                       Meet SkillBot: Your AI-Powered Freelancer Finder
                     </h2>
-                    <p className="text-white/90 mb-4 text-sm md:text-base">
+                    <p className="text-white/90 mb-6 text-base md:text-lg leading-relaxed">
                       Sistem rekomendasi AI kami membantu mencocokkan freelancer terbaik untuk proyek spesifik Anda. Biarkan SkillBot menemukan talenta yang tepat.
                     </p>
                     <Link
                       to="/skillbot"
-                      className="inline-flex items-center px-5 py-2 bg-white rounded-lg text-[#010042] font-medium transition-all hover:bg-opacity-90 hover:shadow-md hover:transform hover:scale-105 text-sm">
+                      className="inline-flex items-center px-8 py-4 bg-white rounded-lg text-[#010042] font-semibold transition-all hover:bg-opacity-90 hover:shadow-lg hover:transform hover:scale-105 text-lg">
                       Coba SkillBot
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-2" viewBox="0 0 20 20" fill="currentColor">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-3" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
                       </svg>
                     </Link>
                   </div>
-                  <div className="hidden md:block md:ml-6">
+                  <div className="hidden md:block md:ml-8">
                     <img
                       src="/images/robot.png"
                       alt="AI Matching"
-                      className="rounded-lg shadow-lg h-32 w-auto object-contain"
+                      className="rounded-lg shadow-lg h-48 w-auto object-contain"
                     />
                   </div>
                 </div>
@@ -440,31 +481,31 @@ export default function Home() {
 
       {/* SkillBot AI Banner Section - only shown to non-logged-in users */}
       {!currentUser && (
-        <div className="bg-white py-6">
+        <div className="bg-gray-50 py-12">
           <div className="max-w-7xl mx-auto px-3 sm:px-4">
-            <div className="bg-gradient-to-r from-[#010042]/90 to-[#0100a3]/90 rounded-xl p-5 md:p-6 shadow-lg">
-              <div className="md:flex items-center justify-between">
-                <div className="mb-4 md:mb-0 md:max-w-2xl">
-                  <h2 className="text-xl md:text-2xl font-bold text-white mb-2">
+            <div className="bg-gradient-to-r from-[#010042]/95 to-[#0100a3]/95 rounded-xl p-8 md:p-12 shadow-xl">
+              <div className="flex flex-col md:flex-row items-center justify-between">
+                <div className="mb-6 md:mb-0 md:max-w-2xl">
+                  <h2 className="text-2xl md:text-4xl font-bold text-white mb-4">
                     Meet SkillBot: Your AI-Powered Freelancer Finder
                   </h2>
-                  <p className="text-white/90 mb-4 text-sm md:text-base">
+                  <p className="text-white/90 mb-6 text-base md:text-lg leading-relaxed">
                     Sistem rekomendasi AI kami membantu mencocokkan freelancer terbaik untuk proyek spesifik Anda. Biarkan SkillBot menemukan talenta yang tepat.
                   </p>
                   <Link
                     to="/login"
-                    className="inline-flex items-center px-5 py-2 bg-white rounded-lg text-[#010042] font-medium transition-all hover:bg-opacity-90 hover:shadow-md hover:transform hover:scale-105 text-sm">
+                    className="inline-flex items-center px-8 py-4 bg-white rounded-lg text-[#010042] font-semibold transition-all hover:bg-opacity-90 hover:shadow-lg hover:transform hover:scale-105 text-lg">
                     Coba SkillBot
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-2" viewBox="0 0 20 20" fill="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-3" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
                     </svg>
                   </Link>
                 </div>
-                <div className="hidden md:block md:ml-6">
+                <div className="hidden md:block md:ml-8">
                   <img
                     src="/images/robot.png"
                     alt="AI Matching"
-                    className="rounded-lg shadow-lg h-32 w-auto object-contain"
+                    className="rounded-lg shadow-lg h-48 w-auto object-contain"
                   />
                 </div>
               </div>
@@ -569,7 +610,7 @@ export default function Home() {
       </div>
 
       {/* Banner FreelancerCTA - ditampilkan hanya untuk user yang login sebagai client tapi belum menjadi freelancer */}
-      {currentUser && isClient && !isFreelancer && !isPendingFreelancer && (
+      {showFreelancerCTA && (
         <div className="bg-gradient-to-r from-blue-500 to-indigo-600 py-16 border-t border-blue-400">
           <div className="max-w-7xl mx-auto px-3 sm:px-4">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8">
