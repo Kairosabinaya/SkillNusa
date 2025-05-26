@@ -24,7 +24,6 @@ export default class ProjectRepository extends BaseRepository {
         orderByField: 'updatedAt'
       });
     } catch (error) {
-      console.error('Error finding projects by client:', error);
       throw error;
     }
   }
@@ -43,7 +42,6 @@ export default class ProjectRepository extends BaseRepository {
         orderByField: 'updatedAt'
       });
     } catch (error) {
-      console.error('Error finding projects by freelancer:', error);
       throw error;
     }
   }
@@ -64,7 +62,6 @@ export default class ProjectRepository extends BaseRepository {
         limitCount: limit
       });
     } catch (error) {
-      console.error('Error finding open projects:', error);
       throw error;
     }
   }
@@ -84,7 +81,6 @@ export default class ProjectRepository extends BaseRepository {
         orderByField: 'updatedAt'
       });
     } catch (error) {
-      console.error('Error finding projects by skill:', error);
       throw error;
     }
   }
@@ -104,7 +100,6 @@ export default class ProjectRepository extends BaseRepository {
       
       return await this.update(projectId, { status });
     } catch (error) {
-      console.error('Error updating project status:', error);
       throw error;
     }
   }
@@ -122,7 +117,6 @@ export default class ProjectRepository extends BaseRepository {
         status: PROJECT_STATUSES.IN_PROGRESS
       });
     } catch (error) {
-      console.error('Error assigning freelancer to project:', error);
       throw error;
     }
   }

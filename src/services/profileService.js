@@ -1,8 +1,8 @@
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../firebase/config';
+import { db } from '../firebase/config';
 import firebaseService from './firebaseService';
 import { COLLECTIONS } from '../utils/constants';
+import { uploadProfilePhoto as uploadToCloudinary } from './cloudinaryService';
 
 /**
  * Create a complete user profile after registration
@@ -73,13 +73,12 @@ export const createUserProfile = async (userId, profileData) => {
     }
     
   } catch (error) {
-    console.error("Error creating user profile:", error);
     throw error;
   }
 };
 
 /**
- * Upload profile photo and return download URL
+ * Upload profile photo using Cloudinary and return download URL
  * 
  * @param {string} userId - The user ID
  * @param {File} photoFile - The photo file
@@ -91,25 +90,19 @@ export const uploadProfilePhoto = async (userId, photoFile) => {
   }
   
   try {
-    // Create a reference to the storage location
-    const storageRef = ref(storage, `profile-photos/${userId}/${Date.now()}-${photoFile.name}`);
-    
-    // Upload the file
-    await uploadBytes(storageRef, photoFile);
-    
-    // Get download URL
-    const downloadURL = await getDownloadURL(storageRef);
+    // Upload to Cloudinary with optimizations
+    const uploadResult = await uploadToCloudinary(photoFile, userId);
     
     // Update user profile with photo URL
     const userDocRef = doc(db, COLLECTIONS.USERS, userId);
     await updateDoc(userDocRef, {
-      profilePhoto: downloadURL,
+      profilePhoto: uploadResult.url,
+      profilePhotoPublicId: uploadResult.publicId, // Store public ID for future management
       updatedAt: serverTimestamp()
     });
     
-    return downloadURL;
+    return uploadResult.url;
   } catch (error) {
-    console.error("Error uploading profile photo:", error);
     throw error;
   }
 };
@@ -224,7 +217,6 @@ export const getIndonesianCities = async () => {
     
     return cities;
   } catch (error) {
-    console.error("Error getting Indonesian cities:", error);
     return [];
   }
 };
@@ -271,7 +263,6 @@ export const getSkillSuggestions = async () => {
       { id: 'shopify', name: 'Shopify' }
     ];
   } catch (error) {
-    console.error("Error getting skill suggestions:", error);
     return [];
   }
 };
@@ -308,7 +299,6 @@ export const getIndustryOptions = async () => {
       { id: 'other', name: 'Lainnya' }
     ];
   } catch (error) {
-    console.error("Error getting industry options:", error);
     return [];
   }
 };
@@ -331,7 +321,6 @@ export const getBudgetRangeOptions = async () => {
       { id: 'negotiable', name: 'Fleksibel / Dapat dinegosiasi' }
     ];
   } catch (error) {
-    console.error("Error getting budget range options:", error);
     return [];
   }
 };
@@ -363,7 +352,6 @@ export const getPrimaryNeedsOptions = async () => {
       { id: 'other', name: 'Lainnya' }
     ];
   } catch (error) {
-    console.error("Error getting primary needs options:", error);
     return [];
   }
 }; 

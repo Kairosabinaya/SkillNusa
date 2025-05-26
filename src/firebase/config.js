@@ -13,7 +13,10 @@ const firebaseConfig = {
   storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.REACT_APP_FIREBASE_APP_ID,
-  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID
+  // measurementId is optional - only include if Google Analytics is enabled
+  ...(process.env.REACT_APP_FIREBASE_MEASUREMENT_ID && {
+    measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID
+  })
 };
 
 // Validate required configuration
@@ -37,7 +40,6 @@ try {
   db = getFirestore(app);
   storage = getStorage(app);
 } catch (error) {
-  console.error("Error initializing Firebase:", error);
   throw new Error("Firebase initialization failed. Check your configuration.");
 }
 

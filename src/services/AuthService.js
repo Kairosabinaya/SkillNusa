@@ -75,7 +75,6 @@ export default class AuthService {
       
       return user;
     } catch (error) {
-      console.error("Signup error:", error);
       throw error;
     }
   }
@@ -91,7 +90,6 @@ export default class AuthService {
       const result = await signInWithEmailAndPassword(auth, email, password);
       return result.user;
     } catch (error) {
-      console.error("Login error:", error);
       throw error;
     }
   }
@@ -104,7 +102,6 @@ export default class AuthService {
     try {
       return await signOut(auth);
     } catch (error) {
-      console.error("Logout error:", error);
       throw error;
     }
   }
@@ -118,7 +115,6 @@ export default class AuthService {
     try {
       return await sendPasswordResetEmail(auth, email);
     } catch (error) {
-      console.error("Reset password error:", error);
       throw error;
     }
   }

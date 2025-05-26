@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ROUTES, ROLES } from './routes';
+import ErrorBoundary from './components/common/ErrorBoundary';
 
 // Layouts
 import PublicLayout from './components/Layout/PublicLayout';
@@ -32,9 +33,10 @@ import RoleRoute from './components/RoleRoute';
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <Routes>
+    <ErrorBoundary>
+      <AuthProvider>
+        <Router>
+          <Routes>
           {/* Public Routes */}
           <Route path={ROUTES.HOME} element={<PublicLayout />}>
             <Route index element={<Home />} />
@@ -110,6 +112,7 @@ function App() {
         </Routes>
       </Router>
     </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

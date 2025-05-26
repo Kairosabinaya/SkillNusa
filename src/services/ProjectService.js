@@ -14,7 +14,6 @@ export default class ProjectService {
     try {
       return await projectRepository.findById(projectId);
     } catch (error) {
-      console.error("Error getting project by ID:", error);
       throw error;
     }
   }
@@ -28,7 +27,6 @@ export default class ProjectService {
     try {
       return await projectRepository.findByClient(clientId);
     } catch (error) {
-      console.error("Error getting projects by client:", error);
       throw error;
     }
   }
@@ -42,7 +40,6 @@ export default class ProjectService {
     try {
       return await projectRepository.findByFreelancer(freelancerId);
     } catch (error) {
-      console.error("Error getting projects by freelancer:", error);
       throw error;
     }
   }
@@ -56,7 +53,6 @@ export default class ProjectService {
     try {
       return await projectRepository.findOpenProjects(limit);
     } catch (error) {
-      console.error("Error getting open projects:", error);
       throw error;
     }
   }
@@ -71,7 +67,6 @@ export default class ProjectService {
       const project = new Project(projectData);
       return await projectRepository.add(project);
     } catch (error) {
-      console.error("Error creating project:", error);
       throw error;
     }
   }
@@ -86,7 +81,6 @@ export default class ProjectService {
     try {
       return await projectRepository.update(projectId, projectData);
     } catch (error) {
-      console.error("Error updating project:", error);
       throw error;
     }
   }
@@ -100,7 +94,6 @@ export default class ProjectService {
     try {
       return await projectRepository.delete(projectId);
     } catch (error) {
-      console.error("Error deleting project:", error);
       throw error;
     }
   }
@@ -115,7 +108,6 @@ export default class ProjectService {
     try {
       return await projectRepository.updateStatus(projectId, status);
     } catch (error) {
-      console.error("Error updating project status:", error);
       throw error;
     }
   }
@@ -130,7 +122,6 @@ export default class ProjectService {
     try {
       return await projectRepository.assignFreelancer(projectId, freelancerId);
     } catch (error) {
-      console.error("Error assigning freelancer to project:", error);
       throw error;
     }
   }
@@ -145,7 +136,6 @@ export default class ProjectService {
       const proposal = new Proposal(proposalData);
       return await proposalRepository.add(proposal);
     } catch (error) {
-      console.error("Error creating proposal:", error);
       throw error;
     }
   }
@@ -159,7 +149,6 @@ export default class ProjectService {
     try {
       return await proposalRepository.findByProject(projectId);
     } catch (error) {
-      console.error("Error getting proposals by project:", error);
       throw error;
     }
   }
@@ -173,7 +162,6 @@ export default class ProjectService {
     try {
       return await proposalRepository.findByFreelancer(freelancerId);
     } catch (error) {
-      console.error("Error getting proposals by freelancer:", error);
       throw error;
     }
   }
@@ -201,7 +189,6 @@ export default class ProjectService {
         .map(proposal => proposalRepository.rejectProposal(proposal.id))
       );
     } catch (error) {
-      console.error("Error accepting proposal:", error);
       throw error;
     }
   }

@@ -24,7 +24,6 @@ export default class ProposalRepository extends BaseRepository {
         orderByField: 'createdAt'
       });
     } catch (error) {
-      console.error('Error finding proposals by project:', error);
       throw error;
     }
   }
@@ -43,7 +42,6 @@ export default class ProposalRepository extends BaseRepository {
         orderByField: 'createdAt'
       });
     } catch (error) {
-      console.error('Error finding proposals by freelancer:', error);
       throw error;
     }
   }
@@ -61,7 +59,6 @@ export default class ProposalRepository extends BaseRepository {
         orderByField: 'createdAt'
       });
     } catch (error) {
-      console.error('Error finding pending proposals:', error);
       throw error;
     }
   }
@@ -81,7 +78,6 @@ export default class ProposalRepository extends BaseRepository {
       
       return await this.update(proposalId, { status });
     } catch (error) {
-      console.error('Error updating proposal status:', error);
       throw error;
     }
   }
@@ -95,7 +91,6 @@ export default class ProposalRepository extends BaseRepository {
     try {
       return await this.updateStatus(proposalId, PROPOSAL_STATUSES.ACCEPTED);
     } catch (error) {
-      console.error('Error accepting proposal:', error);
       throw error;
     }
   }
@@ -109,7 +104,6 @@ export default class ProposalRepository extends BaseRepository {
     try {
       return await this.updateStatus(proposalId, PROPOSAL_STATUSES.REJECTED);
     } catch (error) {
-      console.error('Error rejecting proposal:', error);
       throw error;
     }
   }
@@ -123,7 +117,6 @@ export default class ProposalRepository extends BaseRepository {
     try {
       return await this.updateStatus(proposalId, PROPOSAL_STATUSES.WITHDRAWN);
     } catch (error) {
-      console.error('Error withdrawing proposal:', error);
       throw error;
     }
   }

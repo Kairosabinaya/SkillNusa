@@ -46,7 +46,6 @@ export default class BaseRepository {
 
       return null;
     } catch (error) {
-      console.error(`Error getting document from ${this.collectionName}:`, error);
       throw error;
     }
   }
@@ -94,7 +93,6 @@ export default class BaseRepository {
       
       return documents;
     } catch (error) {
-      console.error(`Error getting documents from ${this.collectionName}:`, error);
       throw error;
     }
   }
@@ -123,7 +121,6 @@ export default class BaseRepository {
       await setDoc(docRef, timestampedData, { merge });
       return id;
     } catch (error) {
-      console.error(`Error creating document in ${this.collectionName}:`, error);
       throw error;
     }
   }
@@ -149,7 +146,6 @@ export default class BaseRepository {
       const docRef = await addDoc(this.collectionRef, timestampedData);
       return docRef.id;
     } catch (error) {
-      console.error(`Error adding document to ${this.collectionName}:`, error);
       throw error;
     }
   }
@@ -175,7 +171,6 @@ export default class BaseRepository {
       
       await updateDoc(docRef, timestampedData);
     } catch (error) {
-      console.error(`Error updating document in ${this.collectionName}:`, error);
       throw error;
     }
   }
@@ -190,7 +185,6 @@ export default class BaseRepository {
       const docRef = doc(db, this.collectionName, id);
       await deleteDoc(docRef);
     } catch (error) {
-      console.error(`Error deleting document in ${this.collectionName}:`, error);
       throw error;
     }
   }

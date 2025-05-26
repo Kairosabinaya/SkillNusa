@@ -76,7 +76,6 @@ export const getUserProfile = async (userId) => {
     
     return profileData;
   } catch (error) {
-    console.error('Error fetching user profile:', error);
     return null;
   }
 };
@@ -209,7 +208,6 @@ export const updateUserProfile = async (userId, profileData, updateAuthProfile =
     
     return true;
   } catch (error) {
-    console.error('Error updating user profile:', error);
     return false;
   }
 };

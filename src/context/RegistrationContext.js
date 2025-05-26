@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
-import { storage } from '../firebase/config';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { uploadProfilePhoto as uploadToCloudinary } from '../services/cloudinaryService';
 import { ROUTES } from '../routes';
 
 const RegistrationContext = createContext();
@@ -94,17 +93,17 @@ export const RegistrationProvider = ({ children }) => {
     });
   }, []);
 
-  // Handle profile photo upload
-  const uploadProfilePhoto = async (file) => {
+  // Handle profile photo upload using Cloudinary
+  const uploadProfilePhoto = async (file, userId) => {
     if (!file) return null;
 
     try {
-      const storageRef = ref(storage, `profile-photos/${Date.now()}-${file.name}`);
-      await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(storageRef);
-      return downloadURL;
+      const uploadResult = await uploadToCloudinary(file, userId || `temp_${Date.now()}`);
+      return {
+        url: uploadResult.url,
+        publicId: uploadResult.publicId
+      };
     } catch (error) {
-      console.error('Error uploading profile photo:', error);
       throw error;
     }
   };
@@ -117,8 +116,11 @@ export const RegistrationProvider = ({ children }) => {
     try {
       // Upload profile photo if exists
       let profilePhotoUrl = null;
+      let profilePhotoPublicId = null;
       if (formData.profilePhoto) {
-        profilePhotoUrl = await uploadProfilePhoto(formData.profilePhoto);
+        const uploadResult = await uploadProfilePhoto(formData.profilePhoto);
+        profilePhotoUrl = uploadResult.url;
+        profilePhotoPublicId = uploadResult.publicId;
       }
 
       // Register user
@@ -134,6 +136,7 @@ export const RegistrationProvider = ({ children }) => {
         bio: formData.bio || '',
         city: formData.city,
         profilePhoto: profilePhotoUrl,
+        profilePhotoPublicId: profilePhotoPublicId,
         // Role-specific data
         ...(formData.role === 'freelancer' ? {
           skills: formData.skills,
@@ -170,7 +173,6 @@ export const RegistrationProvider = ({ children }) => {
       // Redirect to email verification page
       navigate('/verify-email');
     } catch (error) {
-      console.error('Registration error:', error);
       setError(error.message);
       throw error;
     } finally {

@@ -1,70 +1,363 @@
-# Getting Started with Create React App
+# SkillNusa - Platform Freelancer Indonesia
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+SkillNusa adalah platform yang menghubungkan freelancer dengan klien di Indonesia. Platform ini memungkinkan freelancer untuk menawarkan jasa mereka dan klien untuk mencari talent yang sesuai dengan kebutuhan proyek mereka.
 
-## Available Scripts
+## 🚀 Fitur Utama
 
-In the project directory, you can run:
+### Untuk Freelancer
+- **Profil Profesional**: Buat profil yang menarik dengan portfolio, skill, dan pengalaman
+- **Pencarian Proyek**: Temukan proyek yang sesuai dengan keahlian Anda
+- **Proposal Otomatis**: Kirim proposal dengan template yang dapat disesuaikan
+- **Manajemen Proyek**: Kelola proyek aktif dan riwayat pekerjaan
+- **Rating & Review**: Bangun reputasi melalui sistem rating dari klien
 
-### `npm start`
+### Untuk Klien
+- **Posting Proyek**: Buat posting proyek dengan detail yang jelas
+- **Pencarian Freelancer**: Cari freelancer berdasarkan skill, rating, dan lokasi
+- **Manajemen Proposal**: Review dan kelola proposal yang masuk
+- **Sistem Pembayaran**: Proses pembayaran yang aman dan terpercaya
+- **Tracking Progress**: Pantau progress proyek secara real-time
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+### Fitur Umum
+- **Multi-Role Support**: Pengguna dapat berperan sebagai freelancer dan klien
+- **Real-time Chat**: Komunikasi langsung antara freelancer dan klien
+- **Notifikasi**: Update real-time untuk aktivitas penting
+- **Dashboard Analytics**: Statistik dan insights untuk performa
+- **Mobile Responsive**: Akses dari berbagai perangkat
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## 🛠️ Teknologi yang Digunakan
 
-### `npm test`
+### Frontend
+- **React 18** - Library UI modern
+- **React Router v6** - Routing dan navigasi
+- **Tailwind CSS** - Styling dan design system
+- **React Hook Form** - Form management
+- **React Query** - State management dan caching
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### Backend & Database
+- **Firebase Authentication** - Sistem autentikasi
+- **Cloud Firestore** - Database NoSQL
+- **Firebase Storage** - Penyimpanan file
+- **Firebase Functions** - Serverless functions
 
-### `npm run build`
+### Tools & Services
+- **Cloudinary** - Image optimization dan CDN
+- **Vite** - Build tool dan development server
+- **ESLint & Prettier** - Code quality dan formatting
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## 📦 Instalasi
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+### Prerequisites
+- Node.js (v16 atau lebih baru)
+- npm atau yarn
+- Git
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+### Langkah Instalasi
 
-### `npm run eject`
+1. **Clone repository**
+   ```bash
+   git clone https://github.com/yourusername/skillnusa.git
+   cd skillnusa
+   ```
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+2. **Install dependencies**
+   ```bash
+   npm install
+   # atau
+   yarn install
+   ```
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+3. **Setup environment variables**
+   ```bash
+   cp .env.example .env
+   ```
+   
+   Isi file `.env` dengan konfigurasi Firebase dan Cloudinary:
+   ```env
+   VITE_FIREBASE_API_KEY=your_api_key
+   VITE_FIREBASE_AUTH_DOMAIN=your_auth_domain
+   VITE_FIREBASE_PROJECT_ID=your_project_id
+   VITE_FIREBASE_STORAGE_BUCKET=your_storage_bucket
+   VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+   VITE_FIREBASE_APP_ID=your_app_id
+   
+   VITE_CLOUDINARY_CLOUD_NAME=your_cloud_name
+   VITE_CLOUDINARY_API_KEY=your_api_key
+   VITE_CLOUDINARY_API_SECRET=your_api_secret
+   ```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+4. **Jalankan development server**
+   ```bash
+   npm run dev
+   # atau
+   yarn dev
+   ```
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+5. **Buka browser**
+   Akses `http://localhost:5173` untuk melihat aplikasi
 
-## Learn More
+## 🏗️ Struktur Proyek
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+```
+src/
+├── components/          # Komponen React reusable
+│   ├── Auth/           # Komponen autentikasi
+│   ├── Dashboard/      # Komponen dashboard
+│   ├── Layout/         # Layout komponen
+│   ├── Profile/        # Komponen profil
+│   ├── Project/        # Komponen proyek
+│   ├── UI/             # UI komponen dasar
+│   └── common/         # Komponen umum
+├── context/            # React Context providers
+├── firebase/           # Konfigurasi Firebase
+├── hooks/              # Custom React hooks
+├── pages/              # Halaman aplikasi
+├── repositories/       # Data access layer
+├── routes/             # Konfigurasi routing
+├── services/           # Business logic layer
+├── utils/              # Utility functions
+└── validation/         # Skema validasi
+```
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+## 🔧 Arsitektur & Patterns
+
+### Service Layer Pattern
+Aplikasi menggunakan service layer pattern untuk memisahkan business logic dari UI components:
+
+```javascript
+// BaseService - Kelas dasar untuk semua service
+class BaseService {
+  async handleOperation(operation, operationName, context) {
+    return ErrorHandler.handleAsync(operation, operationName, context);
+  }
+}
+
+// UserService - Extends BaseService
+class UserService extends BaseService {
+  async getUserById(userId) {
+    return this.handleOperation(
+      () => this.repository.findById(userId),
+      'getUserById',
+      { userId }
+    );
+  }
+}
+```
+
+### Error Handling System
+Sistem error handling yang komprehensif dengan custom error classes:
+
+```javascript
+// Custom error classes
+export class ValidationError extends AppError {
+  constructor(message, code, field) {
+    super(message, code, 400);
+    this.field = field;
+  }
+}
+
+// Error handler utility
+export class ErrorHandler {
+  static handleServiceError(error, operation, context) {
+    Logger.operationFailed(operation, error);
+    // Return user-friendly error messages
+  }
+}
+```
+
+### Logging System
+Unified logging system dengan environment-aware output:
+
+```javascript
+class Logger {
+  static error(message, error, context) {
+    if (currentLogLevel >= LOG_LEVELS.ERROR) {
+      console.error(`[ERROR] ${message}`, { error, context, timestamp });
+    }
+  }
+}
+```
+
+### Validation System
+Comprehensive validation dengan reusable schemas:
+
+```javascript
+export const validationSchemas = {
+  userRegistration: {
+    email: validateEmail,
+    password: validatePassword,
+    username: validateUsername
+  }
+};
+
+export const validateSchema = (data, schema) => {
+  // Validate data against schema and return results
+};
+```
+
+## 🧪 Testing
+
+### Setup Testing Environment
+```bash
+npm install --save-dev @testing-library/react @testing-library/jest-dom jest
+```
+
+### Running Tests
+```bash
+npm run test          # Run all tests
+npm run test:watch    # Run tests in watch mode
+npm run test:coverage # Run tests with coverage report
+```
+
+### Test Utilities
+Aplikasi menyediakan test helpers untuk mempermudah testing:
+
+```javascript
+import { renderWithProviders, mockUsers, generateTestData } from './utils/testHelpers';
+
+// Render component with providers
+const { getByText } = renderWithProviders(<MyComponent />);
+
+// Use mock data
+const testUser = generateTestData.user({ role: 'freelancer' });
+```
+
+## 🔧 Scripts yang Tersedia
+
+- `npm run dev` - Menjalankan development server
+- `npm run build` - Build aplikasi untuk production
+- `npm run preview` - Preview build production
+- `npm run lint` - Menjalankan ESLint
+- `npm run lint:fix` - Fix ESLint errors otomatis
+- `npm run test` - Menjalankan unit tests
+- `npm run test:coverage` - Test coverage report
+
+## 🚀 Deployment
+
+### Vercel (Recommended)
+1. Push code ke GitHub
+2. Connect repository di Vercel
+3. Set environment variables
+4. Deploy otomatis
+
+### Netlify
+1. Build aplikasi: `npm run build`
+2. Upload folder `dist` ke Netlify
+3. Set environment variables
+4. Configure redirects untuk SPA
+
+## 🔒 Security Best Practices
+
+### Authentication & Authorization
+- JWT token validation
+- Role-based access control (RBAC)
+- Protected routes dengan guards
+- Session management
+
+### Data Validation
+- Input sanitization
+- Schema validation
+- File upload restrictions
+- XSS protection
+
+### Firebase Security Rules
+```javascript
+// Firestore security rules example
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
+```
+
+## 📊 Performance Optimization
 
 ### Code Splitting
+```javascript
+// Lazy loading components
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Profile = lazy(() => import('./pages/Profile'));
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+### Image Optimization
+- Cloudinary integration untuk image processing
+- Lazy loading untuk images
+- WebP format support
+- Responsive images
 
-### Analyzing the Bundle Size
+### Caching Strategy
+- Service worker untuk offline support
+- React Query untuk data caching
+- Browser caching headers
+- CDN untuk static assets
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+## 🤝 Kontribusi
 
-### Making a Progressive Web App
+Kami menyambut kontribusi dari komunitas! Silakan ikuti langkah berikut:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+1. Fork repository
+2. Buat feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit perubahan (`git commit -m 'Add some AmazingFeature'`)
+4. Push ke branch (`git push origin feature/AmazingFeature`)
+5. Buat Pull Request
 
-### Advanced Configuration
+### Guidelines Kontribusi
+- Ikuti coding standards yang ada
+- Tulis tests untuk fitur baru
+- Update dokumentasi jika diperlukan
+- Gunakan commit message yang deskriptif
+- Follow the established architecture patterns
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+### Code Style
+```javascript
+// Use consistent naming conventions
+const getUserProfile = async (userId) => {
+  // Use proper error handling
+  return ErrorHandler.handleAsync(
+    () => userService.getUserProfile(userId),
+    'getUserProfile',
+    { userId }
+  );
+};
+```
 
-### Deployment
+## 📝 License
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+Distributed under the MIT License. See `LICENSE` for more information.
 
-### `npm run build` fails to minify
+## 📞 Kontak
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+- **Email**: support@skillnusa.com
+- **Website**: https://skillnusa.com
+- **GitHub**: https://github.com/yourusername/skillnusa
+
+## 🙏 Acknowledgments
+
+- [React](https://reactjs.org/)
+- [Firebase](https://firebase.google.com/)
+- [Tailwind CSS](https://tailwindcss.com/)
+- [Cloudinary](https://cloudinary.com/)
+- [Vite](https://vitejs.dev/)
+
+## 📈 Roadmap
+
+### Q1 2024
+- [ ] Advanced search filters
+- [ ] Real-time notifications
+- [ ] Mobile app development
+- [ ] Payment gateway integration
+
+### Q2 2024
+- [ ] AI-powered project matching
+- [ ] Video call integration
+- [ ] Advanced analytics dashboard
+- [ ] Multi-language support
+
+### Q3 2024
+- [ ] API for third-party integrations
+- [ ] Advanced project management tools
+- [ ] Freelancer certification system
+- [ ] Enterprise features

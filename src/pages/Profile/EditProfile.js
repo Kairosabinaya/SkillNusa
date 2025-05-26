@@ -5,7 +5,7 @@ import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useAuth } from '../../context/AuthContext';
 import { db, storage, auth } from '../../firebase/config';
-import Alert from '../../components/UI/Alert';
+import Alert from '../../components/common/Alert';
 import LoadingSpinner from '../../components/UI/LoadingSpinner';
 
 export default function EditProfile() {
@@ -48,8 +48,7 @@ export default function EditProfile() {
           }));
         }
       } catch (error) {
-        console.error("Error fetching skills:", error);
-      }
+        }
     }
 
     fetchSkills();
@@ -142,7 +141,6 @@ export default function EditProfile() {
         navigate('/profile');
       }, 2000);
     } catch (error) {
-      console.error("Error updating profile:", error);
       setError('Failed to update profile. Please try again.');
     } finally {
       setLoading(false);

@@ -28,7 +28,6 @@ export default function RoleSwitcher() {
     try {
       await switchRole(role);
     } catch (error) {
-      console.error('Error switching role:', error);
       setError('Failed to switch role. Please try again.');
     } finally {
       setLoading(false);

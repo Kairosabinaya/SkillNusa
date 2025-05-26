@@ -21,6 +21,8 @@ import {
 import { auth, db } from '../firebase/config';
 import firebaseService from '../services/firebaseService';
 import { COLLECTIONS, USER_ROLES, FREELANCER_STATUS } from '../utils/constants';
+import Logger from '../utils/logger';
+import { AuthError, ValidationError, ErrorHandler } from '../utils/errors';
 
 const AuthContext = createContext();
 
@@ -36,6 +38,8 @@ export function AuthProvider({ children }) {
 
   const createUserDocument = async (userId, userData) => {
     try {
+      Logger.operationStart('createUserDocument', { userId });
+      
       // Add multi-role fields if not provided
       const multiRoleData = {
         ...userData,
@@ -47,10 +51,13 @@ export function AuthProvider({ children }) {
         updatedAt: serverTimestamp()
       };
       
-      return await firebaseService.setDocument(COLLECTIONS.USERS, userId, multiRoleData);
+      const result = await firebaseService.setDocument(COLLECTIONS.USERS, userId, multiRoleData);
+      Logger.operationSuccess('createUserDocument', result);
+      return result;
     } catch (error) {
-      console.error("Error creating user document:", error);
-      setError(error.message);
+      Logger.operationFailed('createUserDocument', error);
+      const errorResult = ErrorHandler.handleServiceError(error, 'createUserDocument');
+      setError(errorResult.error.message);
       throw error;
     }
   };
@@ -65,7 +72,6 @@ export function AuthProvider({ children }) {
         updatedAt: serverTimestamp()
       });
     } catch (error) {
-      console.error("Error creating profile document:", error);
       setError(error.message);
       throw error;
     }
@@ -122,7 +128,6 @@ export function AuthProvider({ children }) {
       
       return user;
     } catch (error) {
-      console.error("Signup error:", error);
       setError(error.message);
       throw error;
     }
@@ -168,8 +173,6 @@ export function AuthProvider({ children }) {
       
       return result;
     } catch (error) {
-      console.error("Login error:", error);
-      
       // Provide user-friendly error messages
       if (error.code === 'auth/user-not-found' || error.message === 'auth/user-not-found') {
         setError('Username atau email tidak ditemukan');
@@ -207,7 +210,6 @@ export function AuthProvider({ children }) {
       
       return await signOut(auth);
     } catch (error) {
-      console.error("Logout error:", error);
       setError(error.message);
       throw error;
     }
@@ -218,7 +220,6 @@ export function AuthProvider({ children }) {
     try {
       return await sendPasswordResetEmail(auth, email);
     } catch (error) {
-      console.error("Reset password error:", error);
       setError(error.message);
       throw error;
     }
@@ -245,7 +246,6 @@ export function AuthProvider({ children }) {
       }
       return null;
     } catch (error) {
-      console.error("Error fetching user profile:", error);
       setError(error.message);
       return null;
     }
@@ -290,7 +290,6 @@ export function AuthProvider({ children }) {
       
       return true;
     } catch (error) {
-      console.error("Error switching role:", error);
       setError(error.message);
       return false;
     }
@@ -318,13 +317,11 @@ export function AuthProvider({ children }) {
           setAvailableRoles([USER_ROLES.CLIENT]);
         }
       } catch (err) {
-        console.error("Auth state change error:", err);
         setError(err.message);
       } finally {
         setLoading(false);
       }
     }, (error) => {
-      console.error("Auth state observer error:", error);
       setError(error.message);
       setLoading(false);
     });

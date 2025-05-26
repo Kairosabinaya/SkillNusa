@@ -26,7 +26,6 @@ export default function VerifyEmail() {
       await sendEmailVerification(currentUser);
       setMessage('Email verifikasi berhasil dikirim ulang. Silakan periksa kotak masuk Anda.');
     } catch (error) {
-      console.error('Error sending verification email:', error);
       setError('Gagal mengirim ulang email verifikasi. Silakan coba lagi nanti.');
     } finally {
       setLoading(false);
@@ -52,8 +51,7 @@ export default function VerifyEmail() {
         await logout();
       }
     } catch (error) {
-      console.error("Error logging out:", error);
-    }
+      }
     
     // Navigate based on warning type
     if (warningType === 'login') {
