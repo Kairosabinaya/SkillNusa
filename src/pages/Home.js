@@ -6,12 +6,13 @@ import { useState, useRef, useEffect } from 'react';
 import FreelancerCTA from '../components/UI/FreelancerCTA';
 
 export default function Home() {
-  const { currentUser } = useAuth();
+  const { currentUser, userProfile } = useAuth();
   const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const searchBoxRef = useRef(null);
+  
 
   // Handle clicks outside the search box
   useEffect(() => {
@@ -241,90 +242,170 @@ export default function Home() {
   const displayedGigs = filteredGigs.slice(0, 18);
 
   // Periksa apakah pengguna adalah klien (non-freelancer) untuk menampilkan CTA
-  // Dalam arsitektur multi-role, kita perlu memeriksa apakah user adalah client dan belum menjadi freelancer
-  const showFreelancerCTA = currentUser && 
-    ((currentUser.activeRole === 'client') || 
-     (currentUser.roles && currentUser.roles.includes('client') && !currentUser.roles.includes('freelancer'))) && 
-    !currentUser.isFreelancer;
+  // PENTING: Dalam arsitektur multi-role, kita perlu memeriksa berbagai kombinasi kemungkinan
+  
+  // Gabungkan data user dari currentUser dan userProfile untuk mendapatkan gambaran lengkap
+  const userData = currentUser ? { ...currentUser, ...userProfile } : null;
+  
+  // Logging untuk debug
+  console.log('Raw user data:', { currentUser, userProfile, combined: userData });
+  
+  // Periksa jika user sudah login dan role-nya
+  // User bisa dianggap client jika:
+  // 1. Memiliki role = 'client'
+  // 2. Memiliki roles array yang include 'client'
+  // 3. Tidak memiliki role spesifik (default role adalah client)
+  const isClient = !!userData && (
+    userData.role === 'client' || 
+    (userData.roles && userData.roles.includes('client')) ||
+    (!userData.role && !userData.roles)
+  );
+                  
+  // User dianggap freelancer jika:
+  // 1. Secara eksplisit ditandai dengan isFreelancer = true
+  // 2. Memiliki role = 'freelancer'
+  // 3. Memiliki roles array yang include 'freelancer'
+  const isFreelancer = !!userData && (
+    userData.isFreelancer === true ||
+    userData.role === 'freelancer' ||
+    (userData.roles && userData.roles.includes('freelancer'))
+  );
+  
+  // Periksa juga jika user sudah dalam proses apply menjadi freelancer
+  const isPendingFreelancer = !!userData && userData.freelancerStatus === 'pending';
+                       
+  // Menentukan apakah perlu menampilkan FreelancerCTA 
+  // Syarat: user login + client + bukan freelancer + bukan pending freelancer
+  const showFreelancerCTA = !!currentUser && isClient && !isFreelancer && !isPendingFreelancer;
+  
+  // Logging detail untuk debugging
+  console.log('Debug FreelancerCTA:', { 
+    userLoggedIn: !!currentUser, 
+    userData, 
+    isClient, 
+    isFreelancer, 
+    isPendingFreelancer,
+    showBanner: showFreelancerCTA,
+    bannerShouldAppear: !!currentUser && isClient && !isFreelancer && !isPendingFreelancer
+  });
 
   return (
     <div className="font-sans">
-      {/* Freelancer CTA Banner - hanya ditampilkan untuk klien yang login */}
-      {showFreelancerCTA && <FreelancerCTA variant="banner" />}
-      
-      {/* Hero Section */}
-      <div className="relative min-h-[85vh] flex items-center">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#010042] to-[#0100a3]"></div>
-
-        <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-4 py-20">
-          <div className="grid lg:grid-cols-2 gap-10 items-center">
-            <div className="lg:flex lg:flex-col lg:justify-center space-y-8">
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white lg:max-w-xl">
-                Terhubung dengan para freelancer terampil di seluruh Indonesia
-              </h1>
-              <div className="text-lg sm:text-xl text-gray-200 leading-relaxed mb-1 lg:max-w-xl h-24">
-                <TypeAnimation
-                  sequence={[
-                    'SkillNusa adalah sebuah marketplace yang menghubungkan freelancer berbakat Indonesia dengan klien yang mencari layanan berkualitas.',
-                    1500,
-                    '',
-                    'Temukan pasangan yang tepat untuk kebutuhan proyek Anda dari kumpulan profesional tepercaya kami.',
-                    1500,
-                    '',
-                    'Selesaikan pekerjaan secara efisien, tepat waktu, dan sesuai dengan anggaran Anda.',
-                    1500,
-                    '',
-                  ]}
-                  wrapper="p"
-                  speed={15}
-                  deletionSpeed={80}
-                  style={{ display: 'inline-block', height: '100%' }}
-                  repeat={Infinity}
-                />
-              </div>
-              <div className="w-full max-w-lg">
-                <form 
-                  className="w-full"
-                  onSubmit={handleSearchSubmit}
-                >
-                  <div className="relative">
-                    <input
-                      type="text"
-                      placeholder="Cari layanan, keahlian, atau proyek..."
-                      className={`w-full px-6 py-4 rounded-lg border text-base transition-all duration-300 ${
-                        isSearchFocused 
-                          ? 'bg-white text-gray-900 border-[#010042] ring-2 ring-[#010042] focus:outline-none' 
-                          : 'bg-transparent text-white placeholder-white/80 border-white/50 focus:outline-none'
-                      }`}
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      onFocus={() => setIsSearchFocused(true)}
-                      onBlur={() => setIsSearchFocused(false)}
-                    />
-                    <button 
-                      type="submit" 
-                      className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${
-                        isSearchFocused ? 'text-[#010042]' : 'text-white'
-                      }`}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+      {/* Main content for logged in or non-logged in users */}
+      {currentUser ? (
+        // Logged in view (client or freelancer)
+        <>
+          {/* SkillBot AI Banner Section - untuk semua user yang sudah login */}
+          <div className="bg-white py-6">
+            <div className="max-w-7xl mx-auto px-3 sm:px-4">
+              <div className="bg-gradient-to-r from-[#010042]/90 to-[#0100a3]/90 rounded-xl p-5 md:p-6 shadow-lg">
+                <div className="md:flex items-center justify-between">
+                  <div className="mb-4 md:mb-0 md:max-w-2xl">
+                    <h2 className="text-xl md:text-2xl font-bold text-white mb-2">
+                      Meet SkillBot: Your AI-Powered Freelancer Finder
+                    </h2>
+                    <p className="text-white/90 mb-4 text-sm md:text-base">
+                      Sistem rekomendasi AI kami membantu mencocokkan freelancer terbaik untuk proyek spesifik Anda. Biarkan SkillBot menemukan talenta yang tepat.
+                    </p>
+                    <Link
+                      to="/skillbot"
+                      className="inline-flex items-center px-5 py-2 bg-white rounded-lg text-[#010042] font-medium transition-all hover:bg-opacity-90 hover:shadow-md hover:transform hover:scale-105 text-sm">
+                      Coba SkillBot
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
                       </svg>
-                    </button>
+                    </Link>
                   </div>
-                </form>
+                  <div className="hidden md:block md:ml-6">
+                    <img
+                      src="/images/robot.png"
+                      alt="AI Matching"
+                      className="rounded-lg shadow-lg h-32 w-auto object-contain"
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="hidden lg:block">
-              <img
-                src="/images/hero-typing.jpeg"
-                alt="Person typing on laptop"
-                className="rounded-2xl object-cover shadow-xl w-full h-[600px]"
-              />
             </div>
           </div>
-        </div>
-      </div>
+        </>
+      ) : (
+        // Non-logged in view
+        <>
+          {/* Hero Section */}
+          <div className="relative min-h-[85vh] flex items-center">
+            <div className="absolute inset-0 bg-gradient-to-b from-[#010042] to-[#0100a3]"></div>
+
+            <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-4 py-20">
+              <div className="grid lg:grid-cols-2 gap-10 items-center">
+                <div className="lg:flex lg:flex-col lg:justify-center space-y-8">
+                  <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white lg:max-w-xl">
+                    Terhubung dengan para freelancer terampil di seluruh Indonesia
+                  </h1>
+                  <div className="text-lg sm:text-xl text-gray-200 leading-relaxed mb-1 lg:max-w-xl h-24">
+                    <TypeAnimation
+                      sequence={[
+                        'SkillNusa adalah sebuah marketplace yang menghubungkan freelancer berbakat Indonesia dengan klien yang mencari layanan berkualitas.',
+                        1500,
+                        '',
+                        'Temukan pasangan yang tepat untuk kebutuhan proyek Anda dari kumpulan profesional tepercaya kami.',
+                        1500,
+                        '',
+                        'Selesaikan pekerjaan secara efisien, tepat waktu, dan sesuai dengan anggaran Anda.',
+                        1500,
+                        '',
+                      ]}
+                      wrapper="p"
+                      speed={15}
+                      deletionSpeed={80}
+                      style={{ display: 'inline-block', height: '100%' }}
+                      repeat={Infinity}
+                    />
+                  </div>
+                  <div className="w-full max-w-lg">
+                    <form 
+                      className="w-full"
+                      onSubmit={handleSearchSubmit}
+                    >
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="Cari layanan, keahlian, atau proyek..."
+                          className={`w-full px-6 py-4 rounded-lg border text-base transition-all duration-300 ${
+                            isSearchFocused 
+                              ? 'bg-white text-gray-900 border-[#010042] ring-2 ring-[#010042] focus:outline-none' 
+                              : 'bg-transparent text-white placeholder-white/80 border-white/50 focus:outline-none'
+                          }`}
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          onFocus={() => setIsSearchFocused(true)}
+                          onBlur={() => setIsSearchFocused(false)}
+                        />
+                        <button 
+                          type="submit" 
+                          className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${
+                            isSearchFocused ? 'text-[#010042]' : 'text-white'
+                          }`}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                          </svg>
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+                <div className="hidden lg:block">
+                  <img
+                    src="/images/hero-typing.jpeg"
+                    alt="Person typing on laptop"
+                    className="rounded-2xl object-cover shadow-xl w-full h-[600px]"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Popular Categories Section - Compact */}
       <div className="bg-gray-50 py-10">
@@ -369,53 +450,46 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Freelancer CTA Section - Only shown to logged-in clients */}
-      {currentUser && (
-        <div className="bg-white py-8">
+      {/* SkillBot AI Banner Section - only shown to non-logged-in users */}
+      {!currentUser && (
+        <div className="bg-white py-6">
           <div className="max-w-7xl mx-auto px-3 sm:px-4">
-            <FreelancerCTA variant="home" />
-          </div>
-        </div>
-      )}
-
-      {/* SkillBot AI Banner Section */}
-      <div className="bg-white py-12">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4">
-          <div className="bg-gradient-to-r from-[#010042]/90 to-[#0100a3]/90 rounded-xl p-8 md:p-10 shadow-lg">
-            <div className="md:flex items-center justify-between">
-              <div className="mb-6 md:mb-0 md:max-w-2xl">
-                <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
-                  Meet SkillBot: Your AI-Powered Freelancer Finder
-                </h2>
-                <p className="text-white/90 mb-6 text-base md:text-lg">
-                Sistem rekomendasi kami yang ditenagai oleh AI membantu mencocokkan freelancer terbaik berdasarkan kebutuhan proyek spesifik Anda. Biarkan SkillBot menemukan talenta yang tepat untuk proyek berikutnya.
-                </p>
-                <Link
-                  to="/no-page"
-                  className="inline-flex items-center px-6 py-3 bg-white rounded-lg text-[#010042] font-medium transition-all hover:bg-opacity-90 hover:shadow-md hover:transform hover:scale-105 text-base"
-                >
-                  Coba SkillBot
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                </Link>
-              </div>
-              <div className="hidden md:block md:ml-6">
-                <img
-                  src="/images/robot.png"
-                  alt="AI Matching"
-                  className="rounded-lg shadow-lg"
-                />
+            <div className="bg-gradient-to-r from-[#010042]/90 to-[#0100a3]/90 rounded-xl p-5 md:p-6 shadow-lg">
+              <div className="md:flex items-center justify-between">
+                <div className="mb-4 md:mb-0 md:max-w-2xl">
+                  <h2 className="text-xl md:text-2xl font-bold text-white mb-2">
+                    Meet SkillBot: Your AI-Powered Freelancer Finder
+                  </h2>
+                  <p className="text-white/90 mb-4 text-sm md:text-base">
+                    Sistem rekomendasi AI kami membantu mencocokkan freelancer terbaik untuk proyek spesifik Anda. Biarkan SkillBot menemukan talenta yang tepat.
+                  </p>
+                  <Link
+                    to="/login"
+                    className="inline-flex items-center px-5 py-2 bg-white rounded-lg text-[#010042] font-medium transition-all hover:bg-opacity-90 hover:shadow-md hover:transform hover:scale-105 text-sm">
+                    Coba SkillBot
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-2" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </Link>
+                </div>
+                <div className="hidden md:block md:ml-6">
+                  <img
+                    src="/images/robot.png"
+                    alt="AI Matching"
+                    className="rounded-lg shadow-lg h-32 w-auto object-contain"
+                  />
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Gigs Section with Category Filter */}
       <div className="bg-gray-50 py-12">
         <div className="max-w-7xl mx-auto px-3 sm:px-4">
-          <div className="flex justify-end mb-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-[#010042]">Gigs Terbaru</h2>
             <button 
               className="text-sm text-[#010042] hover:underline flex items-center gap-2 bg-transparent hover:text-[#0100a3] transition-all duration-200"
               onClick={(e) => handleAuthRequiredClick(e, '/browse')}
@@ -506,147 +580,53 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Freelancer Guides Section */}
-      <div className="bg-white py-12">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold mb-3 text-[#010042]">Guide untuk Freelancer</h2>
-            <p className="text-gray-600 max-w-2xl mx-auto text-sm">
-            Informasi dan tutorial untuk membantu Anda sukses sebagai pekerja lepas di SkillNusa
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[
-              {
-                image: "/images/guide-profile.jpg",
-                title: "Cara Membuat Profil yang Menonjol",
-                description: "Pelajari cara membuat profil SkillNusa Anda menonjol di hadapan calon klien.",
-                youtubeUrl: "https://youtube.com/watch?v=example1"
-              },
-              {
-                image: "/images/guide-pricing.jpg",
-                title: "Strategi Penetapan Harga yang Efektif",
-                description: "Temukan strategi penetapan harga yang efektif untuk memaksimalkan penghasilan Anda.",
-                youtubeUrl: "https://youtube.com/watch?v=example2"
-              },
-              {
-                image: "/images/guide-communication.jpg",
-                title: "Keterampilan Berkomunikasi untuk Sukses",
-                description: "Menguasai keterampilan berkomunikasi dengan klien untuk memastikan kelancaran proyek.",
-                youtubeUrl: "https://youtube.com/watch?v=example3"
-              }
-            ].map((guide, index) => (
-              <div key={index} className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer hover:transform hover:scale-105 border border-gray-100">
-                <div className="relative h-48">
-                  <img 
-                    src={guide.image} 
-                    alt={guide.title} 
-                    className="w-full h-full object-cover"
-                  />
-                  <a 
-                    href={guide.youtubeUrl} 
-                    target="_blank"
-                    rel="noopener noreferrer" 
-                    className="absolute inset-0 flex items-center justify-center"
-                  >
-                    <div className="w-14 h-14 rounded-full bg-white bg-opacity-80 flex items-center justify-center hover:bg-opacity-100 transition-all">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-[#010042]" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  </a>
-                </div>
-                <div className="p-5">
-                  <h3 className="font-semibold text-lg mb-2 text-gray-800">{guide.title}</h3>
-                  <p className="text-gray-600 text-sm">{guide.description}</p>
-                </div>
+      {/* Banner FreelancerCTA - ditampilkan hanya untuk user yang login sebagai client tapi belum menjadi freelancer */}
+      {currentUser && isClient && !isFreelancer && !isPendingFreelancer && (
+        <div className="bg-gradient-to-r from-blue-500 to-indigo-600 py-16 border-t border-blue-400">
+          <div className="max-w-7xl mx-auto px-3 sm:px-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8">
+              <div className="md:max-w-xl">
+                <h2 className="text-3xl font-bold text-white mb-3">Menjadi Freelancer</h2>
+                <p className="text-blue-100 text-lg">
+                  Gunakan keahlian Anda untuk mendapatkan pendapatan tambahan. Jadilah bagian dari komunitas freelancer SkillNusa dan dapatkan akses ke klien dari seluruh Indonesia.
+                </p>
               </div>
-            ))}
+              <div className="flex-shrink-0 flex justify-center">
+                <Link
+                  to="/become-freelancer"
+                  className="inline-block bg-white text-indigo-600 font-semibold px-8 py-4 rounded-lg hover:bg-blue-50 transition duration-300 text-lg shadow-lg"
+                >
+                  Menjadi Freelancer
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-
-      {/* Client Guides Section */}
-      <div className="bg-gray-50 py-12">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold mb-3 text-[#010042]">Guide untuk Klien</h2>
-            <p className="text-gray-600 max-w-2xl mx-auto text-sm">
-            Informasi dan tutorial untuk membantu Anda menemukan dan bekerja dengan freelancer yang tepat
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[
-              {
-                image: "/images/guide-brief.jpg",
-                title: "Cara Menulis Penjelasan Proyek yang Efektif",
-                description: "Membuat penjelasan proyek yang jelas untuk menarik freelancer yang tepat.",
-                youtubeUrl: "https://youtube.com/watch?v=example4"
-              },
-              {
-                image: "/images/guide-porto.jpg",
-                title: "Mengulas Portofolio Freelancer",
-                description: "Pelajari cara menilai portofolio freelancer untuk menemukan yang tepat.",
-                youtubeUrl: "https://youtube.com/watch?v=example5"
-              },
-              {
-                image: "/images/guide-manage.jpg",
-                title: "Mengelola Tim Freelance Jarak Jauh",
-                description: "Saran dan strategi untuk memantau freelancer secara efektif dari jarak jauh.",
-                youtubeUrl: "https://youtube.com/watch?v=example6"
-              }
-            ].map((guide, index) => (
-              <div key={index} className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer hover:transform hover:scale-105 border border-gray-100">
-                <div className="relative h-48">
-                  <img 
-                    src={guide.image} 
-                    alt={guide.title} 
-                    className="w-full h-full object-cover"
-                  />
-                  <a 
-                    href={guide.youtubeUrl} 
-                    target="_blank"
-                    rel="noopener noreferrer" 
-                    className="absolute inset-0 flex items-center justify-center"
-                  >
-                    <div className="w-14 h-14 rounded-full bg-white bg-opacity-80 flex items-center justify-center hover:bg-opacity-100 transition-all">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-[#010042]" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  </a>
-                </div>
-                <div className="p-5">
-                  <h3 className="font-semibold text-lg mb-2 text-gray-800">{guide.title}</h3>
-                  <p className="text-gray-600 text-sm">{guide.description}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* CTA Section */}
-      <div className="bg-gradient-to-r from-[#010042] to-[#0100a3] py-12">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-white mb-4">Siap untuk memulai dengan SkillNusa?</h2>
-            <p className="text-lg text-gray-200 mb-6 max-w-2xl mx-auto">
-              Bergabung dengan ribuan freelancer dan klien yang sudah menumbuhkan bisnisnya dengan SkillNusa.
-            </p>
-            <div className="flex justify-center">
-              <Link
+      )}
+      
+      {/* Banner Ajakan Register - hanya ditampilkan untuk pengguna yang belum login */}
+      {!currentUser && (
+        <div className="bg-[#010042] py-12 border-t border-[#0100a3]">
+          <div className="max-w-7xl mx-auto px-3 sm:px-4">
+            <div className="text-center">
+              <h2 className="text-3xl font-bold text-white mb-4">Siap untuk memulai dengan SkillNusa?</h2>
+              <p className="text-white/80 max-w-2xl mx-auto mb-8 text-lg">
+                Daftarkan diri Anda sekarang dan mulai mendapatkan akses ke ribuan freelancer berbakat atau klien potensial di seluruh Indonesia.
+              </p>
+              <Link 
                 to="/register"
-                className="text-sm px-6 py-3 rounded-lg bg-white text-[#010042] font-medium transition duration-300 hover:bg-opacity-90 hover:shadow-lg hover:transform hover:scale-105"
+                className="inline-flex items-center px-6 py-3 bg-white rounded-lg text-[#010042] font-medium hover:bg-gray-100 transition-all text-base"
               >
-                Daftar Sekarang!
+                Daftar Sekarang
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
               </Link>
             </div>
           </div>
         </div>
-      </div>
+      )}
+
     </div>
   );
 }

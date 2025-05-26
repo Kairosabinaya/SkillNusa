@@ -519,20 +519,14 @@ export default function Profile() {
                     <h3 className="text-sm font-medium text-gray-500 mb-2">Keahlian</h3>
                     {combinedUserData?.skills && combinedUserData.skills.length > 0 ? (
                       <div className="flex flex-wrap gap-2">
-                        {combinedUserData.skills.map((skillItem, index) => {
-                          // Handle both simple string skills and object skills {skill, experienceLevel}
-                          const skillText = typeof skillItem === 'string' ? skillItem : skillItem.skill;
-                          const expLevel = typeof skillItem === 'object' && skillItem.experienceLevel ? ` (${skillItem.experienceLevel})` : '';
-                          
-                          return (
-                            <span
-                              key={index}
-                              className="inline-block px-3 py-1 rounded-full bg-[#010042]/10 text-[#010042] text-sm"
-                            >
-                              {skillText}{expLevel}
-                            </span>
-                          );
-                        })}
+                        {combinedUserData.skills.map((skill, index) => (
+                          <span
+                            key={index}
+                            className="inline-block px-3 py-1 rounded-full bg-[#010042]/10 text-[#010042] text-sm"
+                          >
+                            {skill}
+                          </span>
+                        ))}
                       </div>
                     ) : (
                       <p className="text-gray-600">Belum ada keahlian yang ditambahkan.</p>
