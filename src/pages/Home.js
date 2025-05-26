@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../routes';
 import { useState, useRef, useEffect } from 'react';
 import FreelancerCTA from '../components/UI/FreelancerCTA';
+import MeshGradientBackground from '../components/UI/MeshGradientBackground';
 
 export default function Home() {
   const { currentUser, userProfile } = useAuth();
@@ -333,15 +334,15 @@ export default function Home() {
         <>
           {/* Hero Section */}
           <div className="relative min-h-[85vh] flex items-center">
-            <div className="absolute inset-0 bg-gradient-to-b from-[#010042] to-[#0100a3]"></div>
+            <MeshGradientBackground />
 
             <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-4 py-20">
               <div className="grid lg:grid-cols-2 gap-10 items-center">
                 <div className="lg:flex lg:flex-col lg:justify-center space-y-8">
-                  <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white lg:max-w-xl">
-                    Terhubung dengan para freelancer terampil di seluruh Indonesia
+                  <h1 className="text-4xl md:text-5xl lg:text-8xl font-bold text-white lg:max-w-xl">
+                    SKILLNUSA
                   </h1>
-                  <div className="text-lg sm:text-xl text-gray-200 leading-relaxed mb-1 lg:max-w-xl h-24">
+                  <div className="text-xl sm:text-2xl lg:text-3xl text-gray-200 leading-relaxed mb-1 lg:max-w-xl h-32">
                     <TypeAnimation
                       sequence={[
                         'SkillNusa adalah sebuah marketplace yang menghubungkan freelancer berbakat Indonesia dengan klien yang mencari layanan berkualitas.',

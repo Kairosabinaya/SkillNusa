@@ -24,8 +24,8 @@ export default function Contact() {
   return (
     <div className="max-w-7xl mx-auto px-6 py-20">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">Contact Us</h1>
-        <p className="text-xl text-gray-600 mb-8">We'd love to hear from you. Fill out the form below and we'll get back to you as soon as possible.</p>
+        <h1 className="text-4xl font-bold text-gray-900 mb-4">Hubungi Kami</h1>
+        <p className="text-xl text-gray-600 mb-8">Kami senang mendengar dari Anda. Isi formulir di bawah ini dan kami akan segera menghubungi Anda.</p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
           <div>
@@ -35,9 +35,9 @@ export default function Contact() {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  <h3 className="text-lg font-medium text-green-800">Message sent successfully!</h3>
+                  <h3 className="text-lg font-medium text-green-800">Pesan berhasil dikirim!</h3>
                 </div>
-                <p className="text-green-700">Thank you for contacting us. We will get back to you shortly.</p>
+                <p className="text-green-700">Terima kasih telah menghubungi kami. Kami akan segera menghubungi Anda.</p>
                 <button 
                   onClick={() => {
                     setFormData({
@@ -50,13 +50,13 @@ export default function Contact() {
                   }}
                   className="mt-4 px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
                 >
-                  Send another message
+                  Kirim pesan lainnya
                 </button>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700">Name</label>
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700">Nama</label>
                   <input
                     type="text"
                     id="name"
@@ -82,7 +82,7 @@ export default function Contact() {
                 </div>
 
                 <div>
-                  <label htmlFor="subject" className="block text-sm font-medium text-gray-700">Subject</label>
+                  <label htmlFor="subject" className="block text-sm font-medium text-gray-700">Subjek</label>
                   <input
                     type="text"
                     id="subject"
@@ -95,7 +95,7 @@ export default function Contact() {
                 </div>
 
                 <div>
-                  <label htmlFor="message" className="block text-sm font-medium text-gray-700">Message</label>
+                  <label htmlFor="message" className="block text-sm font-medium text-gray-700">Pesan</label>
                   <textarea
                     id="message"
                     name="message"
@@ -112,7 +112,7 @@ export default function Contact() {
                     type="submit"
                     className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#010042] hover:bg-[#0100a3] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#010042]"
                   >
-                    Send Message
+                    Kirim Pesan
                   </button>
                 </div>
               </form>
@@ -121,7 +121,7 @@ export default function Contact() {
 
           <div>
             <div className="bg-gray-50 p-6 rounded-xl">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Contact Information</h3>
+              <h3 className="text-xl font-semibold text-gray-900 mb-4">Informasi Kontak</h3>
               <div className="space-y-6">
                 <div className="flex items-start">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-[#010042] mt-1 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -139,7 +139,7 @@ export default function Contact() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                   </svg>
                   <div>
-                    <h4 className="text-md font-medium text-gray-900">Phone</h4>
+                    <h4 className="text-md font-medium text-gray-900">Telepon</h4>
                     <p className="text-gray-600">+62 21 1234 5678</p>
                   </div>
                 </div>
@@ -150,7 +150,7 @@ export default function Contact() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                   <div>
-                    <h4 className="text-md font-medium text-gray-900">Office</h4>
+                    <h4 className="text-md font-medium text-gray-900">Kantor</h4>
                     <p className="text-gray-600">Jl. Sudirman No. 123</p>
                     <p className="text-gray-600">Jakarta Selatan, 12910</p>
                     <p className="text-gray-600">Indonesia</p>
@@ -162,10 +162,10 @@ export default function Contact() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <div>
-                    <h4 className="text-md font-medium text-gray-900">Working Hours</h4>
-                    <p className="text-gray-600">Monday - Friday: 9am - 5pm</p>
-                    <p className="text-gray-600">Saturday: 9am - 1pm</p>
-                    <p className="text-gray-600">Sunday: Closed</p>
+                    <h4 className="text-md font-medium text-gray-900">Jam Kerja</h4>
+                    <p className="text-gray-600">Senin - Jumat: 9am - 5pm</p>
+                    <p className="text-gray-600">Sabtu: 9am - 1pm</p>
+                    <p className="text-gray-600">Minggu: Tutup</p>
                   </div>
                 </div>
               </div>
