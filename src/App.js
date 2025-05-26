@@ -27,6 +27,13 @@ import Profile from './pages/Profile/Profile';
 import EditProfile from './pages/Profile/EditProfile';
 import BecomeFreelancer from './pages/Profile/BecomeFreelancer';
 
+// Gig Pages
+import GigDetail from './pages/GigDetail';
+import Browse from './pages/Browse';
+
+// Test Pages
+import TestPopulate from './pages/TestPopulate';
+
 // Protected Routes
 import ProtectedRoute from './components/ProtectedRoute';
 import RoleRoute from './components/RoleRoute';
@@ -42,7 +49,16 @@ function App() {
             <Route index element={<Home />} />
             <Route path={ROUTES.ABOUT.slice(1)} element={<About />} />
             <Route path={ROUTES.CONTACT.slice(1)} element={<Contact />} />
+            <Route path="browse" element={<Browse />} />
           </Route>
+
+          {/* Gig Routes */}
+          <Route path="/gig/:gigId" element={<PublicLayout />}>
+            <Route index element={<GigDetail />} />
+          </Route>
+
+          {/* Test Routes */}
+          <Route path="/test-populate" element={<TestPopulate />} />
 
           {/* Auth Routes */}
           <Route path={ROUTES.LOGIN} element={<Login />} />

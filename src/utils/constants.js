@@ -29,11 +29,16 @@ export const COLLECTIONS = {
   // PROFILES: 'profiles',
   
   // Menggunakan format yang konsisten sesuai dengan yang ada di Firestore
-  CLIENT_PROFILES: 'client_profiles',
-  FREELANCER_PROFILES: 'freelancer_profiles',
+  CLIENT_PROFILES: 'clientProfiles',
+  FREELANCER_PROFILES: 'freelancerProfiles',
   PROJECTS: 'projects',
   PROPOSALS: 'proposals',
-  MESSAGES: 'messages'
+  MESSAGES: 'messages',
+  GIGS: 'gigs',
+  ORDERS: 'orders',
+  REVIEWS: 'reviews',
+  CONVERSATIONS: 'conversations',
+  NOTIFICATIONS: 'notifications'
 };
 
 /**

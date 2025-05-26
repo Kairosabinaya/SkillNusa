@@ -1,9 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { TypeAnimation } from 'react-type-animation';
 import { useAuth } from '../context/AuthContext';
-import { ROUTES } from '../routes';
 import { useState, useRef, useEffect } from 'react';
-import FreelancerCTA from '../components/UI/FreelancerCTA';
 import MeshGradientBackground from '../components/UI/MeshGradientBackground';
 
 export default function Home() {
@@ -37,23 +35,11 @@ export default function Home() {
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      if (!currentUser) {
-        navigate(ROUTES.LOGIN);
-      } else {
-        navigate(`/browse?search=${encodeURIComponent(searchQuery)}`);
-      }
+      navigate(`/browse?search=${encodeURIComponent(searchQuery)}`);
     }
   };
 
-  // Fungsi untuk menangani klik pada link yang memerlukan login
-  const handleAuthRequiredClick = (e, targetPath) => {
-    if (!currentUser) {
-      e.preventDefault();
-      navigate(ROUTES.LOGIN);
-    } else {
-      navigate(targetPath);
-    }
-  };
+
 
   // Categories data
   const categories = [
@@ -441,39 +427,39 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-3 sm:px-4">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-[#010042] mb-4">Kategori Populer</h2>
-            <button 
+            <Link 
+              to="/browse"
               className="text-sm text-[#010042] hover:underline flex items-center gap-2 bg-transparent hover:text-[#0100a3] transition-all duration-200"
-              onClick={(e) => handleAuthRequiredClick(e, '/browse')}
             >
               Lihat semua kategori
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
-            </button>
+            </Link>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 xl:grid-cols-9 gap-4">
             {[
-              { icon: "M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4", name: "Pemrograman & Teknologi" },
-              { icon: "M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z", name: "Grafis & Desain" },
-              { icon: "M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z", name: "Pemasaran Digital" },
-              { icon: "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z", name: "Penulisan & Terjemahan" },
-              { icon: "M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z", name: "Video & Animasi" },
-              { icon: "M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z", name: "Layanan AI" },
-              { icon: "M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3", name: "Musik & Audio" },
-              { icon: "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10", name: "Bisnis" },
-              { icon: "M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z", name: "Konsultasi" }
+              { icon: "M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4", name: "Programming & Tech", displayName: "Programming & Tech" },
+              { icon: "M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z", name: "Design & Creative", displayName: "Design & Creative" },
+              { icon: "M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z", name: "Digital Marketing", displayName: "Digital Marketing" },
+              { icon: "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z", name: "Writing & Translation", displayName: "Writing & Translation" },
+              { icon: "M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z", name: "Video & Animation", displayName: "Video & Animation" },
+              { icon: "M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3", name: "Music & Audio", displayName: "Music & Audio" },
+              { icon: "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10", name: "Business", displayName: "Business" },
+              { icon: "M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z", name: "Mobile Development", displayName: "Mobile Development" },
+              { icon: "M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z", name: "AI Services", displayName: "AI Services" }
             ].map((category, index) => (
-              <div key={index} className="group cursor-pointer" onClick={(e) => handleAuthRequiredClick(e, '/browse')}>
+              <Link key={index} to={`/browse?category=${encodeURIComponent(category.name)}`} className="group">
                 <div className="bg-white rounded-lg p-4 border border-gray-200 transition-all duration-300 hover:shadow-md hover:border-[#010042]/30 h-full flex flex-col items-start gap-3">
                   <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-[#010042]/10 transition-all duration-300 group-hover:bg-[#010042]/20">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#010042]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={category.icon} />
                     </svg>
                   </div>
-                  <span className="font-medium text-gray-800 text-sm">{category.name}</span>
+                  <span className="font-medium text-gray-800 text-sm">{category.displayName}</span>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
@@ -519,15 +505,15 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-3 sm:px-4">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-[#010042]">Gigs Terbaru</h2>
-            <button 
+            <Link 
+              to="/browse"
               className="text-sm text-[#010042] hover:underline flex items-center gap-2 bg-transparent hover:text-[#0100a3] transition-all duration-200"
-              onClick={(e) => handleAuthRequiredClick(e, '/browse')}
             >
               Lihat semua gigs
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
-            </button>
+            </Link>
           </div>
 
           {/* Category Filters */}
@@ -561,50 +547,58 @@ export default function Home() {
           </div>
 
           {/* Gigs Grid */}
-          <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {displayedGigs.slice(0, 12).map((gig, index) => (
-              <div key={index} className="block group cursor-pointer" onClick={(e) => handleAuthRequiredClick(e, '/service/detail')}>
-                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden transition-all duration-300 hover:shadow-md hover:border-[#010042]/30 hover:transform hover:scale-105">
-                  <div className="aspect-w-4 aspect-h-2 overflow-hidden">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+            {displayedGigs.slice(0, 15).map((gig, index) => (
+              <Link key={index} to={`/gig/${index + 1}`} className="block group">
+                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden transition-all duration-300 hover:shadow-md hover:border-[#010042]/30 group-hover:transform group-hover:scale-105">
+                  <div className="aspect-w-4 aspect-h-3">
                     <img 
                       src={gig.image} 
                       alt={gig.title}
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" 
+                      className="w-full h-48 object-cover"
                     />
                   </div>
-                  <div className="p-4 space-y-3">
-                    <h3 className="font-semibold text-sm text-gray-800 line-clamp-2">
+                  <div className="p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <img
+                        src={`https://picsum.photos/seed/freelancer${index + 1}/50/50`}
+                        alt={gig.freelancer}
+                        className="w-6 h-6 rounded-full object-cover"
+                      />
+                      <span className="text-sm text-gray-600">{gig.freelancer}</span>
+                      <span className="text-blue-500">✓</span>
+                    </div>
+                    <h3 className="font-medium text-gray-900 line-clamp-2 mb-2 text-sm">
                       {gig.title}
                     </h3>
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                        </svg>
-                        <span className="text-sm font-medium ml-1">{gig.rating}</span>
-                        <span className="text-sm text-gray-500 ml-1">({gig.reviews})</span>
+                    <div className="flex items-center gap-1 mb-3">
+                      <div className="flex">
+                        {[...Array(5)].map((_, i) => (
+                          <svg key={i} className={`w-3 h-3 ${i < Math.floor(parseFloat(gig.rating)) ? 'text-yellow-400' : 'text-gray-300'}`} fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                          </svg>
+                        ))}
                       </div>
-                      <span className="text-sm text-gray-500">•</span>
-                      <span className="text-sm text-gray-500">{gig.freelancer}</span>
+                      <span className="text-xs text-gray-600">({gig.reviews})</span>
                     </div>
-                    <div className="pt-3 border-t border-gray-100">
-                      <p className="text-[#010042] font-semibold">
+                    <div className="flex items-center justify-between">
+                      <span className="text-lg font-semibold text-gray-900">
                         {gig.price}
-                      </p>
+                      </span>
                     </div>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
 
           <div className="flex justify-center mt-10">
-            <button 
-              onClick={(e) => handleAuthRequiredClick(e, '/browse')}
+            <Link 
+              to="/browse"
               className="px-6 py-2 text-sm font-medium bg-transparent border border-[#010042] text-[#010042] rounded-lg transition-all duration-300 hover:bg-[#010042] hover:text-white hover:shadow-md hover:transform hover:scale-105"
             >
               Lihat Semua Gigs
-            </button>
+            </Link>
           </div>
         </div>
       </div>

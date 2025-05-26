@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/react';
 import { useAuth } from '../../context/AuthContext';
 import { useState, useEffect } from 'react';
@@ -6,6 +6,7 @@ import { getUserProfile } from '../../services/userProfileService';
 
 export default function Header() {
   const { currentUser, userProfile, logout } = useAuth();
+  const navigate = useNavigate();
   const [profileData, setProfileData] = useState(null);
   const [userRegistrationData, setUserRegistrationData] = useState(null);
   const [combinedUserData, setCombinedUserData] = useState(null);
@@ -52,7 +53,9 @@ export default function Header() {
   // Function to handle search submission
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    // Implement search functionality
+    if (searchQuery.trim()) {
+      navigate(`/browse?search=${encodeURIComponent(searchQuery)}`);
+    }
   };
 
   return (
@@ -75,6 +78,8 @@ export default function Header() {
                     <input
                       type="text"
                       placeholder="Cari layanan, keahlian, atau proyek..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
                       className="w-full px-4 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
                     />
                     <button 
