@@ -31,6 +31,13 @@ import BecomeFreelancer from './pages/Profile/BecomeFreelancer';
 import GigDetail from './pages/GigDetail';
 import Browse from './pages/Browse';
 
+// Client Pages
+import Favorites from './pages/Favorites';
+import Cart from './pages/Cart';
+import Checkout from './pages/Checkout';
+import Transactions from './pages/Transactions';
+import Messages from './pages/Messages';
+
 // Test Pages
 import TestPopulate from './pages/TestPopulate';
 
@@ -55,6 +62,63 @@ function App() {
           {/* Gig Routes */}
           <Route path="/gig/:gigId" element={<PublicLayout />}>
             <Route index element={<GigDetail />} />
+          </Route>
+
+          {/* Client Feature Routes */}
+          <Route 
+            path="/favorites" 
+            element={
+              <ProtectedRoute>
+                <PublicLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Favorites />} />
+          </Route>
+
+          <Route 
+            path="/cart" 
+            element={
+              <ProtectedRoute>
+                <PublicLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Cart />} />
+          </Route>
+
+          <Route 
+            path="/checkout" 
+            element={
+              <ProtectedRoute>
+                <PublicLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Checkout />} />
+          </Route>
+
+          <Route 
+            path="/transactions" 
+            element={
+              <ProtectedRoute>
+                <PublicLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Transactions />} />
+          </Route>
+
+          <Route 
+            path="/messages" 
+            element={
+              <ProtectedRoute>
+                <PublicLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Messages />} />
+            <Route path=":chatId" element={<Messages />} />
           </Route>
 
           {/* Test Routes */}

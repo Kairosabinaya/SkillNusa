@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import gigService from '../services/gigService';
+import GigCard from '../components/common/GigCard';
 
 export default function Browse() {
   const { currentUser } = useAuth();
@@ -48,35 +49,45 @@ export default function Browse() {
   const mockGigs = [
     {
       id: '1',
+      images: ["https://picsum.photos/seed/gig1/400/300"],
       image: "https://picsum.photos/seed/gig1/400/300",
       title: "I will build shopify ecommerce website, redesign online store",
       category: "Programming & Tech",
       freelancer: {
         name: "Fillinx Sol",
+        displayName: "Fillinx Sol",
         avatar: "https://picsum.photos/seed/freelancer1/50/50",
+        profilePhoto: "https://picsum.photos/seed/freelancer1/50/50",
         isVerified: true,
         isTopRated: true
       },
       rating: 4.9,
       reviews: 1234,
+      totalReviews: 1234,
       price: 195000,
+      startingPrice: 195000,
       deliveryTime: "7 days",
       location: "Pakistan"
     },
     {
       id: '2',
+      images: ["https://picsum.photos/seed/logo1/400/300"],
       image: "https://picsum.photos/seed/logo1/400/300",
       title: "I will create professional logo design for your business",
       category: "Design & Creative",
       freelancer: {
         name: "Maya Design",
+        displayName: "Maya Design",
         avatar: "https://picsum.photos/seed/freelancer2/50/50",
+        profilePhoto: "https://picsum.photos/seed/freelancer2/50/50",
         isVerified: true,
         isTopRated: false
       },
       rating: 4.8,
       reviews: 287,
+      totalReviews: 287,
       price: 150000,
+      startingPrice: 150000,
       deliveryTime: "3 days",
       location: "Indonesia"
     },
@@ -509,113 +520,18 @@ export default function Browse() {
                   : "space-y-4"
               }>
                 {currentGigs.map((gig) => (
-                  <Link 
+                  <GigCard 
                     key={gig.id} 
-                    to={`/gig/${gig.id}`}
-                    className={
-                      viewMode === 'grid'
-                        ? "block group"
-                        : "block"
-                    }
-                  >
-                    {viewMode === 'grid' ? (
-                      // Grid View
-                      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden transition-all duration-300 hover:shadow-md hover:border-[#010042]/30 group-hover:transform group-hover:scale-105">
-                        <div className="aspect-w-4 aspect-h-3">
-                          <img 
-                            src={gig.image} 
-                            alt={gig.title}
-                            className="w-full h-48 object-cover"
-                          />
-                        </div>
-                        <div className="p-4">
-                          <div className="flex items-center gap-2 mb-2">
-                            <img
-                              src={gig.freelancer.avatar}
-                              alt={gig.freelancer.name}
-                              className="w-6 h-6 rounded-full object-cover"
-                            />
-                            <span className="text-sm text-gray-600">{gig.freelancer.name}</span>
-                            {gig.freelancer.isVerified && (
-                              <span className="text-blue-500">✓</span>
-                            )}
-                            {gig.freelancer.isTopRated && (
-                              <span className="bg-orange-100 text-orange-800 text-xs px-1 py-0.5 rounded">Top Rated</span>
-                            )}
-                          </div>
-                          <h3 className="font-medium text-gray-900 line-clamp-2 mb-2 text-sm">
-                            {gig.title}
-                          </h3>
-                          <div className="flex items-center gap-1 mb-3">
-                            <div className="flex">
-                              {[...Array(5)].map((_, i) => (
-                                <svg key={i} className={`w-3 h-3 ${i < Math.floor(gig.rating) ? 'text-yellow-400' : 'text-gray-300'}`} fill="currentColor" viewBox="0 0 20 20">
-                                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                                </svg>
-                              ))}
-                            </div>
-                            <span className="text-xs text-gray-600">({gig.reviews})</span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-lg font-semibold text-gray-900">
-                              Rp {gig.price.toLocaleString('id-ID')}
-                            </span>
-                            <span className="text-xs text-gray-500">{gig.deliveryTime}</span>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      // List View
-                      <div className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-all duration-300">
-                        <div className="flex gap-4">
-                          <img 
-                            src={gig.image} 
-                            alt={gig.title}
-                            className="w-24 h-24 object-cover rounded-lg flex-shrink-0"
-                          />
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <img
-                                src={gig.freelancer.avatar}
-                                alt={gig.freelancer.name}
-                                className="w-6 h-6 rounded-full object-cover"
-                              />
-                              <span className="text-sm text-gray-600">{gig.freelancer.name}</span>
-                              {gig.freelancer.isVerified && (
-                                <span className="text-blue-500">✓</span>
-                              )}
-                              {gig.freelancer.isTopRated && (
-                                <span className="bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded">Top Rated</span>
-                              )}
-                            </div>
-                            <h3 className="font-medium text-gray-900 mb-2">
-                              {gig.title}
-                            </h3>
-                            <div className="flex items-center gap-4 mb-2">
-                              <div className="flex items-center gap-1">
-                                <div className="flex">
-                                  {[...Array(5)].map((_, i) => (
-                                    <svg key={i} className={`w-4 h-4 ${i < Math.floor(gig.rating) ? 'text-yellow-400' : 'text-gray-300'}`} fill="currentColor" viewBox="0 0 20 20">
-                                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                                    </svg>
-                                  ))}
-                                </div>
-                                <span className="text-sm text-gray-600">({gig.reviews})</span>
-                              </div>
-                              <span className="text-sm text-gray-500">•</span>
-                              <span className="text-sm text-gray-500">{gig.location}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-lg font-semibold text-gray-900">
-                                Rp {gig.price.toLocaleString('id-ID')}
-                              </span>
-                              <span className="text-sm text-gray-500">{gig.deliveryTime}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </Link>
+                    gig={{
+                      ...gig,
+                      freelancer: {
+                        ...gig.freelancer,
+                        profilePhoto: gig.freelancer.avatar,
+                        displayName: gig.freelancer.name
+                      }
+                    }}
+                    showFavoriteButton={true}
+                  />
                 ))}
               </div>
             )}

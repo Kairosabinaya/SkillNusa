@@ -4,14 +4,96 @@ import { useAuth } from '../context/AuthContext';
 import gigService from '../services/gigService';
 import reviewService from '../services/reviewService';
 import firebaseService from '../services/firebaseService';
+import favoriteService from '../services/favoriteService';
+import chatService from '../services/chatService';
 
 export default function GigDetail() {
   const { gigId } = useParams();
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
   const [gig, setGig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedPackage, setSelectedPackage] = useState('basic');
   const [showFullDescription, setShowFullDescription] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
+
+  // Check if gig is favorited when component mounts
+  useEffect(() => {
+    const checkFavoriteStatus = async () => {
+      if (currentUser && gig) {
+        try {
+          const favorited = await favoriteService.isFavorited(currentUser.uid, gig.id);
+          setIsFavorited(favorited);
+        } catch (error) {
+          console.error('Error checking favorite status:', error);
+        }
+      }
+    };
+
+    checkFavoriteStatus();
+  }, [currentUser, gig]);
+
+  // Handle favorite toggle
+  const handleFavoriteToggle = async () => {
+    if (!currentUser) {
+      navigate('/login');
+      return;
+    }
+
+    setFavoriteLoading(true);
+    try {
+      const result = await favoriteService.toggleFavorite(currentUser.uid, gig.id);
+      setIsFavorited(result.isFavorited);
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+    } finally {
+      setFavoriteLoading(false);
+    }
+  };
+
+  // Handle checkout
+  const handleCheckout = () => {
+    if (!currentUser) {
+      navigate('/login');
+      return;
+    }
+    
+    // Navigate to checkout with order data in the format expected by Checkout component
+    navigate('/checkout', {
+      state: {
+        orderData: {
+          freelancerId: gig.freelancer.id,
+          gigId: gig.id,
+          packageType: selectedPackage,
+          title: `${gig.title} - ${currentPackage.name}`,
+          description: currentPackage.description,
+          price: currentPackage.price,
+          deliveryTime: currentPackage.deliveryTime,
+          revisions: currentPackage.revisions,
+          gigTitle: gig.title,
+          freelancerName: gig.freelancer.name,
+          freelancerImage: gig.freelancer.profileImage
+        }
+      }
+    });
+  };
+
+  // Handle contact freelancer
+  const handleContactFreelancer = async () => {
+    if (!currentUser) {
+      navigate('/login');
+      return;
+    }
+
+    try {
+      // Create or find existing chat
+      const chat = await chatService.createOrGetChat(currentUser.uid, gig.freelancer.id, gig.id);
+      navigate(`/messages/${chat.id}`);
+    } catch (error) {
+      console.error('Error creating chat:', error);
+    }
+  };
 
   // Mock data - in real app, this would come from your database
   const mockGigData = {
@@ -258,9 +340,41 @@ We study our client's business, choose the best platform and hand-pick the most 
           <div className="lg:col-span-2 space-y-8 order-2 lg:order-1">
             {/* Gig Title */}
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
-                {gig.title}
-              </h1>
+              <div className="flex items-start justify-between mb-4">
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-900 flex-1 mr-4">
+                  {gig.title}
+                </h1>
+                
+                {/* Favorite Button */}
+                <button
+                  onClick={handleFavoriteToggle}
+                  disabled={favoriteLoading}
+                  className={`p-2 rounded-full border transition duration-200 ${
+                    isFavorited
+                      ? 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100'
+                      : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
+                  } ${favoriteLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+                >
+                  {favoriteLoading ? (
+                    <div className="w-5 h-5 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
+                  ) : (
+                    <svg 
+                      className="w-5 h-5" 
+                      fill={isFavorited ? 'currentColor' : 'none'} 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        strokeWidth={2} 
+                        d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" 
+                      />
+                    </svg>
+                  )}
+                </button>
+              </div>
               
               {/* Freelancer Info Bar */}
               <div className="flex items-center space-x-4 mb-6">
@@ -392,7 +506,10 @@ We study our client's business, choose the best platform and hand-pick the most 
                   </div>
                 </div>
                 
-                <button className="border border-gray-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition duration-200">
+                <button 
+                  onClick={handleContactFreelancer}
+                  className="border border-gray-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition duration-200"
+                >
                   Contact us
                 </button>
               </div>
@@ -815,10 +932,16 @@ We study our client's business, choose the best platform and hand-pick the most 
                   <div className="space-y-3">
                     {currentUser ? (
                       <>
-                        <button className="w-full bg-[#010042] text-white py-3 px-4 rounded-lg font-semibold hover:bg-[#000030] transition duration-200">
+                        <button 
+                          onClick={handleCheckout}
+                          className="w-full bg-[#010042] text-white py-3 px-4 rounded-lg font-semibold hover:bg-[#000030] transition duration-200"
+                        >
                           Continue (Rp {currentPackage.price.toLocaleString('id-ID')})
                         </button>
-                        <button className="w-full border border-gray-300 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-50 transition duration-200">
+                        <button 
+                          onClick={handleContactFreelancer}
+                          className="w-full border border-gray-300 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-50 transition duration-200"
+                        >
                           Contact Freelancer
                         </button>
                       </>

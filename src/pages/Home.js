@@ -3,6 +3,8 @@ import { TypeAnimation } from 'react-type-animation';
 import { useAuth } from '../context/AuthContext';
 import { useState, useRef, useEffect } from 'react';
 import MeshGradientBackground from '../components/UI/MeshGradientBackground';
+import GigCard from '../components/common/GigCard';
+import gigService from '../services/gigService';
 
 export default function Home() {
   const { currentUser, userProfile, loading } = useAuth();
@@ -10,6 +12,8 @@ export default function Home() {
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [gigs, setGigs] = useState([]);
+  const [gigsLoading, setGigsLoading] = useState(true);
   const searchBoxRef = useRef(null);
 
   // Handle clicks outside the search box
@@ -39,6 +43,167 @@ export default function Home() {
     }
   };
 
+  // Load gigs data (same as Browse page)
+  useEffect(() => {
+    const loadGigs = async () => {
+      setGigsLoading(true);
+      try {
+        // Try to load from database first
+        const gigData = await gigService.getFeaturedGigs(50);
+        if (gigData && gigData.length > 0) {
+          setGigs(gigData);
+        } else {
+          // Fallback to mock data (same as Browse)
+          const mockGigs = [
+            {
+              id: '1',
+              images: ["https://picsum.photos/seed/gig1/400/300"],
+              image: "https://picsum.photos/seed/gig1/400/300",
+              title: "I will build shopify ecommerce website, redesign online store",
+              category: "Programming & Tech",
+              freelancer: {
+                name: "Fillinx Sol",
+                displayName: "Fillinx Sol",
+                avatar: "https://picsum.photos/seed/freelancer1/50/50",
+                profilePhoto: "https://picsum.photos/seed/freelancer1/50/50",
+                isVerified: true,
+                isTopRated: true
+              },
+              rating: 4.9,
+              reviews: 1234,
+              totalReviews: 1234,
+              price: 195000,
+              startingPrice: 195000,
+              packages: { basic: { price: 195000 } },
+              deliveryTime: "7 days",
+              location: "Pakistan"
+            },
+            {
+              id: '2',
+              images: ["https://picsum.photos/seed/logo1/400/300"],
+              image: "https://picsum.photos/seed/logo1/400/300",
+              title: "I will create professional logo design for your business",
+              category: "Design & Creative",
+              freelancer: {
+                name: "Maya Design",
+                displayName: "Maya Design",
+                avatar: "https://picsum.photos/seed/freelancer2/50/50",
+                profilePhoto: "https://picsum.photos/seed/freelancer2/50/50",
+                isVerified: true,
+                isTopRated: false
+              },
+              rating: 4.8,
+              reviews: 287,
+              totalReviews: 287,
+              price: 150000,
+              startingPrice: 150000,
+              packages: { basic: { price: 150000 } },
+              deliveryTime: "3 days",
+              location: "Indonesia"
+            },
+            {
+              id: '3',
+              image: "https://picsum.photos/seed/gig3/400/300",
+              title: "Professional Social Media Management",
+              category: "Digital Marketing",
+              freelancer: {
+                name: "Dina Wijaya",
+                displayName: "Dina Wijaya",
+                avatar: "https://picsum.photos/seed/freelancer3/50/50",
+                profilePhoto: "https://picsum.photos/seed/freelancer3/50/50",
+                isVerified: false,
+                isTopRated: true
+              },
+              rating: 4.7,
+              reviews: 156,
+              totalReviews: 156,
+              price: 1200000,
+              startingPrice: 1200000,
+              packages: { basic: { price: 1200000 } },
+              deliveryTime: "5 days",
+              location: "Indonesia"
+            },
+            {
+              id: '4',
+              image: "https://picsum.photos/seed/gig4/400/300",
+              title: "Mobile App Development iOS & Android",
+              category: "Mobile Development",
+              freelancer: {
+                name: "Farhan Ahmad",
+                displayName: "Farhan Ahmad", 
+                avatar: "https://picsum.photos/seed/freelancer4/50/50",
+                profilePhoto: "https://picsum.photos/seed/freelancer4/50/50",
+                isVerified: true,
+                isTopRated: true
+              },
+              rating: 5.0,
+              reviews: 32,
+              totalReviews: 32,
+              price: 5000000,
+              startingPrice: 5000000,
+              packages: { basic: { price: 5000000 } },
+              deliveryTime: "14 days",
+              location: "Indonesia"
+            },
+            {
+              id: '5',
+              image: "https://picsum.photos/seed/gig5/400/300",
+              title: "Content Writing Services",
+              category: "Writing & Translation",
+              freelancer: {
+                name: "Elsa Putri",
+                displayName: "Elsa Putri",
+                avatar: "https://picsum.photos/seed/freelancer5/50/50",
+                profilePhoto: "https://picsum.photos/seed/freelancer5/50/50",
+                isVerified: true,
+                isTopRated: false
+              },
+              rating: 4.9,
+              reviews: 45,
+              totalReviews: 45,
+              price: 450000,
+              startingPrice: 450000,
+              packages: { basic: { price: 450000 } },
+              deliveryTime: "2 days",
+              location: "Indonesia"
+            },
+            {
+              id: '6',
+              image: "https://picsum.photos/seed/gig6/400/300",
+              title: "Business Plan Development",
+              category: "Business",
+              freelancer: {
+                name: "Gunawan Prawiro",
+                displayName: "Gunawan Prawiro",
+                avatar: "https://picsum.photos/seed/freelancer6/50/50",
+                profilePhoto: "https://picsum.photos/seed/freelancer6/50/50",
+                isVerified: true,
+                isTopRated: true
+              },
+              rating: 4.8,
+              reviews: 19,
+              totalReviews: 19,
+              price: 2000000,
+              startingPrice: 2000000,
+              packages: { basic: { price: 2000000 } },
+              deliveryTime: "10 days",
+              location: "Indonesia"
+            }
+          ];
+          setGigs(mockGigs);
+        }
+      } catch (error) {
+        console.error('Error loading gigs:', error);
+        // Set empty array if error
+        setGigs([]);
+      } finally {
+        setGigsLoading(false);
+      }
+    };
+
+    loadGigs();
+  }, []);
+
 
 
   // Categories data
@@ -53,179 +218,13 @@ export default function Home() {
     { icon: "M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z", name: "Video & Animation" }
   ];
 
-  // Mock gigs data for the "For You" section
-  const allGigs = [
-              {
-                image: "https://picsum.photos/seed/gig1/400/300",
-                title: "Professional Logo Design",
-                category: "Design & Creative",
-                freelancer: "Andi Pratama",
-                rating: "4.9",
-                reviews: "87",
-                price: "Rp 750.000"
-              },
-              {
-                image: "https://picsum.photos/seed/gig2/400/300",
-                title: "Full-Stack Web Development",
-                category: "Programming & Tech",
-                freelancer: "Budi Santoso",
-                rating: "4.8",
-                reviews: "124",
-                price: "Rp 3.500.000"
-              },
-              {
-                image: "https://picsum.photos/seed/gig3/400/300",
-                title: "Social Media Management",
-                category: "Digital Marketing",
-                freelancer: "Dina Wijaya",
-                rating: "4.7",
-                reviews: "56",
-                price: "Rp 1.200.000"
-              },
-              {
-                image: "https://picsum.photos/seed/gig4/400/300",
-                title: "Mobile App Development",
-                category: "Mobile Development",
-                freelancer: "Farhan Ahmad",
-                rating: "5.0",
-                reviews: "32",
-                price: "Rp 5.000.000"
-    },
-    {
-      image: "https://picsum.photos/seed/gig5/400/300",
-      title: "Content Writing Services",
-      category: "Writing & Translation",
-      freelancer: "Elsa Putri",
-      rating: "4.9",
-      reviews: "45",
-      price: "Rp 450.000"
-    },
-    {
-      image: "https://picsum.photos/seed/gig6/400/300",
-      title: "Business Plan Development",
-      category: "Business",
-      freelancer: "Gunawan Prawiro",
-      rating: "4.8",
-      reviews: "19",
-      price: "Rp 2.000.000"
-    },
-    {
-      image: "https://picsum.photos/seed/gig7/400/300",
-      title: "Customer Support Management",
-      category: "Customer Support",
-      freelancer: "Hana Wijaya",
-      rating: "4.7",
-      reviews: "28",
-      price: "Rp 1.100.000"
-    },
-    {
-      image: "https://picsum.photos/seed/gig8/400/300",
-      title: "Promotional Video Creation",
-      category: "Video & Animation",
-      freelancer: "Indra Maulana",
-      rating: "4.9",
-      reviews: "63",
-      price: "Rp 1.800.000"
-    },
-    {
-      image: "https://picsum.photos/seed/gig9/400/300",
-      title: "Website Design Overhaul",
-      category: "Design & Creative",
-      freelancer: "Jasmine Putri",
-      rating: "4.6",
-      reviews: "41",
-      price: "Rp 2.300.000"
-    },
-    {
-      image: "https://picsum.photos/seed/gig10/400/300",
-      title: "Backend API Development",
-      category: "Programming & Tech",
-      freelancer: "Khalid Rahman",
-      rating: "4.9",
-      reviews: "37",
-      price: "Rp 4.200.000"
-    },
-    {
-      image: "https://picsum.photos/seed/gig11/400/300",
-      title: "Advanced SEO Optimization",
-      category: "Digital Marketing",
-      freelancer: "Lina Susanti",
-      rating: "5.0",
-      reviews: "52",
-      price: "Rp 1.500.000"
-    },
-    {
-      image: "https://picsum.photos/seed/gig12/400/300",
-      title: "iOS App Development",
-      category: "Mobile Development",
-      freelancer: "Muhammad Rizki",
-      rating: "4.8",
-      reviews: "29",
-      price: "Rp 6.000.000"
-    },
-    {
-      image: "https://picsum.photos/seed/gig13/400/300",
-      title: "Technical Documentation",
-      category: "Writing & Translation",
-      freelancer: "Nina Halim",
-      rating: "4.7",
-      reviews: "18",
-      price: "Rp 800.000"
-    },
-    {
-      image: "https://picsum.photos/seed/gig14/400/300",
-      title: "Market Research & Analysis",
-      category: "Business",
-      freelancer: "Oscar Pratama",
-      rating: "4.9",
-      reviews: "33",
-      price: "Rp 3.200.000"
-    },
-    {
-      image: "https://picsum.photos/seed/gig15/400/300",
-      title: "Multilingual Customer Support",
-      category: "Customer Support",
-      freelancer: "Putri Rahma",
-      rating: "4.8",
-      reviews: "21",
-      price: "Rp 1.400.000"
-    },
-    {
-      image: "https://picsum.photos/seed/gig16/400/300",
-      title: "3D Animation Services",
-      category: "Video & Animation",
-      freelancer: "Qori Hidayat",
-      rating: "5.0",
-      reviews: "48",
-      price: "Rp 3.800.000"
-    },
-    {
-      image: "https://picsum.photos/seed/gig17/400/300",
-      title: "UI/UX Design Services",
-      category: "Design & Creative",
-      freelancer: "Rama Wijaya",
-      rating: "4.9",
-      reviews: "72",
-      price: "Rp 2.800.000"
-    },
-    {
-      image: "https://picsum.photos/seed/gig18/400/300",
-      title: "WordPress Development",
-      category: "Programming & Tech",
-      freelancer: "Sinta Dewi",
-      rating: "4.7",
-      reviews: "39",
-      price: "Rp 1.600.000"
-    }
-  ];
-
   // Filter gigs based on selected category
   const filteredGigs = activeCategory === 'All' 
-    ? allGigs 
-    : allGigs.filter(gig => gig.category === activeCategory);
+    ? gigs 
+    : gigs.filter(gig => gig.category === activeCategory);
 
-  // Take only 18 gigs for display (6x3 grid)
-  const displayedGigs = filteredGigs.slice(0, 18);
+  // Take only 12 gigs for display
+  const displayedGigs = filteredGigs.slice(0, 12);
 
   // Periksa apakah pengguna adalah klien (non-freelancer) untuk menampilkan CTA
   // PENTING: Dalam arsitektur multi-role, kita perlu memeriksa berbagai kombinasi kemungkinan
@@ -547,50 +546,31 @@ export default function Home() {
           </div>
 
           {/* Gigs Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-            {displayedGigs.slice(0, 15).map((gig, index) => (
-              <Link key={index} to={`/gig/${index + 1}`} className="block group">
-                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden transition-all duration-300 hover:shadow-md hover:border-[#010042]/30 group-hover:transform group-hover:scale-105">
-                  <div className="aspect-w-4 aspect-h-3">
-                    <img 
-                      src={gig.image} 
-                      alt={gig.title}
-                      className="w-full h-48 object-cover"
-                    />
-                  </div>
-                  <div className="p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <img
-                        src={`https://picsum.photos/seed/freelancer${index + 1}/50/50`}
-                        alt={gig.freelancer}
-                        className="w-6 h-6 rounded-full object-cover"
-                      />
-                      <span className="text-sm text-gray-600">{gig.freelancer}</span>
-                      <span className="text-blue-500">✓</span>
-                    </div>
-                    <h3 className="font-medium text-gray-900 line-clamp-2 mb-2 text-sm">
-                      {gig.title}
-                    </h3>
-                    <div className="flex items-center gap-1 mb-3">
-                      <div className="flex">
-                        {[...Array(5)].map((_, i) => (
-                          <svg key={i} className={`w-3 h-3 ${i < Math.floor(parseFloat(gig.rating)) ? 'text-yellow-400' : 'text-gray-300'}`} fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                          </svg>
-                        ))}
-                      </div>
-                      <span className="text-xs text-gray-600">({gig.reviews})</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-lg font-semibold text-gray-900">
-                        {gig.price}
-                      </span>
-                    </div>
-                  </div>
+          {gigsLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {[...Array(8)].map((_, index) => (
+                <div key={index} className="bg-white rounded-lg border border-gray-200 p-4 animate-pulse">
+                  <div className="bg-gray-300 h-48 rounded mb-4"></div>
+                  <div className="bg-gray-300 h-4 rounded mb-2"></div>
+                  <div className="bg-gray-300 h-4 rounded w-3/4"></div>
                 </div>
-              </Link>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : displayedGigs.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-600">Tidak ada gigs yang ditemukan untuk kategori ini.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {displayedGigs.map((gig) => (
+                <GigCard 
+                  key={gig.id} 
+                  gig={gig}
+                  showFavoriteButton={true}
+                />
+              ))}
+            </div>
+          )}
 
           <div className="flex justify-center mt-10">
             <Link 
