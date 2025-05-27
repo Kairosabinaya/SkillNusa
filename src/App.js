@@ -36,6 +36,7 @@ import Messages from './pages/Messages';
 
 // Test Pages
 import TestPopulate from './pages/TestPopulate';
+import SeedingPage from './pages/SeedingPage';
 
 // Protected Routes
 import ProtectedRoute from './components/ProtectedRoute';
@@ -118,6 +119,7 @@ function App() {
 
           {/* Test Routes */}
           <Route path="/test-populate" element={<TestPopulate />} />
+          <Route path="/seeding" element={<SeedingPage />} />
 
           {/* Auth Routes */}
           <Route path={ROUTES.LOGIN} element={<Login />} />

@@ -45,139 +45,46 @@ export default function Browse() {
     "AI Services"
   ];
 
-  // Mock gigs data (akan diganti dengan data dari database)
-  const mockGigs = [
-    {
-      id: '1',
-      images: ["https://picsum.photos/seed/gig1/400/300"],
-      image: "https://picsum.photos/seed/gig1/400/300",
-      title: "I will build shopify ecommerce website, redesign online store",
-      category: "Programming & Tech",
-      freelancer: {
-        name: "Fillinx Sol",
-        displayName: "Fillinx Sol",
-        avatar: "https://picsum.photos/seed/freelancer1/50/50",
-        profilePhoto: "https://picsum.photos/seed/freelancer1/50/50",
-        isVerified: true,
-        isTopRated: true
-      },
-      rating: 4.9,
-      reviews: 1234,
-      totalReviews: 1234,
-      price: 195000,
-      startingPrice: 195000,
-      deliveryTime: "7 days",
-      location: "Pakistan"
-    },
-    {
-      id: '2',
-      images: ["https://picsum.photos/seed/logo1/400/300"],
-      image: "https://picsum.photos/seed/logo1/400/300",
-      title: "I will create professional logo design for your business",
-      category: "Design & Creative",
-      freelancer: {
-        name: "Maya Design",
-        displayName: "Maya Design",
-        avatar: "https://picsum.photos/seed/freelancer2/50/50",
-        profilePhoto: "https://picsum.photos/seed/freelancer2/50/50",
-        isVerified: true,
-        isTopRated: false
-      },
-      rating: 4.8,
-      reviews: 287,
-      totalReviews: 287,
-      price: 150000,
-      startingPrice: 150000,
-      deliveryTime: "3 days",
-      location: "Indonesia"
-    },
-    // Add more mock data to demonstrate filtering
-    {
-      id: '3',
-      image: "https://picsum.photos/seed/gig3/400/300",
-      title: "Professional Social Media Management",
-      category: "Digital Marketing",
-      freelancer: {
-        name: "Dina Wijaya",
-        avatar: "https://picsum.photos/seed/freelancer3/50/50",
-        isVerified: false,
-        isTopRated: true
-      },
-      rating: 4.7,
-      reviews: 156,
-      price: 1200000,
-      deliveryTime: "5 days",
-      location: "Indonesia"
-    },
-    {
-      id: '4',
-      image: "https://picsum.photos/seed/gig4/400/300",
-      title: "Mobile App Development iOS & Android",
-      category: "Mobile Development",
-      freelancer: {
-        name: "Farhan Ahmad", 
-        avatar: "https://picsum.photos/seed/freelancer4/50/50",
-        isVerified: true,
-        isTopRated: true
-      },
-      rating: 5.0,
-      reviews: 32,
-      price: 5000000,
-      deliveryTime: "14 days",
-      location: "Indonesia"
-    },
-    {
-      id: '5',
-      image: "https://picsum.photos/seed/gig5/400/300",
-      title: "Content Writing Services",
-      category: "Writing & Translation",
-      freelancer: {
-        name: "Elsa Putri",
-        avatar: "https://picsum.photos/seed/freelancer5/50/50",
-        isVerified: true,
-        isTopRated: false
-      },
-      rating: 4.9,
-      reviews: 45,
-      price: 450000,
-      deliveryTime: "2 days",
-      location: "Indonesia"
-    },
-    {
-      id: '6',
-      image: "https://picsum.photos/seed/gig6/400/300",
-      title: "Business Plan Development",
-      category: "Business",
-      freelancer: {
-        name: "Gunawan Prawiro",
-        avatar: "https://picsum.photos/seed/freelancer6/50/50",
-        isVerified: true,
-        isTopRated: true
-      },
-      rating: 4.8,
-      reviews: 19,
-      price: 2000000,
-      deliveryTime: "10 days",
-      location: "Indonesia"
-    }
-  ];
-
-  // Load gigs data
+  // Load gigs data from database
   useEffect(() => {
     const loadGigs = async () => {
       setLoading(true);
       try {
-        // Try to load from database first
-        const gigData = await gigService.getFeaturedGigs(50);
+        // Get gigs from database using the new service
+        const gigData = await gigService.getGigs({}, { limit: 50 });
+        
         if (gigData && gigData.length > 0) {
-          setGigs(gigData);
+          // Transform the data to match our component's expected format
+          const transformedGigs = gigData.map(gig => ({
+            id: gig.id,
+            images: gig.images || [],
+            image: gig.images?.[0] || 'https://via.placeholder.com/400x300',
+            title: gig.title,
+            category: gig.category,
+            freelancer: {
+              name: gig.freelancer.displayName || gig.freelancer.name,
+              displayName: gig.freelancer.displayName || gig.freelancer.name,
+              avatar: gig.freelancer.profilePhoto || gig.freelancer.avatar,
+              profilePhoto: gig.freelancer.profilePhoto || gig.freelancer.avatar,
+              isVerified: gig.freelancer.isVerified,
+              isTopRated: gig.freelancer.isTopRated
+            },
+            rating: gig.rating || 0,
+            reviews: gig.totalReviews || 0,
+            totalReviews: gig.totalReviews || 0,
+            price: gig.packages?.basic?.price || 0,
+            startingPrice: gig.packages?.basic?.price || 0,
+            deliveryTime: gig.packages?.basic?.deliveryTime + ' days' || 'N/A',
+            location: gig.freelancer.location || 'Unknown'
+          }));
+          
+          setGigs(transformedGigs);
         } else {
-          // Fallback to mock data
-          setGigs(mockGigs);
+          setGigs([]);
         }
       } catch (error) {
         console.error('Error loading gigs:', error);
-        setGigs(mockGigs);
+        setGigs([]);
       } finally {
         setLoading(false);
       }
@@ -301,8 +208,6 @@ export default function Browse() {
     setCurrentPage(1);
   }, [searchQuery, filters, sortBy]);
 
-
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -334,8 +239,6 @@ export default function Browse() {
           </nav>
         </div>
       </div>
-
-
 
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="flex gap-6">

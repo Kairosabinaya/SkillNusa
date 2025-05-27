@@ -34,7 +34,12 @@
     "db:clean:quick": "node src/scripts/runCleanup.js quick",
     "db:clean:full": "node src/scripts/runCleanup.js full",
     "db:fix": "node src/scripts/runCleanup.js fix",
-    "db:cleanup-orphaned": "node src/scripts/cleanupOrphanedData.js"
+    "db:cleanup-orphaned": "node src/scripts/cleanupOrphanedData.js",
+    "db:seed": "node src/scripts/runSeeding.js",
+    "db:seed:users": "node src/scripts/runSeeding.js users",
+    "db:seed:gigs": "node src/scripts/runSeeding.js gigs",
+    "db:seed:reviews": "node src/scripts/runSeeding.js reviews",
+    "db:debug": "node src/scripts/runDebug.js"
   },
   "eslintConfig": {
     "extends": [
