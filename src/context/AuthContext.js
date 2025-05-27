@@ -20,7 +20,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
 import firebaseService from '../services/firebaseService';
-import { COLLECTIONS, USER_ROLES, FREELANCER_STATUS } from '../utils/constants';
+import { COLLECTIONS, USER_ROLES } from '../utils/constants';
 import Logger from '../utils/logger';
 import { AuthError, ValidationError, ErrorHandler } from '../utils/errors';
 
@@ -46,7 +46,6 @@ export function AuthProvider({ children }) {
         roles: userData.roles || [USER_ROLES.CLIENT],
         activeRole: userData.activeRole || USER_ROLES.CLIENT,
         isFreelancer: userData.isFreelancer || false,
-        freelancerStatus: userData.freelancerStatus || null,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       };
@@ -93,9 +92,6 @@ export function AuthProvider({ children }) {
         roles: [role],
         activeRole: role,
         isFreelancer: role === USER_ROLES.FREELANCER,
-        freelancerStatus: role === USER_ROLES.FREELANCER ? FREELANCER_STATUS.APPROVED : null,
-        // Legacy support
-        role,
         profilePhoto: null,
         bio: '',
         isActive: true,
@@ -239,10 +235,6 @@ export function AuthProvider({ children }) {
         if (userData.roles && userData.roles.length > 0) {
           setAvailableRoles(userData.roles);
           setActiveRole(userData.activeRole || userData.roles[0]);
-        } else if (userData.role) {
-          // Legacy support
-          setAvailableRoles([userData.role]);
-          setActiveRole(userData.role);
         }
         
         setUserProfile(userData);
@@ -310,6 +302,101 @@ export function AuthProvider({ children }) {
     return await fetchUserProfile();
   };
 
+  /**
+   * Manually sync emailVerified status from Firebase Auth to Firestore
+   * Useful to call after email verification
+   * @returns {Promise<boolean>} - True if sync was successful
+   */
+  const syncEmailVerifiedStatus = async () => {
+    if (!currentUser) {
+      console.warn('AuthContext: No current user to sync emailVerified status');
+      return false;
+    }
+
+    try {
+      // Reload user from Firebase Auth to get latest emailVerified status
+      await currentUser.reload();
+      
+      // Get current user data from Firestore
+      const userData = await firebaseService.getUser(currentUser.uid);
+      
+      if (userData && userData.emailVerified !== currentUser.emailVerified) {
+        // Update Firestore with current emailVerified status from Auth
+        const userRef = doc(db, COLLECTIONS.USERS, currentUser.uid);
+        await updateDoc(userRef, {
+          emailVerified: currentUser.emailVerified,
+          updatedAt: serverTimestamp()
+        });
+        
+        // Update local state
+        setUserProfile(prev => ({
+          ...prev,
+          emailVerified: currentUser.emailVerified
+        }));
+        
+        console.log(`AuthContext: emailVerified manually synced to ${currentUser.emailVerified}`);
+        return true;
+      }
+      
+      return false; // No sync needed
+    } catch (error) {
+      console.error('AuthContext: Failed to manually sync emailVerified status:', error);
+      return false;
+    }
+  };
+
+  /**
+   * Delete user account and all associated data
+   * @returns {Promise<{success: boolean, message: string}>}
+   */
+  const deleteUserAccount = async () => {
+    setError(null);
+    
+    if (!currentUser || !userProfile) {
+      setError('No authenticated user found');
+      return { success: false, message: 'No authenticated user found' };
+    }
+
+    try {
+      // Import userDeletionService dynamically to avoid circular dependencies
+      const { default: userDeletionService } = await import('../services/userDeletionService');
+      
+      const result = await userDeletionService.deleteUserAccount(currentUser, userProfile);
+      
+      if (result.success) {
+        // Clear local state
+        setCurrentUser(null);
+        setUserProfile(null);
+        setActiveRole(USER_ROLES.CLIENT);
+        setAvailableRoles([USER_ROLES.CLIENT]);
+        
+        // Clear localStorage
+        localStorage.clear();
+        
+        console.log('User account deleted successfully');
+        return { 
+          success: true, 
+          message: 'Account deleted successfully',
+          deletedData: result.deletedData,
+          errors: result.errors
+        };
+      } else {
+        setError('Failed to delete account completely. Some data may remain.');
+        return { 
+          success: false, 
+          message: 'Account deletion failed',
+          deletedData: result.deletedData,
+          errors: result.errors
+        };
+      }
+    } catch (error) {
+      const errorMessage = `Failed to delete account: ${error.message}`;
+      setError(errorMessage);
+      console.error('AuthContext: Account deletion error:', error);
+      return { success: false, message: errorMessage };
+    }
+  };
+
   useEffect(() => {
     setLoading(true);
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -317,7 +404,29 @@ export function AuthProvider({ children }) {
         setCurrentUser(user);
         
         if (user) {
-          await fetchUserProfile();
+          // Fetch user profile from Firestore
+          const userData = await fetchUserProfile();
+          
+          // Sync emailVerified status from Firebase Auth to Firestore if different
+          if (userData && userData.emailVerified !== user.emailVerified) {
+            try {
+              const userRef = doc(db, COLLECTIONS.USERS, user.uid);
+              await updateDoc(userRef, {
+                emailVerified: user.emailVerified,
+                updatedAt: serverTimestamp()
+              });
+              
+              // Update local userProfile state with synced emailVerified status
+              setUserProfile(prev => ({
+                ...prev,
+                emailVerified: user.emailVerified
+              }));
+              
+              console.log(`AuthContext: emailVerified synced from ${userData.emailVerified} to ${user.emailVerified}`);
+            } catch (error) {
+              console.error('AuthContext: Failed to sync emailVerified status:', error);
+            }
+          }
         } else {
           setUserProfile(null);
           setActiveRole(USER_ROLES.CLIENT);
@@ -349,7 +458,9 @@ export function AuthProvider({ children }) {
     resetPassword,
     fetchUserProfile,
     switchRole,
-    refreshUserData
+    refreshUserData,
+    syncEmailVerifiedStatus,
+    deleteUserAccount
   };
 
   return (

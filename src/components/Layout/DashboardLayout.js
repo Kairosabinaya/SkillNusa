@@ -33,9 +33,9 @@ export default function DashboardLayout() {
     ],
   };
 
-  // Use activeRole from AuthContext, fall back to roles array, then to legacy role field
+  // Use activeRole from AuthContext, fall back to roles array
   const role = activeRole || 
-    (userProfile?.roles && userProfile.roles.length > 0 ? userProfile.roles[0] : userProfile?.role) || 
+    (userProfile?.roles && userProfile.roles.length > 0 ? userProfile.roles[0] : null) || 
     'client';
   const navigation = menuItems[role] || menuItems['client'];
 
@@ -139,7 +139,9 @@ export default function DashboardLayout() {
         {/* Main content */}
         <main className="flex-1 overflow-y-auto focus:outline-none p-6">
           {/* Show Freelancer CTA in client dashboard only */}
-          {role === 'client' && <div className="mb-6"><FreelancerCTA variant="dashboard" /></div>}
+          {(role === 'client' || (userProfile?.roles && userProfile.roles.includes('client'))) && 
+           !(userProfile?.roles && userProfile.roles.includes('freelancer')) && 
+           <div className="mb-6"><FreelancerCTA variant="dashboard" /></div>}
           <Outlet />
         </main>
       </div>

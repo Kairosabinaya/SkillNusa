@@ -4,8 +4,9 @@ import { useAuth } from '../../context/AuthContext';
 import { sendEmailVerification } from 'firebase/auth';
 
 export default function VerifyEmail() {
-  const { currentUser, logout } = useAuth();
+  const { currentUser, logout, syncEmailVerifiedStatus } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [checkingStatus, setCheckingStatus] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [showWarning, setShowWarning] = useState(false);
@@ -29,6 +30,39 @@ export default function VerifyEmail() {
       setError('Gagal mengirim ulang email verifikasi. Silakan coba lagi nanti.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCheckVerificationStatus = async () => {
+    if (!currentUser) {
+      setError('Tidak ada pengguna yang masuk. Silakan masuk kembali.');
+      return;
+    }
+
+    setCheckingStatus(true);
+    setMessage('');
+    setError('');
+
+    try {
+      // Reload current user from Firebase Auth to get latest status
+      await currentUser.reload();
+      
+      if (currentUser.emailVerified) {
+        // Sync the verified status to Firestore
+        const synced = await syncEmailVerifiedStatus();
+        setMessage('Email berhasil diverifikasi! Anda akan dialihkan ke halaman login.');
+        
+        // Redirect to login after a short delay
+        setTimeout(() => {
+          navigate('/login');
+        }, 2000);
+      } else {
+        setError('Email belum diverifikasi. Silakan periksa kotak masuk Anda dan klik tautan verifikasi.');
+      }
+    } catch (error) {
+      setError('Gagal memeriksa status verifikasi. Silakan coba lagi.');
+    } finally {
+      setCheckingStatus(false);
     }
   };
 
@@ -130,6 +164,15 @@ export default function VerifyEmail() {
         </div>
 
         <div className="flex flex-col items-center justify-center space-y-4">
+          <button
+            type="button"
+            onClick={handleCheckVerificationStatus}
+            disabled={checkingStatus}
+            className="text-center w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+          >
+            {checkingStatus ? 'Memeriksa...' : 'Saya Sudah Verifikasi Email'}
+          </button>
+          
           <button
             type="button"
             onClick={handleResendVerification}

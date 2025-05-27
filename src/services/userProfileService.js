@@ -105,7 +105,6 @@ export const updateUserProfile = async (userId, profileData, updateAuthProfile =
       'roles',
       'activeRole', 
       'isFreelancer', 
-      'freelancerStatus'
     ];
     
     // Fields that belong in client profile

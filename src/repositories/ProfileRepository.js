@@ -4,10 +4,14 @@ import { COLLECTIONS } from '../utils/constants';
 
 /**
  * Profile repository for profile-related database operations
+ * Note: This is now deprecated in favor of ClientProfile and FreelancerProfile
+ * repositories with specific collections for each role.
  */
 export default class ProfileRepository extends BaseRepository {
   constructor() {
-    super(COLLECTIONS.PROFILES, Profile);
+    // Using CLIENT_PROFILES as the default profile collection
+    // Consider using ClientProfileRepository or FreelancerProfileRepository instead
+    super(COLLECTIONS.CLIENT_PROFILES, Profile);
   }
 
   /**

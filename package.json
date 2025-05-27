@@ -11,6 +11,7 @@
     "@testing-library/user-event": "^13.5.0",
     "classnames": "^2.5.1",
     "cloudinary": "^2.6.1",
+    "dotenv": "^16.5.0",
     "firebase": "^11.5.0",
     "formik": "^2.4.6",
     "react": "^18.2.0",
@@ -28,7 +29,12 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "db:clean": "node src/scripts/runCleanup.js",
+    "db:clean:quick": "node src/scripts/runCleanup.js quick",
+    "db:clean:full": "node src/scripts/runCleanup.js full",
+    "db:fix": "node src/scripts/runCleanup.js fix",
+    "db:cleanup-orphaned": "node src/scripts/cleanupOrphanedData.js"
   },
   "eslintConfig": {
     "extends": [

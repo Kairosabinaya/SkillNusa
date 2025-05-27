@@ -22,13 +22,10 @@ export const createUserProfile = async (userId, profileData) => {
       // Basic info
       displayName: profileData.displayName,
       username: profileData.username,
-      // Legacy support
-      role: profileData.role,
       // Multi-role architecture fields
-      roles: profileData.roles || [profileData.role],
-      activeRole: profileData.activeRole || profileData.role,
+      roles: profileData.roles || ['client'],
+      activeRole: profileData.activeRole || (profileData.roles && profileData.roles[0]) || 'client',
       isFreelancer: profileData.isFreelancer || false,
-      freelancerStatus: profileData.freelancerStatus || null,
       // Profile data
       profilePhoto: profileData.profilePhoto,
       phoneNumber: profileData.phoneNumber,
@@ -58,7 +55,7 @@ export const createUserProfile = async (userId, profileData) => {
     });
     
     // Create freelancer profile if user is registering directly as freelancer (admin flow)
-    if (profileData.role === 'freelancer' || profileData.isFreelancer) {
+    if ((profileData.roles && profileData.roles.includes('freelancer')) || profileData.isFreelancer) {
       await firebaseService.setDocument(COLLECTIONS.FREELANCER_PROFILES, userId, {
         userId,
         skills: profileData.skills || [],

@@ -26,7 +26,7 @@ export const RegistrationProvider = ({ children }) => {
     confirmPassword: '',
     fullName: '',
     username: '',
-    role: '',
+    roles: [],
 
     // Step 2 - Profile Details
     profilePhoto: null,
@@ -128,7 +128,7 @@ export const RegistrationProvider = ({ children }) => {
         email: formData.email,
         password: formData.password,
         username: formData.username,
-        role: formData.role,
+        roles: formData.roles,
         fullName: formData.fullName,
         phoneNumber: formData.phoneNumber,
         gender: formData.gender,
@@ -138,7 +138,7 @@ export const RegistrationProvider = ({ children }) => {
         profilePhoto: profilePhotoUrl,
         profilePhotoPublicId: profilePhotoPublicId,
         // Role-specific data
-        ...(formData.role === 'freelancer' ? {
+        ...(formData.roles.includes('freelancer') ? {
           skills: formData.skills,
           experienceLevel: formData.experienceLevel,
           portfolioLinks: formData.portfolioLinks.filter(Boolean),
@@ -157,7 +157,7 @@ export const RegistrationProvider = ({ children }) => {
         userData.email,
         userData.password,
         userData.username,
-        userData.role,
+        userData.roles[0] || 'client', // Pass primary role for backward compatibility
         userData.bio,
         '', // headline
         userData.skills,

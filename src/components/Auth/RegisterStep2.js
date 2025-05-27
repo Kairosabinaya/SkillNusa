@@ -361,7 +361,7 @@ export default function RegisterStep2({ formikProps }) {
       {/* Bio Field - Required only for Freelancers */}
       <div>
         <label htmlFor="bio" className="block text-sm font-medium text-gray-700">
-          Tentang Saya {values.role === USER_ROLES.FREELANCER && <span className="text-red-500">*</span>}
+          Tentang Saya {values.roles && values.roles.includes(USER_ROLES.FREELANCER) && <span className="text-red-500">*</span>}
         </label>
         <div className="mt-1 relative">
           <Field name="bio">
@@ -372,7 +372,7 @@ export default function RegisterStep2({ formikProps }) {
                   id="bio"
                   rows={3}
                   maxLength={500}
-                  placeholder={values.role === USER_ROLES.FREELANCER ? 
+                  placeholder={values.roles && values.roles.includes(USER_ROLES.FREELANCER) ? 
                     "Deskripsikan diri Anda, keahlian, dan pengalaman Anda (minimal 50 karakter)" : 
                     "Deskripsikan diri Anda (opsional)"}
                   className={`appearance-none block w-full px-3 py-2 border ${
@@ -382,8 +382,8 @@ export default function RegisterStep2({ formikProps }) {
                 />
                 <div className="flex justify-between items-center mt-1">
                   <ErrorMessage name="bio" component="div" className="text-sm text-red-600" />
-                  <div className={`text-xs ${values.role === USER_ROLES.FREELANCER && field.value.length < 50 ? 'text-red-500' : field.value.length > 400 ? 'text-orange-500' : 'text-green-600'} font-medium`}>
-                    {field.value.length}/500 karakter {values.role === USER_ROLES.FREELANCER && field.value.length < 50 ? `(min. 50)` : ''}
+                  <div className={`text-xs ${values.roles && values.roles.includes(USER_ROLES.FREELANCER) && field.value.length < 50 ? 'text-red-500' : field.value.length > 400 ? 'text-orange-500' : 'text-green-600'} font-medium`}>
+                    {field.value.length}/500 karakter {values.roles && values.roles.includes(USER_ROLES.FREELANCER) && field.value.length < 50 ? `(min. 50)` : ''}
                   </div>
                 </div>
               </div>

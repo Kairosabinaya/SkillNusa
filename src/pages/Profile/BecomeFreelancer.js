@@ -4,7 +4,6 @@ import { useAuth } from '../../context/AuthContext';
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import { applyAsFreelancer } from '../../services/freelancerService';
-import { FREELANCER_STATUS } from '../../utils/constants';
 import BecomeFreelancerStep1 from '../../components/Profile/BecomeFreelancerStep1';
 import BecomeFreelancerStep2 from '../../components/Profile/BecomeFreelancerStep2';
 import BecomeFreelancerStep3 from '../../components/Profile/BecomeFreelancerStep3';
@@ -123,8 +122,8 @@ export default function BecomeFreelancer() {
         certifications: values.certifications,
         portfolioLink: values.portfolioLink,
         availability: values.availability,
-        workingHours: values.workingHours,
-        freelancerStatus: FREELANCER_STATUS.APPROVED // Langsung disetujui
+        workingHours: values.workingHours
+        // No longer need status - automatically approved
       });
       
       // Refresh user data to update role and freelancer status
@@ -173,11 +172,7 @@ export default function BecomeFreelancer() {
               </div>
               <div className="ml-3 flex-1 md:flex md:justify-between">
                 <p className="text-sm text-blue-700">
-                  {userProfile?.freelancerStatus === FREELANCER_STATUS.PENDING ? 
-                    'Permohonan Anda sedang ditinjau. Kami akan memberi tahu Anda setelah selesai.' :
-                    userProfile?.freelancerStatus === FREELANCER_STATUS.APPROVED ?
-                    'Anda sudah terdaftar sebagai freelancer! Anda dapat beralih ke dashboard freelancer dari menu profil.' :
-                    'Permohonan Anda telah ditolak. Silakan hubungi dukungan untuk informasi lebih lanjut.'}
+                  Anda sudah terdaftar sebagai freelancer! Anda dapat beralih ke dashboard freelancer dari menu profil.
                 </p>
                 <p className="mt-3 text-sm md:mt-0 md:ml-6">
                   <a href="/profile" className="whitespace-nowrap font-medium text-blue-700 hover:text-blue-600">

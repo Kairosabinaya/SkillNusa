@@ -1,5 +1,5 @@
 import BaseModel from './BaseModel';
-import { USER_ROLES, FREELANCER_STATUS } from '../utils/constants';
+import { USER_ROLES } from '../utils/constants';
 
 /**
  * User model representing a user in the system
@@ -24,12 +24,7 @@ export default class User extends BaseModel {
     this.roles = data.roles || [USER_ROLES.CLIENT]; // Array, default ['client']
     this.activeRole = data.activeRole || USER_ROLES.CLIENT; // Currently active role
     this.isFreelancer = data.isFreelancer || false; // Quick check flag
-    this.freelancerStatus = data.freelancerStatus || null; // 'pending', 'approved', 'rejected'
-    this.freelancerAppliedAt = data.freelancerAppliedAt || null;
-    this.freelancerApprovedAt = data.freelancerApprovedAt || null;
-    
-    // Legacy support for single-role field (deprecated)
-    this.role = data.role || USER_ROLES.CLIENT;
+    // Freelancer status fields removed - no longer using approval system
     
     this.profilePhoto = data.profilePhoto || null;
     this.bio = data.bio || '';
@@ -75,6 +70,6 @@ export default class User extends BaseModel {
    * @returns {boolean} True if user can switch to freelancer role
    */
   canSwitchToFreelancer() {
-    return this.isFreelancer && this.freelancerStatus === FREELANCER_STATUS.APPROVED;
+    return this.isFreelancer; // No approval needed
   }
 } 

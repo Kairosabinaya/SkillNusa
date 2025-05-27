@@ -243,7 +243,8 @@ export async function populateGigsData() {
     for (const freelancer of sampleFreelancers) {
       await setDoc(doc(db, 'users', freelancer.id), {
         ...freelancer,
-        role: 'freelancer',
+        roles: ['freelancer'],
+        activeRole: 'freelancer',
         isFreelancer: true,
         createdAt: new Date(),
         updatedAt: new Date()

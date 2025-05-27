@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { USER_ROLES, FREELANCER_STATUS } from '../../utils/constants';
+import { USER_ROLES } from '../../utils/constants';
 
 /**
  * RoleSwitcher component allows users to switch between available roles
@@ -14,8 +14,7 @@ export default function RoleSwitcher() {
   if (!userProfile || 
       !availableRoles || 
       availableRoles.length <= 1 || 
-      !userProfile.isFreelancer || 
-      userProfile.freelancerStatus !== FREELANCER_STATUS.APPROVED) {
+      !userProfile.isFreelancer) {
     return null;
   }
   

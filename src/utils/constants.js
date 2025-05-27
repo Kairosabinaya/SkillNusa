@@ -41,14 +41,7 @@ export const COLLECTIONS = {
   NOTIFICATIONS: 'notifications'
 };
 
-/**
- * Freelancer application status
- */
-export const FREELANCER_STATUS = {
-  PENDING: 'pending',
-  APPROVED: 'approved',
-  REJECTED: 'rejected'
-};
+// Freelancer status constants removed - no longer using approval system
 
 /**
  * Project statuses

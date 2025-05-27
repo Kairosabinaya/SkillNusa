@@ -27,8 +27,9 @@ export const basicInfoSchema = Yup.object().shape({
   username: Yup.string()
     .matches(usernameRegExp, 'Username hanya boleh mengandung huruf, angka, dan underscore (3-20 karakter)')
     .required('Username wajib diisi'),
-  role: Yup.string()
-    .oneOf(['freelancer', 'client'], 'Pilih peran Anda')
+  roles: Yup.array()
+    .of(Yup.string().oneOf(['freelancer', 'client']))
+    .min(1, 'Pilih minimal satu peran')
     .required('Peran wajib dipilih')
 });
 
@@ -46,8 +47,8 @@ export const profileDetailsSchema = Yup.object().shape({
   city: Yup.string()
     .required('Kota wajib diisi'),
   bio: Yup.string()
-    .when('role', {
-      is: 'freelancer',
+    .when('roles', {
+      is: (roles) => roles && roles.includes('freelancer'),
       then: Yup.string()
         .min(50, 'Bio minimal 50 karakter')
         .max(500, 'Bio maksimal 500 karakter')

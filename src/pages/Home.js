@@ -5,6 +5,7 @@ import { useState, useRef, useEffect } from 'react';
 import MeshGradientBackground from '../components/UI/MeshGradientBackground';
 import GigCard from '../components/common/GigCard';
 import gigService from '../services/gigService';
+import FreelancerCTA from '../components/UI/FreelancerCTA';
 
 export default function Home() {
   const { currentUser, userProfile, loading } = useAuth();
@@ -245,12 +246,6 @@ export default function Home() {
       if (userProfile.roles) {
         userData.roles = userProfile.roles;
       }
-      if (userProfile.role) {
-        userData.role = userProfile.role;
-      }
-      if (userProfile.freelancerStatus) {
-        userData.freelancerStatus = userProfile.freelancerStatus;
-      }
     }
   }
   
@@ -261,31 +256,21 @@ export default function Home() {
   // Logging untuk debug
   // Periksa jika user sudah login dan role-nya
   // User bisa dianggap client jika:
-  // 1. Memiliki role = 'client'
-  // 2. Memiliki roles array yang include 'client'
-  // 3. Tidak memiliki role spesifik (default role adalah client)
+  // 1. Memiliki roles array yang include 'client'
+  // 2. Tidak memiliki roles spesifik (default role adalah client)
   const isClient = !!userData && (
-    userData.role === 'client' || 
     (userData.roles && userData.roles.includes('client')) ||
-    (!userData.role && !userData.roles)
+    (!userData.roles)
   );
                   
   // User dianggap freelancer jika:
   // 1. Secara eksplisit ditandai dengan isFreelancer = true
-  // 2. Memiliki role = 'freelancer'
-  // 3. Memiliki roles array yang include 'freelancer'
+  // 2. Memiliki roles array yang include 'freelancer'
   const isFreelancer = !!userData && (
     userData.isFreelancer === true ||
-    userData.role === 'freelancer' ||
     (userData.roles && userData.roles.includes('freelancer'))
   );
   
-  // Periksa juga jika user sudah dalam proses apply menjadi freelancer
-  const isPendingFreelancer = !!userData && userData.freelancerStatus === 'pending';
-                       
-  // Menentukan apakah perlu menampilkan FreelancerCTA 
-  // Syarat: data ready + user login + client + bukan freelancer + bukan pending freelancer
-  const showFreelancerCTA = isDataReady && !!currentUser && isClient && !isFreelancer && !isPendingFreelancer;
   
   // Logging detail untuk debugging
   console.log('HOME.js DEBUG - Data Sources:');
@@ -297,12 +282,9 @@ export default function Home() {
   console.log('');
   console.log('HOME.js DEBUG - Freelancer Detection:');
   console.log('- userData.isFreelancer:', userData?.isFreelancer);
-  console.log('- userData.role:', userData?.role);
   console.log('- userData.roles:', userData?.roles);
   console.log('- isClient:', isClient);
   console.log('- isFreelancer:', isFreelancer);
-  console.log('- isPendingFreelancer:', isPendingFreelancer);
-  console.log('- showFreelancerCTA:', showFreelancerCTA);
   return (
     <div className="font-sans">
       {/* Main content for logged in or non-logged in users */}
@@ -584,29 +566,12 @@ export default function Home() {
       </div>
 
       {/* Banner FreelancerCTA - ditampilkan hanya untuk user yang login sebagai client tapi belum menjadi freelancer */}
-      {showFreelancerCTA && (
-        <div className="bg-gradient-to-r from-blue-500 to-indigo-600 py-16 border-t border-blue-400">
-          <div className="max-w-7xl mx-auto px-3 sm:px-4">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8">
-              <div className="md:max-w-xl">
-                <h2 className="text-3xl font-bold text-white mb-3">Menjadi Freelancer</h2>
-                <p className="text-blue-100 text-lg">
-                  Gunakan keahlian Anda untuk mendapatkan pendapatan tambahan. Jadilah bagian dari komunitas freelancer SkillNusa dan dapatkan akses ke klien dari seluruh Indonesia.
-                </p>
-              </div>
-              <div className="flex-shrink-0 flex justify-center">
-                <Link
-                  to="/become-freelancer"
-                  className="inline-block bg-white text-indigo-600 font-semibold px-8 py-4 rounded-lg hover:bg-blue-50 transition duration-300 text-lg shadow-lg"
-                >
-                  Menjadi Freelancer
-                </Link>
-              </div>
-            </div>
-          </div>
+      {!isFreelancer && (
+        <div className="mb-6 relative z-10">
+          <FreelancerCTA variant="home" />
         </div>
       )}
-      
+
       {/* Banner Ajakan Register - hanya ditampilkan untuk pengguna yang belum login */}
       {!currentUser && (
         <div className="bg-[#010042] py-12 border-t border-[#0100a3]">

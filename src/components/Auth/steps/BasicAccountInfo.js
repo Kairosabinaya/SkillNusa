@@ -25,8 +25,9 @@ const validationSchema = Yup.object({
   username: Yup.string()
     .matches(/^[a-zA-Z0-9_]{3,20}$/, 'Username hanya boleh mengandung huruf, angka, dan underscore (3-20 karakter)')
     .required('Username wajib diisi'),
-  role: Yup.string()
-    .oneOf(['freelancer', 'client'], 'Pilih peran Anda')
+  roles: Yup.array()
+    .of(Yup.string().oneOf(['freelancer', 'client']))
+    .min(1, 'Pilih minimal satu peran')
     .required('Pilih peran Anda')
 });
 
@@ -60,7 +61,7 @@ const BasicAccountInfo = () => {
         confirmPassword: formData.confirmPassword || '',
         fullName: formData.fullName || '',
         username: formData.username || '',
-        role: formData.role || ''
+        roles: formData.roles || []
       }}
       validationSchema={validationSchema}
       onSubmit={handleSubmit}
@@ -112,9 +113,10 @@ const BasicAccountInfo = () => {
 
           <RadioGroup
             label="Pilih Peran Anda"
-            name="role"
+            name="roles"
             options={roleOptions}
             required
+            multiple={false}
           />
 
           <button

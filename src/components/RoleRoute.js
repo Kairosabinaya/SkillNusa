@@ -33,11 +33,9 @@ export default function RoleRoute({ roles, children, redirectTo = ROUTES.DASHBOA
   // Check if user has the required role
   // First check activeRole (for the multi-role architecture)
   // Then fall back to checking roles array
-  // Finally fall back to legacy role field
   const hasRequiredRole = 
     (activeRole && roles.includes(activeRole)) || 
-    (userProfile.roles && userProfile.roles.some(role => roles.includes(role))) ||
-    (userProfile.role && roles.includes(userProfile.role));
+    (userProfile.roles && userProfile.roles.some(role => roles.includes(role)));
     
   if (!hasRequiredRole) {
     return <Navigate to={redirectTo} replace />;

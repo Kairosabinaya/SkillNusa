@@ -38,7 +38,7 @@ export default class UserRepository extends BaseRepository {
     try {
       return await this.find({
         filters: [
-          { field: 'role', operator: '==', value: role }
+          { field: 'roles', operator: 'array-contains', value: role }
         ]
       });
     } catch (error) {

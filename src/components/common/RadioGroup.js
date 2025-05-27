@@ -8,10 +8,26 @@ export const RadioGroup = ({
   helperText,
   className,
   required,
+  multiple = false,
   ...props
 }) => {
-  const [field, meta] = useField(props);
+  const [field, meta, helpers] = useField(props);
   const hasError = meta.touched && meta.error;
+  
+  const handleChange = (optionId) => {
+    if (multiple) {
+      // For array values (multiple selection)
+      const currentValue = field.value || [];
+      if (currentValue.includes(optionId)) {
+        helpers.setValue(currentValue.filter(id => id !== optionId));
+      } else {
+        helpers.setValue([...currentValue, optionId]);
+      }
+    } else {
+      // For single value selection, but store as array for consistency
+      helpers.setValue([optionId]);
+    }
+  };
 
   return (
     <div className={className}>
@@ -22,23 +38,28 @@ export const RadioGroup = ({
         </label>
       )}
       <div className="mt-4 space-y-4">
-        {options.map((option) => (
-          <div key={option.id} className="flex items-start">
-            <div className="flex items-center h-5">
-              <input
-                type="radio"
-                id={`${props.name}-${option.id}`}
-                {...field}
-                value={option.id}
-                checked={field.value === option.id}
-                className={classNames(
-                  'focus:ring-primary-500 h-4 w-4 text-primary-600 border-gray-300',
-                  {
-                    'border-red-300': hasError
-                  }
-                )}
-              />
-            </div>
+        {options.map((option) => {
+          const currentValue = field.value || [];
+          const isChecked = multiple ? currentValue.includes(option.id) : currentValue[0] === option.id;
+          
+          return (
+            <div key={option.id} className="flex items-start">
+              <div className="flex items-center h-5">
+                <input
+                  type={multiple ? "checkbox" : "radio"}
+                  id={`${props.name}-${option.id}`}
+                  name={props.name}
+                  value={option.id}
+                  checked={isChecked}
+                  onChange={() => handleChange(option.id)}
+                  className={classNames(
+                    'focus:ring-primary-500 h-4 w-4 text-primary-600 border-gray-300',
+                    {
+                      'border-red-300': hasError
+                    }
+                  )}
+                />
+              </div>
             <div className="ml-3 text-sm">
               <label
                 htmlFor={`${props.name}-${option.id}`}
@@ -51,7 +72,8 @@ export const RadioGroup = ({
               )}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
       {(helperText || hasError) && (
         <p

@@ -191,13 +191,63 @@ export const deleteImage = async (publicId) => {
   // Note: For security reasons, deletion from the frontend should be limited
   // In production, consider moving this to your backend with proper authentication
   try {
-    // This requires a signed request or backend implementation
-    // For now, we'll just return a success message
-    // In production, implement this in your backend
-    return { message: 'Deletion should be handled by backend for security' };
+    // This is a client-side implementation - in production, move to backend
+    // Using unsigned delete (limited to certain upload presets that allow it)
+    
+    const formData = new FormData();
+    formData.append('public_id', publicId);
+    formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
+
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/image/destroy`,
+      {
+        method: 'POST',
+        body: formData,
+      }
+    );
+
+    const result = await response.json();
+    
+    if (result.result === 'ok') {
+      return { success: true, result: result.result };
+    } else {
+      // If unsigned delete fails, just log it and don't throw error
+      // This is because deletion may require signed requests
+      console.warn('Image deletion may require backend implementation:', result);
+      return { success: false, message: 'Deletion requires backend authentication' };
+    }
   } catch (error) {
-    throw new Error(`Failed to delete image: ${error.message}`);
+    console.warn('Failed to delete image from Cloudinary:', error.message);
+    // Don't throw error to prevent blocking account deletion
+    return { success: false, error: error.message };
   }
+};
+
+/**
+ * Delete profile photo from Cloudinary
+ * @param {string} publicId - Public ID of the profile photo to delete
+ * @returns {Promise<Object>} Deletion result
+ */
+export const deleteProfilePhoto = async (publicId) => {
+  return await deleteImage(publicId);
+};
+
+/**
+ * Delete portfolio image from Cloudinary
+ * @param {string} publicId - Public ID of the portfolio image to delete
+ * @returns {Promise<Object>} Deletion result
+ */
+export const deletePortfolioImage = async (publicId) => {
+  return await deleteImage(publicId);
+};
+
+/**
+ * Delete project image from Cloudinary
+ * @param {string} publicId - Public ID of the project image to delete
+ * @returns {Promise<Object>} Deletion result
+ */
+export const deleteProjectImage = async (publicId) => {
+  return await deleteImage(publicId);
 };
 
 /**

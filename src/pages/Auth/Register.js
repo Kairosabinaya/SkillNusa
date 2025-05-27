@@ -38,7 +38,7 @@ export default function Register() {
         fullName: '',
         username: '',
         // All users register as clients by default in the new architecture
-        role: USER_ROLES.CLIENT,
+        roles: [USER_ROLES.CLIENT],
         
         // Step 2 - Profile Details
         profilePhoto: null,
@@ -116,8 +116,6 @@ export default function Register() {
         roles: [USER_ROLES.CLIENT],
         activeRole: USER_ROLES.CLIENT,
         isFreelancer: false,
-        // Legacy support
-        role: USER_ROLES.CLIENT,
         // Profile fields
         profilePhoto: values.profilePhotoURL,
         phoneNumber: values.phoneNumber,

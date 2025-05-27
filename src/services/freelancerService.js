@@ -1,6 +1,6 @@
 import { doc, updateDoc, setDoc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
-import { COLLECTIONS, FREELANCER_STATUS } from '../utils/constants';
+import { COLLECTIONS } from '../utils/constants';
 
 /**
  * Apply as freelancer - handles creating freelancer profile and updating user document
@@ -31,8 +31,7 @@ export const applyAsFreelancer = async (userId, freelancerData) => {
     await updateDoc(userRef, {
       roles: ['client', 'freelancer'],
       isFreelancer: true,
-      freelancerStatus: FREELANCER_STATUS.PENDING,
-      freelancerAppliedAt: new Date(),
+      // No longer need approval system or tracking dates
     });
     
     return true;

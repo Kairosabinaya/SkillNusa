@@ -238,7 +238,7 @@ const RoleSpecificInfo = () => {
     </Formik>
   );
 
-  return formData.role === 'freelancer' ? <FreelancerForm /> : <ClientForm />;
+  return formData.roles.includes('freelancer') ? <FreelancerForm /> : <ClientForm />;
 };
 
 export default RoleSpecificInfo; 
