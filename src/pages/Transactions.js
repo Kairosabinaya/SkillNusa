@@ -293,7 +293,7 @@ export default function Transactions() {
                           
                           <div className="flex flex-col gap-2">
                             <Link
-                              to={`/dashboard/client/order/${order.id}`}
+                              to={`/messages/${order.freelancerId}?order=${order.id}`}
                               className="text-sm bg-[#010042] text-white px-4 py-2 rounded-lg hover:bg-[#0100a3] transition-colors text-center"
                             >
                               Lihat Detail

@@ -20,11 +20,9 @@ export default class User extends BaseModel {
     this.gender = data.gender || '';
     this.birthDate = data.birthDate || '';
     
-    // Multi-role architecture
-    this.roles = data.roles || [USER_ROLES.CLIENT]; // Array, default ['client']
-    this.activeRole = data.activeRole || USER_ROLES.CLIENT; // Currently active role
+    // Simplified role architecture
     this.isFreelancer = data.isFreelancer || false; // Quick check flag
-    // Freelancer status fields removed - no longer using approval system
+    this.roles = data.roles || []; // Keep roles array for admin checking
     
     this.profilePhoto = data.profilePhoto || null;
     this.bio = data.bio || '';
@@ -38,14 +36,21 @@ export default class User extends BaseModel {
    * @returns {boolean} True if user has the role
    */
   hasRole(role) {
-    return this.roles.includes(role) || this.roles.includes(USER_ROLES.ADMIN);
+    if (role === USER_ROLES.FREELANCER) {
+      return this.isFreelancer;
+    } else if (role === USER_ROLES.CLIENT) {
+      return !this.isFreelancer;
+    } else if (role === USER_ROLES.ADMIN) {
+      return this.roles.includes(USER_ROLES.ADMIN);
+    }
+    return false;
   }
 
   /**
    * Check if the user is an admin
    * @returns {boolean} True if user is admin
    */
-  isAdmin() {
+  isAdminUser() {
     return this.roles.includes(USER_ROLES.ADMIN);
   }
 
@@ -53,16 +58,16 @@ export default class User extends BaseModel {
    * Check if the user is a freelancer
    * @returns {boolean} True if user is freelancer
    */
-  isFreelancer() {
-    return this.roles.includes(USER_ROLES.FREELANCER);
+  isFreelancerUser() {
+    return this.isFreelancer === true;
   }
 
   /**
    * Check if the user is a client
    * @returns {boolean} True if user is client
    */
-  isClient() {
-    return this.roles.includes(USER_ROLES.CLIENT);
+  isClientUser() {
+    return !this.isFreelancer;
   }
   
   /**

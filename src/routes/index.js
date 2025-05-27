@@ -10,12 +10,6 @@ export const ROUTES = {
   REGISTER: '/register',
   FORGOT_PASSWORD: '/forgot-password',
   VERIFY_EMAIL: '/verify-email',
-  DASHBOARD: {
-    ROOT: '/dashboard',
-    FREELANCER: '/dashboard/freelancer',
-    CLIENT: '/dashboard/client',
-    ADMIN: '/dashboard/admin'
-  },
   PROFILE: {
     ROOT: '/profile',
     EDIT: '/profile/edit'

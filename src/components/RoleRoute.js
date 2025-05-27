@@ -6,10 +6,10 @@ import { useEffect, useState } from 'react';
 
 /**
  * A route wrapper component that checks if the user has the required role(s)
- * Updated to support the multi-role architecture
+ * Simplified to use isFreelancer property
  */
-export default function RoleRoute({ roles, children, redirectTo = ROUTES.DASHBOARD.ROOT }) {
-  const { userProfile, currentUser, loading, activeRole } = useAuth();
+export default function RoleRoute({ roles, children, redirectTo = ROUTES.HOME }) {
+  const { userProfile, currentUser, loading } = useAuth();
   const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
@@ -30,12 +30,17 @@ export default function RoleRoute({ roles, children, redirectTo = ROUTES.DASHBOA
     return <Navigate to={ROUTES.LOGIN} replace />;
   }
   
-  // Check if user has the required role
-  // First check activeRole (for the multi-role architecture)
-  // Then fall back to checking roles array
-  const hasRequiredRole = 
-    (activeRole && roles.includes(activeRole)) || 
-    (userProfile.roles && userProfile.roles.some(role => roles.includes(role)));
+  // Check if user has the required role based on isFreelancer property
+  const hasRequiredRole = roles.some(role => {
+    if (role === 'freelancer') {
+      return userProfile.isFreelancer === true;
+    } else if (role === 'client') {
+      return !userProfile.isFreelancer;
+    } else if (role === 'admin') {
+      return userProfile.roles && userProfile.roles.includes('admin');
+    }
+    return false;
+  });
     
   if (!hasRequiredRole) {
     return <Navigate to={redirectTo} replace />;

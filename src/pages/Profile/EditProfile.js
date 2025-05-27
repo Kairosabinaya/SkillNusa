@@ -238,7 +238,7 @@ export default function EditProfile() {
               ></textarea>
             </div>
 
-            {(userProfile?.roles?.includes('freelancer') || userProfile?.isFreelancer) && (
+            {userProfile?.isFreelancer && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Skills

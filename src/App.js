@@ -1,11 +1,10 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
-import { ROUTES, ROLES } from './routes';
+import { ROUTES } from './routes';
 import ErrorBoundary from './components/common/ErrorBoundary';
 
 // Layouts
 import PublicLayout from './components/Layout/PublicLayout';
-import DashboardLayout from './components/Layout/DashboardLayout';
 
 // Public Pages
 import Home from './pages/Home';
@@ -19,10 +18,7 @@ import Register from './pages/Auth/Register';
 import ForgotPassword from './pages/Auth/ForgotPassword';
 import VerifyEmail from './pages/Auth/VerifyEmail';
 
-// Dashboard Pages
-import FreelancerDashboard from './pages/Dashboard/FreelancerDashboard';
-import ClientDashboard from './pages/Dashboard/ClientDashboard';
-import AdminDashboard from './pages/Dashboard/AdminDashboard';
+// Profile Pages
 import Profile from './pages/Profile/Profile';
 import EditProfile from './pages/Profile/EditProfile';
 import BecomeFreelancer from './pages/Profile/BecomeFreelancer';
@@ -43,7 +39,6 @@ import TestPopulate from './pages/TestPopulate';
 
 // Protected Routes
 import ProtectedRoute from './components/ProtectedRoute';
-import RoleRoute from './components/RoleRoute';
 
 function App() {
   return (
@@ -129,38 +124,6 @@ function App() {
           <Route path={ROUTES.REGISTER} element={<Register />} />
           <Route path={ROUTES.FORGOT_PASSWORD} element={<ForgotPassword />} />
           <Route path={ROUTES.VERIFY_EMAIL} element={<VerifyEmail />} />
-
-          {/* Dashboard Routes */}
-          <Route 
-            path={ROUTES.DASHBOARD.ROOT} 
-            element={
-              <ProtectedRoute>
-                <DashboardLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<Navigate to={ROUTES.DASHBOARD.CLIENT} replace />} />
-            <Route 
-              path="freelancer" 
-              element={<FreelancerDashboard />} 
-            />
-            <Route 
-              path="client" 
-              element={
-                <RoleRoute roles={[ROLES.CLIENT, ROLES.ADMIN]}>
-                  <ClientDashboard />
-                </RoleRoute>
-              } 
-            />
-            <Route 
-              path="admin" 
-              element={
-                <RoleRoute roles={[ROLES.ADMIN]}>
-                  <AdminDashboard />
-                </RoleRoute>
-              } 
-            />
-          </Route>
 
           {/* Profile Routes */}
           <Route 

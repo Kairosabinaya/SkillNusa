@@ -64,11 +64,11 @@ export default function Checkout() {
         paymentStatus: 'pending'
       });
 
-      setSuccess('Pesanan berhasil dibuat! Anda akan diarahkan ke dashboard.');
+      setSuccess('Pesanan berhasil dibuat! Anda akan diarahkan ke halaman transaksi.');
       
-      // Redirect to dashboard after 2 seconds
+      // Redirect to transactions after 2 seconds
       setTimeout(() => {
-        navigate('/dashboard/client');
+        navigate('/transactions');
       }, 2000);
 
     } catch (error) {

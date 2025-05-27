@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 /**
  * FreelancerCTA - Call to Action banner for encouraging clients to become freelancers
  * @param {Object} props - Component props
- * @param {string} props.variant - Variant of the banner ('home', 'profile', 'dashboard')
+ * @param {string} props.variant - Variant of the banner ('home', 'profile')
  */
 export default function FreelancerCTA({ variant = 'home' }) {
   const { userProfile, currentUser } = useAuth();
@@ -19,7 +19,6 @@ export default function FreelancerCTA({ variant = 'home' }) {
     return null;
   }
   
-  // Debugging - log when we are showing the CTA
   // Home page variant (large, prominent)
   if (variant === 'home') {
     return (
@@ -69,32 +68,6 @@ export default function FreelancerCTA({ variant = 'home' }) {
               className="mt-4 md:mt-0 inline-block bg-indigo-600 text-white font-medium px-5 py-2 rounded-md hover:bg-indigo-700 transition duration-300"
             >
               Menjadi Freelancer
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-  
-  // Dashboard variant (subtle reminder)
-  if (variant === 'dashboard') {
-    return (
-      <div className="bg-indigo-50 border-l-4 border-indigo-500 p-4 rounded-r-md">
-        <div className="flex">
-          <div className="flex-shrink-0">
-            <svg className="h-5 w-5 text-indigo-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-            </svg>
-          </div>
-          <div className="ml-3 flex-1 flex items-center justify-between">
-            <p className="text-sm text-indigo-700">
-              Ingin menjadi freelancer? Hasilkan pendapatan dari keahlian Anda.
-            </p>
-            <Link
-              to="/become-freelancer"
-              className="ml-4 whitespace-nowrap inline-flex items-center px-3 py-1 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700"
-            >
-              Daftar
             </Link>
           </div>
         </div>

@@ -55,7 +55,7 @@ export const createUserProfile = async (userId, profileData) => {
     });
     
     // Create freelancer profile if user is registering directly as freelancer (admin flow)
-    if ((profileData.roles && profileData.roles.includes('freelancer')) || profileData.isFreelancer) {
+    if (profileData.isFreelancer) {
       await firebaseService.setDocument(COLLECTIONS.FREELANCER_PROFILES, userId, {
         userId,
         skills: profileData.skills || [],

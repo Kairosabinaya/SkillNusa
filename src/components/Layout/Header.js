@@ -2,7 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/react';
 import { useAuth } from '../../context/AuthContext';
 import { useState, useEffect } from 'react';
-import { getUserProfile } from '../../services/userProfileService';
+import { getUserProfile, updateUserProfile } from '../../services/userProfileService';
 
 export default function Header() {
   const { currentUser, userProfile, logout } = useAuth();
@@ -47,8 +47,8 @@ export default function Header() {
       }
   };
 
-  // Check if the user has both client and freelancer roles
-  const hasFreelancerRole = combinedUserData?.roles?.includes('freelancer') || combinedUserData?.isFreelancer;
+  // Check if the user is a freelancer
+  const isFreelancer = combinedUserData?.isFreelancer;
 
   // Function to handle search submission
   const handleSearchSubmit = (e) => {
@@ -167,15 +167,89 @@ export default function Header() {
                       <p className="text-xs text-gray-500 truncate mb-2">
                         {combinedUserData?.email || currentUser?.email}
                       </p>
-                      
-                      {/* Add the "Switch to Freelancer" button if the user has freelancer role */}
-                      {hasFreelancerRole && (
-                        <Link 
-                          to="/dashboard/freelancer" 
-                          className="w-full text-center text-xs bg-blue-500 hover:bg-blue-600 text-white py-1.5 px-2 rounded transition-colors duration-200 block"
-                        >
-                          Pindah ke Freelancer
-                        </Link>
+                      {/* Role Switching Buttons */}
+                      {(combinedUserData?.activeRole !== 'client' || 
+                        (isFreelancer && combinedUserData?.activeRole !== 'freelancer') || 
+                        (combinedUserData?.roles?.includes('admin') && combinedUserData?.activeRole !== 'admin')) && (
+                        <div className="border-t border-gray-100 pt-2 space-y-1">
+                          {combinedUserData?.activeRole !== 'client' && (
+                            <Link 
+                              to="/"
+                              onClick={async () => {
+                                try {
+                                  // Update active role in database
+                                  await updateUserProfile(currentUser.uid, {
+                                    activeRole: 'client'
+                                  });
+                                  
+                                  // Update local state
+                                  setCombinedUserData(prev => ({
+                                    ...prev,
+                                    activeRole: 'client'
+                                  }));
+                                } catch (error) {
+                                  console.error('Error updating active role:', error);
+                                  // Optionally show error notification to user
+                                }
+                              }}
+                              className="w-full text-center text-xs bg-blue-500 hover:bg-blue-600 text-white py-1.5 px-2 rounded transition-colors duration-200 block"
+                            >
+                              Akun Client
+                            </Link>
+                          )}
+                          
+                          {isFreelancer && combinedUserData?.activeRole !== 'freelancer' && (
+                            <Link 
+                              to="/"
+                              onClick={async () => {
+                                try {
+                                  // Update active role in database
+                                  await updateUserProfile(currentUser.uid, {
+                                    activeRole: 'freelancer'
+                                  });
+                                  
+                                  // Update local state
+                                  setCombinedUserData(prev => ({
+                                    ...prev,
+                                    activeRole: 'freelancer'
+                                  }));
+                                } catch (error) {
+                                  console.error('Error updating active role:', error);
+                                  // Optionally show error notification to user
+                                }
+                              }}
+                              className="w-full text-center text-xs bg-blue-500 hover:bg-blue-600 text-white py-1.5 px-2 rounded transition-colors duration-200 block"
+                            >
+                              Akun Freelancer
+                            </Link>
+                          )}
+                          
+                          {combinedUserData?.roles?.includes('admin') && combinedUserData?.activeRole !== 'admin' && (
+                            <Link 
+                              to="/"
+                              onClick={async () => {
+                                try {
+                                  // Update active role in database
+                                  await updateUserProfile(currentUser.uid, {
+                                    activeRole: 'admin'
+                                  });
+                                  
+                                  // Update local state
+                                  setCombinedUserData(prev => ({
+                                    ...prev,
+                                    activeRole: 'admin'
+                                  }));
+                                } catch (error) {
+                                  console.error('Error updating active role:', error);
+                                  // Optionally show error notification to user
+                                }
+                              }}
+                              className="w-full text-center text-xs bg-blue-500 hover:bg-blue-600 text-white py-1.5 px-2 rounded transition-colors duration-200 block"
+                            >
+                              Akun Admin
+                            </Link>
+                          )}
+                        </div>
                       )}
                     </div>
                     

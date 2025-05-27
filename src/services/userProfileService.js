@@ -9,15 +9,11 @@ import {
   getDoc, 
   setDoc, 
   updateDoc, 
-  serverTimestamp,
-  collection,
-  query,
-  where,
-  getDocs
+  serverTimestamp
 } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
 import { db, auth } from '../firebase/config';
-import { COLLECTIONS, USER_ROLES } from '../utils/constants';
+import { COLLECTIONS } from '../utils/constants';
 
 /**
  * Get complete user profile data from all collections
@@ -52,8 +48,7 @@ export const getUserProfile = async (userId) => {
     }
     
     // Get freelancer profile data if user is a freelancer
-    if (profileData.isFreelancer || 
-        (profileData.roles && profileData.roles.includes(USER_ROLES.FREELANCER))) {
+    if (profileData.isFreelancer) {
       // Check both potential collection names for freelancer profiles
       let freelancerProfileDoc = await getDoc(doc(db, 'freelancerProfiles', userId));
       
@@ -163,8 +158,7 @@ export const updateUserProfile = async (userId, profileData, updateAuthProfile =
     }
     
     // Also handle freelancer profile data if relevant
-    if (profileData.isFreelancer || 
-        (profileData.roles && profileData.roles.includes(USER_ROLES.FREELANCER))) {
+    if (profileData.isFreelancer) {
       // Check if we have any freelancer-specific fields
       const freelancerFields = ['skills', 'experienceLevel', 'portfolioLinks', 'hourlyRate', 'availability'];
       const hasFreelancerData = Object.keys(profileData).some(key => freelancerFields.includes(key));

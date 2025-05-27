@@ -172,7 +172,7 @@ export default function BecomeFreelancer() {
               </div>
               <div className="ml-3 flex-1 md:flex md:justify-between">
                 <p className="text-sm text-blue-700">
-                  Anda sudah terdaftar sebagai freelancer! Anda dapat beralih ke dashboard freelancer dari menu profil.
+                  Anda sudah terdaftar sebagai freelancer! Anda dapat mengelola profil freelancer Anda dari menu profil.
                 </p>
                 <p className="mt-3 text-sm md:mt-0 md:ml-6">
                   <a href="/profile" className="whitespace-nowrap font-medium text-blue-700 hover:text-blue-600">

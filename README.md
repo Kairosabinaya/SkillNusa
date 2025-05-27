@@ -22,7 +22,7 @@ SkillNusa adalah platform yang menghubungkan freelancer dengan klien di Indonesi
 - **Multi-Role Support**: Pengguna dapat berperan sebagai freelancer dan klien
 - **Real-time Chat**: Komunikasi langsung antara freelancer dan klien
 - **Notifikasi**: Update real-time untuk aktivitas penting
-- **Dashboard Analytics**: Statistik dan insights untuk performa
+- **Analytics**: Statistik dan insights untuk performa
 - **Mobile Responsive**: Akses dari berbagai perangkat
 
 ## 🛠️ Teknologi yang Digunakan
@@ -102,7 +102,6 @@ SkillNusa adalah platform yang menghubungkan freelancer dengan klien di Indonesi
 src/
 ├── components/          # Komponen React reusable
 │   ├── Auth/           # Komponen autentikasi
-│   ├── Dashboard/      # Komponen dashboard
 │   ├── Layout/         # Layout komponen
 │   ├── Profile/        # Komponen profil
 │   ├── Project/        # Komponen proyek
@@ -278,8 +277,8 @@ service cloud.firestore {
 ### Code Splitting
 ```javascript
 // Lazy loading components
-const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Profile = lazy(() => import('./pages/Profile'));
+const Browse = lazy(() => import('./pages/Browse'));
 ```
 
 ### Image Optimization
@@ -353,7 +352,7 @@ Distributed under the MIT License. See `LICENSE` for more information.
 ### Q2 2024
 - [ ] AI-powered project matching
 - [ ] Video call integration
-- [ ] Advanced analytics dashboard
+- [ ] Advanced reporting features
 - [ ] Multi-language support
 
 ### Q3 2024

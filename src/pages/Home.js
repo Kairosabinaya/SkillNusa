@@ -227,9 +227,6 @@ export default function Home() {
   // Take only 12 gigs for display
   const displayedGigs = filteredGigs.slice(0, 12);
 
-  // Periksa apakah pengguna adalah klien (non-freelancer) untuk menampilkan CTA
-  // PENTING: Dalam arsitektur multi-role, kita perlu memeriksa berbagai kombinasi kemungkinan
-  
   // Gabungkan data user dari currentUser dan userProfile untuk mendapatkan gambaran lengkap
   // PENTING: userProfile harus didahulukan untuk memastikan field isFreelancer dari users collection digunakan
   let userData = null;
@@ -253,23 +250,11 @@ export default function Home() {
   // This prevents the race condition where banner shows before data loads
   const isDataReady = !loading && currentUser && userProfile !== null;
   
-  // Logging untuk debug
-  // Periksa jika user sudah login dan role-nya
-  // User bisa dianggap client jika:
-  // 1. Memiliki roles array yang include 'client'
-  // 2. Tidak memiliki roles spesifik (default role adalah client)
-  const isClient = !!userData && (
-    (userData.roles && userData.roles.includes('client')) ||
-    (!userData.roles)
-  );
+  // User bisa dianggap client jika tidak ada freelancer flag
+  const isClient = !!userData && !userData.isFreelancer;
                   
-  // User dianggap freelancer jika:
-  // 1. Secara eksplisit ditandai dengan isFreelancer = true
-  // 2. Memiliki roles array yang include 'freelancer'
-  const isFreelancer = !!userData && (
-    userData.isFreelancer === true ||
-    (userData.roles && userData.roles.includes('freelancer'))
-  );
+  // User dianggap freelancer jika secara eksplisit ditandai dengan isFreelancer = true
+  const isFreelancer = !!userData && userData.isFreelancer === true;
   
   
   // Logging detail untuk debugging
@@ -282,9 +267,9 @@ export default function Home() {
   console.log('');
   console.log('HOME.js DEBUG - Freelancer Detection:');
   console.log('- userData.isFreelancer:', userData?.isFreelancer);
-  console.log('- userData.roles:', userData?.roles);
   console.log('- isClient:', isClient);
   console.log('- isFreelancer:', isFreelancer);
+
   return (
     <div className="font-sans">
       {/* Main content for logged in or non-logged in users */}
