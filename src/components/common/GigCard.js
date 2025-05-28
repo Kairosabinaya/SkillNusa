@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import favoriteService from '../../services/favoriteService';
 
-export default function GigCard({ gig, showFavoriteButton = true, className = "" }) {
+export default function GigCard({ gig, showFavoriteButton = true, className = "", imageClassName = "" }) {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [isFavorited, setIsFavorited] = useState(false);
@@ -68,7 +68,7 @@ export default function GigCard({ gig, showFavoriteButton = true, className = ""
           <img 
             src={gig.images?.[0] || gig.image || 'https://picsum.photos/400/300'} 
             alt={gig.title}
-            className="w-full h-48 object-cover rounded-t-lg"
+            className={`w-full rounded-t-lg ${imageClassName || 'h-48 object-cover'}`}
           />
         </Link>
         
@@ -106,19 +106,24 @@ export default function GigCard({ gig, showFavoriteButton = true, className = ""
       
       <div className="p-4">
         {/* Freelancer Info */}
-        <div className="flex items-center gap-2 mb-2">
-          <img 
-            src={gig.freelancer?.profilePhoto || gig.freelancer?.profileImage || 'https://picsum.photos/32/32'} 
-            alt={gig.freelancer?.displayName || gig.freelancer?.name || 'Freelancer'}
-            className="w-6 h-6 rounded-full"
-          />
-          <span className="text-sm text-gray-600 truncate">
-            {gig.freelancer?.displayName || gig.freelancer?.name || 'Freelancer'}
-          </span>
-          {(gig.freelancer?.isTopRated || gig.isTopRated) && (
-            <span className="text-xs bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded">
-              Top Rated
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <img 
+              src={gig.freelancer?.profilePhoto || gig.freelancer?.profileImage || 'https://picsum.photos/32/32'} 
+              alt={gig.freelancer?.displayName || gig.freelancer?.name || 'Freelancer'}
+              className="w-6 h-6 rounded-full"
+            />
+            <span className="text-sm text-gray-600 truncate">
+              {gig.freelancer?.displayName || gig.freelancer?.name || 'Freelancer'}
             </span>
+          </div>
+          {(gig.freelancer?.isTopRated || gig.isTopRated) && (
+            <div className="flex items-center gap-1 text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded">
+              <svg className="w-4 h-4" viewBox="0 0 32 32" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                <path d="M26,7H24V6a2.0023,2.0023,0,0,0-2-2H10A2.0023,2.0023,0,0,0,8,6V7H6A2.0023,2.0023,0,0,0,4,9v3a4.0045,4.0045,0,0,0,4,4h.322A8.1689,8.1689,0,0,0,15,21.9341V26H10v2H22V26H17V21.9311A7.9661,7.9661,0,0,0,23.74,16H24a4.0045,4.0045,0,0,0,4-4V9A2.0023,2.0023,0,0,0,26,7ZM8,14a2.0023,2.0023,0,0,1-2-2V9H8Zm14,0a6,6,0,0,1-6.1855,5.9971A6.1991,6.1991,0,0,1,10,13.7065V6H22Zm4-2a2.0023,2.0023,0,0,1-2,2V9h2Z"></path>
+              </svg>
+              Top Rated
+            </div>
           )}
         </div>
         

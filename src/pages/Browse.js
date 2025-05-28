@@ -220,17 +220,17 @@ export default function Browse() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-14">
       {/* Breadcrumb */}
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 py-3">
-          <nav className="flex items-center space-x-2 text-sm text-gray-600">
-            <Link to="/" className="hover:text-[#010042]">Home</Link>
-            <span>•</span>
+      <div className="bg-gray-50 mt-[17px] mb-2">
+        <div className="max-w-7xl mx-auto px-4">
+          <nav className="flex items-center space-x-2 text-sm text-gray-500 py-2">
+            <Link to="/" className="hover:text-gray-900">Home</Link>
+            <span className="text-gray-400 mx-1">›</span>
             {filters.category ? (
               <>
-                <Link to="/browse" className="hover:text-[#010042]">Browse</Link>
-                <span>•</span>
+                <Link to="/browse" className="hover:text-gray-900">Browse</Link>
+                <span className="text-gray-400 mx-1">›</span>
                 <span className="text-gray-900">{filters.category}</span>
               </>
             ) : (
@@ -240,7 +240,7 @@ export default function Browse() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="max-w-7xl mx-auto px-4">
         <div className="flex gap-6">
           {/* Left Sidebar - Filters */}
           <div className="w-80 bg-white rounded-lg p-6 h-fit sticky top-6">
@@ -399,9 +399,7 @@ export default function Browse() {
                     <option value="price-high">Harga Tertinggi</option>
                   </select>
                   <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
+                    
                   </div>
                 </div>
               </div>
@@ -419,7 +417,7 @@ export default function Browse() {
             ) : (
               <div className={
                 viewMode === 'grid' 
-                  ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                  ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
                   : "space-y-4"
               }>
                 {currentGigs.map((gig) => (
@@ -434,6 +432,7 @@ export default function Browse() {
                       }
                     }}
                     showFavoriteButton={true}
+                    imageClassName="aspect-[16/9] object-cover"
                   />
                 ))}
               </div>

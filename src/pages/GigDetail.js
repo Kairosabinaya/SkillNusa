@@ -226,11 +226,11 @@ export default function GigDetail() {
   const currentPackage = gig.packages[selectedPackage];
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-20">
-      <div className="max-w-7xl mx-auto px-6 py-8">
+    <div className="min-h-screen bg-gray-50 pt-[40px]">
+      <div className="max-w-7xl mx-auto px-6 py-4">
         
         {/* 1. Title */}
-        <div className="mb-8">
+        <div className="mb-6">
           <nav className="text-sm text-gray-500 mb-4">
             <Link to="/" className="hover:text-gray-700">Home</Link>
             <span className="mx-2">›</span>
@@ -239,6 +239,47 @@ export default function GigDetail() {
             <span className="text-gray-900">{gig.category}</span>
           </nav>
           <h1 className="text-3xl font-bold text-gray-900 mb-4">{gig.title}</h1>
+          
+          {/* Freelancer Quick Info */}
+          <div className="flex items-center space-x-4 mb-4">
+            <div className="flex items-center space-x-3">
+              <img 
+                src={gig.freelancer.profilePhoto} 
+                alt={gig.freelancer.displayName}
+                className="w-10 h-10 rounded-full object-cover"
+              />
+              <div>
+                <div className="flex items-center space-x-2">
+                  <span className="font-medium text-gray-900">{gig.freelancer.displayName}</span>
+                  {gig.freelancer.isVerified && (
+                    <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </div>
+                <div className="flex items-center space-x-3 text-sm text-gray-600">
+                  <div className={`flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${getTierBadgeColor(gig.freelancer.tier)}`}>
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M11.1459 7.02251C11.5259 6.34084 11.7159 6 12 6C12.2841 6 12.4741 6.34084 12.8541 7.02251L12.9524 7.19887C13.0603 7.39258 13.1143 7.48944 13.1985 7.55334C13.2827 7.61725 13.3875 7.64097 13.5972 7.68841L13.7881 7.73161C14.526 7.89857 14.895 7.98205 14.9828 8.26432C15.0706 8.54659 14.819 8.84072 14.316 9.42898L14.1858 9.58117C14.0429 9.74833 13.9714 9.83191 13.9392 9.93531C13.9071 10.0387 13.9179 10.1502 13.9395 10.3733L13.9592 10.5763C14.0352 11.3612 14.0733 11.7536 13.8435 11.9281C13.6136 12.1025 13.2682 11.9435 12.5773 11.6254L12.3986 11.5431C12.2022 11.4527 12.1041 11.4075 12 11.4075C11.8959 11.4075 11.7978 11.4527 11.6014 11.5431L11.4227 11.6254C10.7318 11.9435 10.3864 12.1025 10.1565 11.9281C9.92674 11.7536 9.96476 11.3612 10.0408 10.5763L10.0605 10.3733C10.0821 10.1502 10.0929 10.0387 10.0608 9.93531C10.0286 9.83191 9.95713 9.74833 9.81418 9.58117L9.68403 9.42898C9.18097 8.84072 8.92945 8.54659 9.01723 8.26432C9.10501 7.98205 9.47396 7.89857 10.2119 7.73161L10.4028 7.68841C10.6125 7.64097 10.7173 7.61725 10.8015 7.55334C10.8857 7.48944 10.9397 7.39258 11.0476 7.19887L11.1459 7.02251Z" stroke="currentColor" strokeWidth="1.5"></path>
+                      <path d="M7.35111 15L6.71424 17.323C6.0859 19.6148 5.77173 20.7607 6.19097 21.3881C6.3379 21.6079 6.535 21.7844 6.76372 21.9008C7.41635 22.2331 8.42401 21.7081 10.4393 20.658C11.1099 20.3086 11.4452 20.1339 11.8014 20.0959C11.9335 20.0818 12.0665 20.0818 12.1986 20.0959C12.5548 20.1339 12.8901 20.3086 13.5607 20.658C15.576 21.7081 16.5837 22.2331 17.2363 21.9008C17.465 21.7844 17.6621 21.6079 17.809 21.3881C18.2283 20.7607 17.9141 19.6148 17.2858 17.323L16.6489 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"></path>
+                      <path d="M5.5 6.39691C5.17745 7.20159 5 8.08007 5 9C5 12.866 8.13401 16 12 16C15.866 16 19 12.866 19 9C19 5.13401 15.866 2 12 2C11.0801 2 10.2016 2.17745 9.39691 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"></path>
+                    </svg>
+                    {gig.freelancer.tier.toUpperCase()}
+                  </div>
+                  <div className="flex items-center">
+                    <svg className="w-4 h-4 text-yellow-400 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                    </svg>
+                    <span className="font-medium">{gig.freelancer.rating}</span>
+                    <span className="text-gray-500 ml-1">({gig.freelancer.totalReviews})</span>
+                  </div>
+                  <span>•</span>
+                  <span>{gig.freelancer.completedProjects} orders completed</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="flex items-center space-x-4 text-sm text-gray-600">
             <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full">{gig.category}</span>
             {gig.tags.map((tag, index) => (
@@ -285,21 +326,13 @@ export default function GigDetail() {
             <div className="bg-white rounded-lg shadow-sm p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-4">About This Gig</h2>
               <div className="prose prose-gray max-w-none">
-                <div className={`${!showFullDescription ? 'line-clamp-4' : ''}`}>
+                <div>
                   {gig.description.split('\n').map((paragraph, index) => (
                     <p key={index} className="mb-3 text-gray-700">
                       {paragraph}
                     </p>
                   ))}
                 </div>
-                {gig.description.length > 300 && (
-                  <button
-                    onClick={() => setShowFullDescription(!showFullDescription)}
-                    className="text-blue-600 hover:text-blue-800 font-medium mt-2"
-                  >
-                    {showFullDescription ? 'Lihat Lebih Sedikit' : 'Lihat Selengkapnya'}
-                  </button>
-                )}
               </div>
             </div>
 
@@ -311,7 +344,7 @@ export default function GigDetail() {
                 <img 
                   src={gig.freelancer.profilePhoto} 
                   alt={gig.freelancer.displayName}
-                  className="w-16 h-16 rounded-full object-cover"
+                  className="w-24 h-24 rounded-full object-cover"
                 />
                 <div className="flex-1">
                   <div className="flex items-center space-x-2 mb-1">
@@ -321,9 +354,14 @@ export default function GigDetail() {
                         <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                       </svg>
                     )}
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getTierBadgeColor(gig.freelancer.tier)}`}>
+                    <div className={`flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${getTierBadgeColor(gig.freelancer.tier)}`}>
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M11.1459 7.02251C11.5259 6.34084 11.7159 6 12 6C12.2841 6 12.4741 6.34084 12.8541 7.02251L12.9524 7.19887C13.0603 7.39258 13.1143 7.48944 13.1985 7.55334C13.2827 7.61725 13.3875 7.64097 13.5972 7.68841L13.7881 7.73161C14.526 7.89857 14.895 7.98205 14.9828 8.26432C15.0706 8.54659 14.819 8.84072 14.316 9.42898L14.1858 9.58117C14.0429 9.74833 13.9714 9.83191 13.9392 9.93531C13.9071 10.0387 13.9179 10.1502 13.9395 10.3733L13.9592 10.5763C14.0352 11.3612 14.0733 11.7536 13.8435 11.9281C13.6136 12.1025 13.2682 11.9435 12.5773 11.6254L12.3986 11.5431C12.2022 11.4527 12.1041 11.4075 12 11.4075C11.8959 11.4075 11.7978 11.4527 11.6014 11.5431L11.4227 11.6254C10.7318 11.9435 10.3864 12.1025 10.1565 11.9281C9.92674 11.7536 9.96476 11.3612 10.0408 10.5763L10.0605 10.3733C10.0821 10.1502 10.0929 10.0387 10.0608 9.93531C10.0286 9.83191 9.95713 9.74833 9.81418 9.58117L9.68403 9.42898C9.18097 8.84072 8.92945 8.54659 9.01723 8.26432C9.10501 7.98205 9.47396 7.89857 10.2119 7.73161L10.4028 7.68841C10.6125 7.64097 10.7173 7.61725 10.8015 7.55334C10.8857 7.48944 10.9397 7.39258 11.0476 7.19887L11.1459 7.02251Z" stroke="currentColor" strokeWidth="1.5"></path>
+                        <path d="M7.35111 15L6.71424 17.323C6.0859 19.6148 5.77173 20.7607 6.19097 21.3881C6.3379 21.6079 6.535 21.7844 6.76372 21.9008C7.41635 22.2331 8.42401 21.7081 10.4393 20.658C11.1099 20.3086 11.4452 20.1339 11.8014 20.0959C11.9335 20.0818 12.0665 20.0818 12.1986 20.0959C12.5548 20.1339 12.8901 20.3086 13.5607 20.658C15.576 21.7081 16.5837 22.2331 17.2363 21.9008C17.465 21.7844 17.6621 21.6079 17.809 21.3881C18.2283 20.7607 17.9141 19.6148 17.2858 17.323L16.6489 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"></path>
+                        <path d="M5.5 6.39691C5.17745 7.20159 5 8.08007 5 9C5 12.866 8.13401 16 12 16C15.866 16 19 12.866 19 9C19 5.13401 15.866 2 12 2C11.0801 2 10.2016 2.17745 9.39691 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"></path>
+                      </svg>
                       {gig.freelancer.tier.toUpperCase()}
-                    </span>
+                    </div>
                   </div>
                   
                   <div className="flex items-center space-x-4 text-sm text-gray-600 mb-2">
@@ -471,11 +509,22 @@ export default function GigDetail() {
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">{currentPackage.name}</h3>
                   <p className="text-gray-600 text-sm mb-4">{currentPackage.description}</p>
                   
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="mb-4">
                     <span className="text-2xl font-bold text-gray-900">{formatCurrency(currentPackage.price)}</span>
-                    <div className="text-right text-sm text-gray-600">
-                      <div>🚚 {currentPackage.deliveryTime} days delivery</div>
-                      <div>🔄 {currentPackage.revisions} revisions</div>
+                  </div>
+
+                  <div className="flex items-center gap-4 text-sm text-gray-600 mb-6">
+                    <div className="flex items-center gap-1.5">
+                      <svg className="w-4 h-4" viewBox="0 0 50 50" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M11 11C4.898438 11 0 15.898438 0 22C0 24.300781 0.699219 26.5 2 28.300781L2 42C2 43.601563 3.398438 45 5 45L7.09375 45C7.574219 47.828125 10.042969 50 13 50C15.957031 50 18.425781 47.828125 18.90625 45L28.097656 45C29.699219 45 30.902344 43.699219 30.902344 42.199219L30.902344 17.902344C31 16.300781 29.699219 15 28.199219 15L19.5 15C17.5 12.601563 14.398438 11 11 11 Z M 11 13C16 13 20 17 20 22C20 27 16 31 11 31C6 31 2 27 2 22C2 17 6 13 11 13 Z M 34 20C32.898438 20 32 20.898438 32 22L32 43C32 43.839844 32.527344 44.5625 33.265625 44.855469C33.6875 47.753906 36.191406 50 39.199219 50C42.15625 50 44.628906 47.828125 45.109375 45L47 45C48.699219 45 50 43.699219 50 42L50 32.402344C50 30.402344 48.601563 28.300781 48.402344 28.097656L46.097656 25L44.199219 22.5C43.199219 21.398438 41.699219 20 40 20 Z M 38 25L43.597656 25L46.800781 29.199219C47.101563 29.699219 48 31.199219 48 32.300781L48 33L38 33C37 33 36 32 36 31L36 27C36 25.898438 37 25 38 25 Z M 13 40C15.199219 40 17 41.800781 17 44C17 46.199219 15.199219 48 13 48C10.800781 48 9 46.199219 9 44C9 41.800781 10.800781 40 13 40 Z M 39.199219 40C41.398438 40 43.199219 41.800781 43.199219 44C43.199219 46.199219 41.398438 48 39.199219 48C37 48 35.199219 46.199219 35.199219 44C35.199219 41.800781 37 40 39.199219 40Z"/>
+                      </svg>
+                      <span>{currentPackage.deliveryTime} days delivery</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <svg className="w-4 h-4" viewBox="0 0 298.807 298.807" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M223.383,255.164l-9.54-33.76c-71.4,63.126-130.786,5.012-141.612-11.675l5.504-3.399c2.433-1.508,3.857-4.221,3.707-7.081 c-0.149-2.857-1.846-5.41-4.423-6.654l-49.377-23.802c-1.08-0.523-2.239-0.782-3.399-0.782c-1.433,0-2.861,0.398-4.121,1.175 c-2.279,1.403-3.682,3.871-3.722,6.548l-0.841,54.812c-0.045,2.861,1.478,5.519,3.965,6.937c1.205,0.682,2.539,1.02,3.872,1.02 c1.429,0,2.857-0.389,4.121-1.169l2.633-1.627c45.271,73.442,149.175,80.638,205.414,32.69 C229.663,266.098,225.12,261.325,223.383,255.164z M56.666,169.026c-5.809-31.47,15.082-95.47,84.416-103.008v0.836c0,2.861,1.563,5.499,4.071,6.873 c1.174,0.647,2.474,0.965,3.767,0.965c1.469,0,2.936-0.413,4.221-1.234l46.196-29.5c2.26-1.443,3.623-3.931,3.623-6.608 c0-2.678-1.363-5.166-3.618-6.609L153.14,1.234C151.856,0.413,150.388,0,148.919,0c-1.293,0-2.593,0.318-3.767,0.965 c-2.508,1.374-4.071,4.011-4.071,6.873v8.639C73.737,16.189,2.111,79.857,6.727,165.732c0,0,10.425-10.112,17.517-10.112 C30.207,155.62,31.274,156.788,56.666,169.026z M292.123,212.351c-0.592-2.802-2.662-5.061-5.405-5.887l-5.652-1.707c16.622-46.53,11.226-126.807-66.247-171.649 c0.293,1.383,0.532,2.787,0.532,4.24c0,6.942-3.494,13.317-9.346,17.054l-26.679,17.035c23.634,6.821,77.648,48.932,54.274,118.997 l-3.384-1.02c-0.746-0.223-1.508-0.338-2.265-0.338c-2.025,0-4.006,0.792-5.488,2.249c-2.045,2.005-2.832,4.966-2.056,7.723 l14.899,52.746c0.727,2.574,2.717,4.599,5.275,5.375c0.741,0.223,1.507,0.333,2.265,0.333c1.846,0,3.662-0.658,5.105-1.892 l41.604-35.691C291.73,218.055,292.715,215.153,292.123,212.351z"/>
+                      </svg>
+                      <span>{currentPackage.revisions} revisions</span>
                     </div>
                   </div>
 
@@ -509,13 +558,10 @@ export default function GigDetail() {
                     >
                       Add to Cart
                     </button>
-                  </div>
 
-                  {/* Contact Freelancer */}
-                  <div className="pt-4 border-t border-gray-200 mt-6">
                     <button
                       onClick={handleContactFreelancer}
-                      className="w-full text-blue-600 hover:text-blue-800 font-medium py-2"
+                      className="w-full bg-white text-blue-600 py-3 px-4 rounded-lg font-medium border border-blue-200 hover:bg-blue-50 transition-colors"
                     >
                       Contact Freelancer
                     </button>
