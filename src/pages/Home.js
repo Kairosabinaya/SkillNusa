@@ -105,30 +105,30 @@ export default function Home() {
             {
               id: '3',
               image: "https://picsum.photos/seed/gig3/400/300",
-              title: "Professional Social Media Management",
+              title: "SEO Marketing dan Optimasi Website",
               category: "Digital Marketing",
               freelancer: {
-                name: "Dina Wijaya",
-                displayName: "Dina Wijaya",
+                name: "Putri Sari",
+                displayName: "Putri Sari",
                 avatar: "https://picsum.photos/seed/freelancer3/50/50",
                 profilePhoto: "https://picsum.photos/seed/freelancer3/50/50",
-                isVerified: false,
-                isTopRated: true
+                isVerified: true,
+                isTopRated: false
               },
-              rating: 4.7,
-              reviews: 156,
-              totalReviews: 156,
-              price: 1200000,
-              startingPrice: 1200000,
-              packages: { basic: { price: 1200000 } },
-              deliveryTime: "5 days",
+              rating: 4.8,
+              reviews: 28,
+              totalReviews: 28,
+              price: 850000,
+              startingPrice: 850000,
+              packages: { basic: { price: 850000 } },
+              deliveryTime: "7 days",
               location: "Indonesia"
             },
             {
               id: '4',
               image: "https://picsum.photos/seed/gig4/400/300",
               title: "Mobile App Development iOS & Android",
-              category: "Mobile Development",
+              category: "Programming & Tech",
               freelancer: {
                 name: "Farhan Ahmad",
                 displayName: "Farhan Ahmad", 
@@ -213,7 +213,6 @@ export default function Home() {
     { icon: "M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4", name: "Programming & Tech" },
     { icon: "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z", name: "Writing & Translation" },
     { icon: "M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z", name: "Digital Marketing" },
-    { icon: "M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z", name: "Mobile Development" },
     { icon: "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10", name: "Business" },
     { icon: "M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z", name: "Customer Support" },
     { icon: "M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z", name: "Video & Animation" }
@@ -404,7 +403,7 @@ export default function Home() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 xl:grid-cols-9 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 xl:grid-cols-7 gap-4 justify-center">
             {[
               { icon: "M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4", name: "Programming & Tech", displayName: "Programming & Tech" },
               { icon: "M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z", name: "Design & Creative", displayName: "Design & Creative" },
@@ -412,18 +411,16 @@ export default function Home() {
               { icon: "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z", name: "Writing & Translation", displayName: "Writing & Translation" },
               { icon: "M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z", name: "Video & Animation", displayName: "Video & Animation" },
               { icon: "M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3", name: "Music & Audio", displayName: "Music & Audio" },
-              { icon: "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10", name: "Business", displayName: "Business" },
-              { icon: "M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z", name: "Mobile Development", displayName: "Mobile Development" },
-              { icon: "M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z", name: "AI Services", displayName: "AI Services" }
+              { icon: "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10", name: "Business", displayName: "Business" }
             ].map((category, index) => (
               <Link key={index} to={`/browse?category=${encodeURIComponent(category.name)}`} className="group">
-                <div className="bg-white rounded-lg p-4 border border-gray-200 transition-all duration-300 hover:shadow-md hover:border-[#010042]/30 h-full flex flex-col items-start gap-3">
+                <div className="bg-white rounded-lg p-4 border border-gray-200 transition-all duration-300 hover:shadow-md hover:border-[#010042]/30 h-full flex flex-col items-center gap-3">
                   <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-[#010042]/10 transition-all duration-300 group-hover:bg-[#010042]/20">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#010042]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={category.icon} />
                     </svg>
                   </div>
-                  <span className="font-medium text-gray-800 text-sm">{category.displayName}</span>
+                  <span className="font-medium text-gray-800 text-sm text-center">{category.displayName}</span>
                 </div>
               </Link>
             ))}

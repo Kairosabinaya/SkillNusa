@@ -488,19 +488,22 @@ export default function GigDetail() {
                 {/* 3. Package Selection */}
                 <div className="mb-6">
                   <div className="flex border-b border-gray-200">
-                    {Object.entries(gig.packages).map(([key, pkg]) => (
-                      <button
-                        key={key}
-                        onClick={() => handlePackageSelect(key)}
-                        className={`flex-1 py-3 px-4 text-sm font-medium border-b-2 ${
-                          selectedPackage === key
-                            ? 'border-blue-500 text-blue-600'
-                            : 'border-transparent text-gray-500 hover:text-gray-700'
-                        }`}
-                      >
-                        {key.charAt(0).toUpperCase() + key.slice(1)}
-                      </button>
-                    ))}
+                    {['basic', 'standard', 'premium'].filter(key => gig.packages[key]).map((key) => {
+                      const pkg = gig.packages[key];
+                      return (
+                        <button
+                          key={key}
+                          onClick={() => handlePackageSelect(key)}
+                          className={`flex-1 py-3 px-4 text-sm font-medium border-b-2 ${
+                            selectedPackage === key
+                              ? 'border-blue-500 text-blue-600'
+                              : 'border-transparent text-gray-500 hover:text-gray-700'
+                          }`}
+                        >
+                          {key.charAt(0).toUpperCase() + key.slice(1)}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 

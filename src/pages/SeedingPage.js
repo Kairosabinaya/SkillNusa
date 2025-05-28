@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { seedAllData, seedUsers, seedGigs, seedReviews } from '../scripts/seedData';
+import { seedAllData, seedUsers, seedGigs, seedReviews, seedOrders } from '../scripts/seedData';
 import gigService from '../services/gigService';
 
 export default function SeedingPage() {
@@ -23,37 +23,46 @@ export default function SeedingPage() {
     setLogs([]);
     
     try {
-      addLog('Starting database seeding...');
+      addLog('Starting comprehensive database seeding...');
       
       switch (type) {
         case 'users':
-          addLog('Seeding users...');
+          addLog('Seeding users (10 freelancers + 5 clients)...');
           await seedUsers();
           addLog('✅ Users seeded successfully!');
           break;
         case 'gigs':
-          addLog('Seeding gigs...');
+          addLog('Seeding 20 gigs across multiple categories...');
           await seedGigs();
           addLog('✅ Gigs seeded successfully!');
           break;
         case 'reviews':
-          addLog('Seeding reviews...');
+          addLog('Seeding 30 reviews for all gigs...');
           await seedReviews();
           addLog('✅ Reviews seeded successfully!');
           break;
+        case 'orders':
+          addLog('Seeding sample orders...');
+          await seedOrders();
+          addLog('✅ Orders seeded successfully!');
+          break;
         case 'all':
         default:
-          addLog('Seeding users...');
+          addLog('Seeding 10 freelancers + 5 clients...');
           await seedUsers();
           addLog('✅ Users seeded!');
           
-          addLog('Seeding gigs...');
+          addLog('Seeding 20 gigs across categories...');
           await seedGigs();
           addLog('✅ Gigs seeded!');
           
-          addLog('Seeding reviews...');
+          addLog('Seeding 30 reviews...');
           await seedReviews();
           addLog('✅ Reviews seeded!');
+          
+          addLog('Seeding sample orders...');
+          await seedOrders();
+          addLog('✅ Orders seeded!');
           break;
       }
       
@@ -73,17 +82,24 @@ export default function SeedingPage() {
     addLog('🧪 Testing gigService...');
     
     try {
-      const gigs = await gigService.getGigs({}, { limit: 10 });
-      const featuredGigs = await gigService.getFeaturedGigs(5);
+      const gigs = await gigService.getGigs({}, { limit: 20 });
+      const featuredGigs = await gigService.getFeaturedGigs(10);
+      
+      // Test by categories
+      const designGigs = await gigService.getGigs({ category: 'Design & Creative' }, { limit: 10 });
+      const techGigs = await gigService.getGigs({ category: 'Programming & Tech' }, { limit: 10 });
       
       setTestResults({
         totalGigs: gigs.length,
         featuredGigs: featuredGigs.length,
-        gigTitles: gigs.map(gig => gig.title),
+        designGigs: designGigs.length,
+        techGigs: techGigs.length,
+        gigTitles: gigs.slice(0, 10).map(gig => gig.title),
+        categories: [...new Set(gigs.map(gig => gig.category))],
         success: true
       });
       
-      addLog(`✅ gigService test successful! Found ${gigs.length} gigs`);
+      addLog(`✅ gigService test successful! Found ${gigs.length} gigs across ${[...new Set(gigs.map(gig => gig.category))].length} categories`);
     } catch (error) {
       console.error('Test failed:', error);
       setTestResults({
@@ -98,7 +114,7 @@ export default function SeedingPage() {
     <div className="min-h-screen bg-gray-50 pt-20">
       <div className="max-w-4xl mx-auto px-6 py-8">
         <div className="bg-white rounded-lg shadow-sm p-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-6">Database Seeding</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-6">Database Seeding - Enhanced Version</h1>
           
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
             <div className="flex">
@@ -108,13 +124,13 @@ export default function SeedingPage() {
               <div>
                 <h3 className="text-sm font-medium text-yellow-800">Development Only</h3>
                 <p className="text-sm text-yellow-700 mt-1">
-                  This page is for development purposes only. It will populate your database with sample data.
+                  This enhanced seeding will populate your database with comprehensive, realistic data for testing and development.
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
             <button
               onClick={() => runSeeding('all')}
               disabled={isSeeding}
@@ -134,7 +150,7 @@ export default function SeedingPage() {
             <button
               onClick={() => runSeeding('users')}
               disabled={isSeeding}
-              className="bg-green-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-purple-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Seed Users Only
             </button>
@@ -142,9 +158,25 @@ export default function SeedingPage() {
             <button
               onClick={() => runSeeding('gigs')}
               disabled={isSeeding}
-              className="bg-purple-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-indigo-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Seed Gigs Only
+            </button>
+            
+            <button
+              onClick={() => runSeeding('reviews')}
+              disabled={isSeeding}
+              className="bg-pink-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-pink-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Seed Reviews Only
+            </button>
+            
+            <button
+              onClick={() => runSeeding('orders')}
+              disabled={isSeeding}
+              className="bg-orange-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Seed Orders Only
             </button>
           </div>
 
@@ -158,8 +190,11 @@ export default function SeedingPage() {
                 <div>
                   <p>✅ Total gigs found: {testResults.totalGigs}</p>
                   <p>✅ Featured gigs found: {testResults.featuredGigs}</p>
+                  <p>✅ Design & Creative gigs: {testResults.designGigs}</p>
+                  <p>✅ Programming & Tech gigs: {testResults.techGigs}</p>
+                  <p>✅ Categories available: {testResults.categories.join(', ')}</p>
                   <details className="mt-2">
-                    <summary>Gig titles:</summary>
+                    <summary>Sample gig titles (first 10):</summary>
                     <ul className="list-disc list-inside mt-1">
                       {testResults.gigTitles.map((title, index) => (
                         <li key={index} className="text-sm">{title}</li>
@@ -219,14 +254,54 @@ export default function SeedingPage() {
           )}
 
           <div className="mt-6 text-sm text-gray-600">
-            <h3 className="font-medium mb-2">What this will create:</h3>
-            <ul className="list-disc list-inside space-y-1">
-              <li>3 freelancer accounts with complete profiles</li>
-              <li>2 client accounts</li>
-              <li>3 professional gigs with packages (Basic, Standard, Premium)</li>
-              <li>7 authentic reviews with ratings</li>
-              <li>Realistic data for UI/UX Design, Web Development, and Content Writing</li>
-            </ul>
+            <h3 className="font-medium mb-2">Enhanced Seeding Will Create:</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <h4 className="font-medium text-gray-800 mb-1">Users:</h4>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>10 freelancer accounts with diverse skills</li>
+                  <li>5 client accounts from different industries</li>
+                  <li>Complete profiles with portfolio links</li>
+                  <li>Professional profile photos</li>
+                </ul>
+              </div>
+              <div>
+                <h4 className="font-medium text-gray-800 mb-1">Gigs & Services:</h4>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>20 professional gigs across 8+ categories</li>
+                  <li>Design & Creative (UI/UX, Logo, Graphics)</li>
+                  <li>Programming & Tech (Web, Mobile, Data Science, API)</li>
+                  <li>Digital Marketing (SEO, Social Media)</li>
+                  <li>Writing & Translation</li>
+                  <li>Video & Animation</li>
+                  <li>Music & Audio</li>
+                  <li>Business Consulting</li>
+                </ul>
+              </div>
+              <div>
+                <h4 className="font-medium text-gray-800 mb-1">Reviews & Orders:</h4>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>30+ authentic reviews with realistic ratings</li>
+                  <li>Sample completed orders</li>
+                  <li>Realistic pricing (Rp 150K - Rp 15M)</li>
+                  <li>Professional descriptions & packages</li>
+                </ul>
+              </div>
+              <div>
+                <h4 className="font-medium text-gray-800 mb-1">Categories Covered:</h4>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>UI/UX Design & Logo Design</li>
+                  <li>Web Development & E-commerce</li>
+                  <li>Mobile App Development</li>
+                  <li>Data Science & Analytics</li>
+                  <li>Digital Marketing & SEO</li>
+                  <li>Content Writing & Translation</li>
+                  <li>Video Editing & Animation</li>
+                  <li>Voice Over & Podcast Production</li>
+                  <li>Business Consulting & Virtual Assistant</li>
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
       </div>

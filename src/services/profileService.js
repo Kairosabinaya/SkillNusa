@@ -231,7 +231,7 @@ export const getSkillSuggestions = async () => {
     return [
       { id: 'web-design', name: 'Web Design' },
       { id: 'web-development', name: 'Web Development' },
-      { id: 'mobile-app-development', name: 'Mobile App Development' },
+      { id: 'mobile-development', name: 'Mobile Development' },
       { id: 'ui-ux-design', name: 'UI/UX Design' },
       { id: 'graphic-design', name: 'Graphic Design' },
       { id: 'content-writing', name: 'Content Writing' },

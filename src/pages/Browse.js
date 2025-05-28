@@ -40,9 +40,7 @@ export default function Browse() {
     "Writing & Translation",
     "Video & Animation",
     "Music & Audio",
-    "Business",
-    "Mobile Development",
-    "AI Services"
+    "Business"
   ];
 
   // Load gigs data from database
@@ -310,7 +308,7 @@ export default function Browse() {
             <div className="mb-6">
               <h4 className="font-medium text-gray-900 mb-3">Rating</h4>
               <div className="space-y-2">
-                {[4.5, 4.0, 3.5, 3.0].map((rating) => (
+                {[4.0, 3.0, 2.0, 1.0].map((rating) => (
                   <label key={rating} className="flex items-center">
                     <input
                       type="radio"

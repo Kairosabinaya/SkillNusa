@@ -193,7 +193,7 @@ class FavoriteService {
                   id: '4',
                   images: ["https://picsum.photos/seed/gig4/400/300"],
                   title: "Mobile App Development iOS & Android",
-                  category: "Mobile Development",
+                  category: "Programming & Tech",
                   rating: 5.0,
                   totalReviews: 32,
                   packages: { basic: { price: 5000000 } },
