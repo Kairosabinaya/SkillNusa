@@ -30,7 +30,6 @@ export const getUserProfile = async (userId) => {
     const userDoc = await getDoc(doc(db, COLLECTIONS.USERS, userId));
     if (userDoc.exists()) {
       const userData = userDoc.data();
-
       Object.assign(profileData, userData);
     }
     
@@ -71,9 +70,9 @@ export const getUserProfile = async (userId) => {
       }
     }
     
-
     return profileData;
   } catch (error) {
+    console.error('Error fetching user profile:', error);
     return null;
   }
 };
@@ -204,6 +203,7 @@ export const updateUserProfile = async (userId, profileData, updateAuthProfile =
     
     return true;
   } catch (error) {
+    console.error('Error updating user profile:', error);
     return false;
   }
 };

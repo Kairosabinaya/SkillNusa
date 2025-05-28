@@ -13,6 +13,12 @@ export const ROUTES = {
   PROFILE: {
     ROOT: '/profile',
     EDIT: '/profile/edit'
+  },
+  DASHBOARD: {
+    ROOT: '/dashboard',
+    CLIENT: '/dashboard/client',
+    FREELANCER: '/dashboard/freelancer',
+    ADMIN: '/dashboard/admin'
   }
 };
 

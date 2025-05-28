@@ -1,0 +1,653 @@
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useSpring, animated } from '@react-spring/web';
+import PropTypes from 'prop-types';
+import MeshGradientBackground from '../UI/MeshGradientBackground';
+import { getUserProfile, updateUserProfile } from '../../services/userProfileService';
+
+/**
+ * Dashboard layout with sidebar navigation
+ */
+export default function DashboardLayout({ children }) {
+  const { currentUser, userProfile, logout } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [profileData, setProfileData] = useState(null);
+  const [combinedUserData, setCombinedUserData] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  // Fetch complete profile data using the service
+  useEffect(() => {
+    async function fetchProfileData() {
+      if (!currentUser) return;
+      
+      try {
+        // Use the centralized service to get complete profile data
+        const completeProfile = await getUserProfile(currentUser.uid);
+        if (completeProfile) {
+          setProfileData(completeProfile);
+        }
+      } catch (error) {
+        console.error('Error fetching profile data:', error);
+      }
+    }
+
+    fetchProfileData();
+  }, [currentUser]);
+
+  // Combine all profile data sources
+  useEffect(() => {
+    if (currentUser) {
+      setCombinedUserData({
+        ...userProfile,
+        ...profileData
+      });
+    }
+  }, [currentUser, userProfile, profileData]);
+
+  // Function to handle search submission
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/browse?search=${encodeURIComponent(searchQuery)}`);
+    }
+  };
+
+  // Handle profile photo click - redirect to appropriate dashboard
+  const handleProfilePhotoClick = () => {
+    const activeRole = combinedUserData?.activeRole || 'client';
+    switch (activeRole) {
+      case 'client':
+        navigate('/dashboard/client');
+        break;
+      case 'freelancer':
+        navigate('/dashboard/freelancer');
+        break;
+      case 'admin':
+        navigate('/dashboard/admin');
+        break;
+      default:
+        navigate('/dashboard/client');
+    }
+  };
+
+  // Check if the user is a freelancer
+  const isFreelancer = combinedUserData?.isFreelancer;
+
+  // Client sidebar navigation items
+  const clientNavItems = [
+    {
+      name: 'Dashboard',
+      href: '/dashboard/client',
+      icon: (
+        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5a2 2 0 012-2h4a2 2 0 012 2v5H8V5z" />
+        </svg>
+      )
+    },
+    {
+      name: 'Daftar Transaksi',
+      href: '/dashboard/client/transactions',
+      icon: (
+        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      )
+    },
+    {
+      name: 'Keranjang',
+      href: '/dashboard/client/cart',
+      icon: (
+        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l-1 7a2 2 0 01-2 2H8a2 2 0 01-2-2L5 9z" />
+        </svg>
+      )
+    },
+    {
+      name: 'Favorit',
+      href: '/dashboard/client/favorites',
+      icon: (
+        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+        </svg>
+      )
+    },
+    {
+      name: 'Pesan',
+      href: '/dashboard/client/messages',
+      icon: (
+        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+        </svg>
+      )
+    },
+    {
+      name: 'Telusuri Layanan',
+      href: '/browse',
+      icon: (
+        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+      )
+    },
+    {
+      name: 'Bantuan & Dukungan',
+      href: '/contact',
+      icon: (
+        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192L5.636 18.364M12 2.25a9.75 9.75 0 109.75 9.75A9.75 9.75 0 0012 2.25z" />
+        </svg>
+      )
+    }
+  ];
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
+
+  const getNavItems = () => {
+    switch (userProfile?.activeRole) {
+      case 'client':
+        return clientNavItems;
+      case 'freelancer':
+        // TODO: Add freelancer navigation items
+        return [];
+      case 'admin':
+        // TODO: Add admin navigation items  
+        return [];
+      default:
+        return clientNavItems;
+    }
+  };
+
+  const navItems = getNavItems();
+
+  // Animation for sidebar
+  const sidebarAnimation = useSpring({
+    transform: sidebarOpen ? 'translateX(0%)' : 'translateX(-100%)',
+    config: { tension: 300, friction: 30 }
+  });
+
+  // Animation for content area
+  const contentAnimation = useSpring({
+    marginLeft: !sidebarOpen && window.innerWidth >= 1024 ? '0px' : '0px',
+    config: { tension: 300, friction: 30 }
+  });
+
+  return (
+    <div className="flex h-screen bg-gray-50 overflow-hidden">
+      {/* Background particles */}
+      <div className="absolute inset-0 z-0">
+        <MeshGradientBackground variant="dashboard" />
+      </div>
+
+      {/* Sidebar */}
+      <motion.aside 
+        initial={{ x: -300 }}
+        animate={{ x: sidebarOpen || window.innerWidth >= 1024 ? 0 : -300 }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        className={`${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        } fixed inset-y-0 left-0 z-50 w-64 bg-white/95 backdrop-blur-sm shadow-xl lg:translate-x-0 lg:static lg:inset-0`}
+      >
+        
+        {/* Sidebar header */}
+        <motion.div 
+          className="flex items-center justify-between h-16 px-6 border-b border-gray-200"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <Link to="/" className="flex items-center">
+            <motion.span 
+              className="text-xl font-bold bg-gradient-to-r from-[#010042] to-[#0100a3] bg-clip-text text-transparent"
+              whileHover={{ scale: 1.05 }}
+              transition={{ type: "spring", stiffness: 400 }}
+            >
+              SkillNusa
+            </motion.span>
+          </Link>
+          
+          {/* Close button for mobile */}
+          <motion.button
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600"
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </motion.button>
+        </motion.div>
+
+        {/* User info */}
+        <motion.div 
+          className="p-6 border-b border-gray-200"
+          initial={{ opacity: 0, x: -50 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          <div className="flex items-center">
+            <motion.div 
+              className="h-10 w-10 rounded-full bg-[#010042]/10 flex items-center justify-center overflow-hidden border border-gray-200"
+              whileHover={{ scale: 1.1, borderColor: '#010042' }}
+              transition={{ type: "spring", stiffness: 400 }}
+            >
+              {userProfile?.profilePhoto ? (
+                <img 
+                  className="h-10 w-10 rounded-full object-cover" 
+                  src={userProfile.profilePhoto} 
+                  alt={userProfile.displayName || currentUser.email} 
+                />
+              ) : (
+                <span className="text-sm font-semibold text-[#010042]">
+                  {(userProfile?.displayName || currentUser?.displayName)?.charAt(0).toUpperCase() || 
+                  currentUser?.email?.charAt(0).toUpperCase() || 'U'}
+                </span>
+              )}
+            </motion.div>
+            <div className="ml-3">
+              <motion.p 
+                className="text-sm font-medium text-gray-900 truncate"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+              >
+                {userProfile?.displayName || currentUser?.displayName || 'Pengguna'}
+              </motion.p>
+              <motion.p 
+                className="text-xs text-gray-500 truncate"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 }}
+              >
+                {userProfile?.activeRole === 'client' ? 'Client' : 
+                 userProfile?.activeRole === 'freelancer' ? 'Freelancer' : 
+                 userProfile?.activeRole === 'admin' ? 'Admin' : 'User'}
+              </motion.p>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Navigation */}
+        <nav className="mt-6 px-3">
+          <div className="space-y-1">
+            {navItems.map((item, index) => {
+              const isActive = location.pathname === item.href;
+              return (
+                <motion.div
+                  key={item.name}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.1 * (index + 5) }}
+                >
+                  <Link
+                    to={item.href}
+                    className={`group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+                      isActive
+                        ? 'bg-[#010042] text-white shadow-md'
+                        : 'text-gray-700 hover:bg-[#010042]/5 hover:text-[#010042]'
+                    }`}
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <motion.span 
+                      className={`mr-3 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-[#010042]'}`}
+                      whileHover={{ scale: 1.2, rotate: 5 }}
+                      transition={{ type: "spring", stiffness: 400 }}
+                    >
+                      {item.icon}
+                    </motion.span>
+                    {item.name}
+                  </Link>
+                </motion.div>
+              );
+            })}
+          </div>
+        </nav>
+
+        {/* Logout button */}
+        <motion.div 
+          className="absolute bottom-0 left-0 right-0 p-6 border-t border-gray-200"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+        >
+          <motion.button
+            onClick={handleLogout}
+            className="w-full flex items-center px-3 py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-red-50 hover:text-red-600 transition-all duration-200"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <motion.svg 
+              className="mr-3 h-5 w-5" 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+              whileHover={{ x: 2 }}
+              transition={{ type: "spring", stiffness: 400 }}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </motion.svg>
+            Keluar
+          </motion.button>
+        </motion.div>
+      </motion.aside>
+
+      {/* Overlay for mobile */}
+      <AnimatePresence>
+        {sidebarOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-gray-600 bg-opacity-75 transition-opacity lg:hidden z-40"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Main content */}
+      <div className="flex-1 flex flex-col overflow-hidden relative z-10">
+        {/* Top bar */}
+        <motion.header 
+          className="bg-white border-b border-gray-100 shadow-sm"
+          initial={{ y: -60 }}
+          animate={{ y: 0 }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        >
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="flex justify-between h-16 items-center">
+              {/* Mobile menu button & Logo */}
+              <div className="flex items-center">
+                <motion.button
+                  onClick={() => setSidebarOpen(true)}
+                  className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600 mr-4"
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                </motion.button>
+              </div>
+
+              {/* Search Bar */}
+              <motion.div 
+                className="flex-1 max-w-xl mx-4"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.2 }}
+              >
+                <form onSubmit={handleSearchSubmit}>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Cari layanan, keahlian, atau proyek..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full px-4 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
+                    />
+                    <button 
+                      type="submit" 
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-[#010042]"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+
+              {/* Right side actions */}
+              <motion.div 
+                className="flex items-center space-x-4"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.3 }}
+              >
+                {/* Action Icons */}
+                <div className="flex items-center space-x-4">
+                  {/* Favorites */}
+                  <Link to="/favorites" className="text-gray-500 hover:text-[#010042] transition-all duration-200" title="Favorit">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                    </svg>
+                  </Link>
+                  
+                  {/* Cart/Checkout */}
+                  <Link to="/cart" className="text-gray-500 hover:text-[#010042] transition-all duration-200 relative" title="Keranjang">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l-1 7a2 2 0 01-2 2H8a2 2 0 01-2-2L5 9z" />
+                    </svg>
+                  </Link>
+                  
+                  {/* Transactions */}
+                  <Link to="/transactions" className="text-gray-500 hover:text-[#010042] transition-all duration-200" title="Riwayat Transaksi">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </Link>
+                  
+                  {/* Messages */}
+                  <Link to="/messages" className="text-gray-500 hover:text-[#010042] transition-all duration-200" title="Pesan">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
+                  </Link>
+                  
+                  {/* SkillBot */}
+                  <Link to="/skillbot" className="text-gray-500 hover:text-[#010042] transition-all duration-200" title="SkillBot">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                  </Link>
+                  
+                  {/* User Profile Menu */}
+                  <div 
+                    className="relative"
+                    onMouseEnter={() => setIsMenuOpen(true)}
+                    onMouseLeave={() => setIsMenuOpen(false)}
+                  >
+                    <div
+                      onClick={handleProfilePhotoClick}
+                      className="bg-white rounded-full flex text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#010042] cursor-pointer"
+                      title="Klik untuk dashboard, hover untuk menu"
+                    >
+                      <span className="sr-only">Buka dashboard atau menu</span>
+                      <div className="h-8 w-8 rounded-full bg-[#010042]/10 flex items-center justify-center text-[#010042] overflow-hidden border border-gray-200 hover:border-[#010042] transition-all duration-200">
+                        {combinedUserData?.profilePhoto ? (
+                          <img 
+                            className="h-8 w-8 rounded-full object-cover" 
+                            src={combinedUserData.profilePhoto} 
+                            alt={combinedUserData.displayName || currentUser.email} 
+                          />
+                        ) : (
+                          <span className="text-sm font-semibold">
+                            {(combinedUserData?.displayName || currentUser?.displayName)?.charAt(0).toUpperCase() || 
+                            currentUser?.email?.charAt(0).toUpperCase() || 'U'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Dropdown Menu */}
+                    {isMenuOpen && (
+                      <div className="absolute right-0 mt-2 w-64 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+                        {/* Arrow pointer */}
+                        <div className="absolute -top-2 right-3 w-4 h-4 bg-white transform rotate-45 border-l border-t border-black border-opacity-5"></div>
+                        
+                        <div className="border-b border-gray-100 pb-2 pt-2 px-4">
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {combinedUserData?.displayName || currentUser?.displayName || 'Pengguna'}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate mb-2">
+                            {combinedUserData?.email || currentUser?.email}
+                          </p>
+                          {/* Role Switching Buttons */}
+                          {(combinedUserData?.activeRole !== 'client' || 
+                            (isFreelancer && combinedUserData?.activeRole !== 'freelancer') || 
+                            (combinedUserData?.roles?.includes('admin') && combinedUserData?.activeRole !== 'admin')) && (
+                            <div className="border-t border-gray-100 pt-2 space-y-1">
+                              {combinedUserData?.activeRole !== 'client' && (
+                                <Link 
+                                  to="/dashboard/client"
+                                  onClick={async () => {
+                                    try {
+                                      await updateUserProfile(currentUser.uid, {
+                                        activeRole: 'client'
+                                      });
+                                      setCombinedUserData(prev => ({
+                                        ...prev,
+                                        activeRole: 'client'
+                                      }));
+                                      setIsMenuOpen(false);
+                                    } catch (error) {
+                                      console.error('Error updating active role:', error);
+                                    }
+                                  }}
+                                  className="w-full text-center text-xs bg-[#010042] hover:bg-blue-700 text-white py-1.5 px-2 rounded transition-colors duration-200 block"
+                                >
+                                  Akun Client
+                                </Link>
+                              )}
+                              
+                              {isFreelancer && combinedUserData?.activeRole !== 'freelancer' && (
+                                <Link 
+                                  to="/dashboard/freelancer"
+                                  onClick={async () => {
+                                    try {
+                                      await updateUserProfile(currentUser.uid, {
+                                        activeRole: 'freelancer'
+                                      });
+                                      setCombinedUserData(prev => ({
+                                        ...prev,
+                                        activeRole: 'freelancer'
+                                      }));
+                                      setIsMenuOpen(false);
+                                    } catch (error) {
+                                      console.error('Error updating active role:', error);
+                                    }
+                                  }}
+                                  className="w-full text-center text-xs bg-[#010042] hover:bg-blue-700 text-white py-1.5 px-2 rounded transition-colors duration-200 block"
+                                >
+                                  Akun Freelancer
+                                </Link>
+                              )}
+                              
+                              {combinedUserData?.roles?.includes('admin') && combinedUserData?.activeRole !== 'admin' && (
+                                <Link 
+                                  to="/dashboard/admin"
+                                  onClick={async () => {
+                                    try {
+                                      await updateUserProfile(currentUser.uid, {
+                                        activeRole: 'admin'
+                                      });
+                                      setCombinedUserData(prev => ({
+                                        ...prev,
+                                        activeRole: 'admin'
+                                      }));
+                                      setIsMenuOpen(false);
+                                    } catch (error) {
+                                      console.error('Error updating active role:', error);
+                                    }
+                                  }}
+                                  className="w-full text-center text-xs bg-[#010042] hover:bg-blue-700 text-white py-1.5 px-2 rounded transition-colors duration-200 block"
+                                >
+                                  Akun Admin
+                                </Link>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="py-1">
+                          <Link 
+                            to={combinedUserData?.activeRole === 'client' ? '/dashboard/client' :
+                               combinedUserData?.activeRole === 'freelancer' ? '/dashboard/freelancer' :
+                               combinedUserData?.activeRole === 'admin' ? '/dashboard/admin' :
+                               '/dashboard/client'}
+                            className="text-gray-700 hover:bg-gray-100 hover:text-gray-900 group flex items-center px-4 py-2 text-sm"
+                            onClick={() => setIsMenuOpen(false)}
+                          >
+                            <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-[#010042]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5a2 2 0 012-2h4a2 2 0 012 2v5H8V5z" />
+                            </svg>
+                            Dashboard
+                          </Link>
+                          
+                          <Link 
+                            to="/about" 
+                            className="text-gray-700 hover:bg-gray-100 hover:text-gray-900 group flex items-center px-4 py-2 text-sm"
+                            onClick={() => setIsMenuOpen(false)}
+                          >
+                            <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-[#010042]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                            </svg>
+                            Tentang
+                          </Link>
+                          
+                          <Link 
+                            to="/contact" 
+                            className="text-gray-700 hover:bg-gray-100 hover:text-gray-900 group flex items-center px-4 py-2 text-sm"
+                            onClick={() => setIsMenuOpen(false)}
+                          >
+                            <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-[#010042]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                              <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+                            </svg>
+                            Kontak
+                          </Link>
+                          
+                          <div className="border-t border-gray-100 my-1"></div>
+                          
+                          <button
+                            onClick={() => {
+                              handleLogout();
+                              setIsMenuOpen(false);
+                            }}
+                            className="text-gray-700 hover:bg-gray-100 hover:text-gray-900 group flex w-full items-center px-4 py-2 text-sm"
+                          >
+                            <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1V7.414l-4-4H3zm9 2.586L15.414 9H12V5.586zM4 6a1 1 0 011-1h4a1 1 0 010 2H5a1 1 0 01-1-1zm1 3a1 1 0 100 2h3a1 1 0 100-2H5zm0 3a1 1 0 100 2h3a1 1 0 100-2H5z" clipRule="evenodd" />
+                            </svg>
+                            Keluar
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          </div>
+        </motion.header>
+
+        {/* Main content area */}
+        <motion.main 
+          className="flex-1 overflow-auto relative"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+        >
+          {children || <Outlet />}
+        </motion.main>
+      </div>
+    </div>
+  );
+}
+
+DashboardLayout.propTypes = {
+  children: PropTypes.node
+}; 

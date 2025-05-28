@@ -20,6 +20,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
 import firebaseService from '../services/firebaseService';
+import { getUserProfile } from '../services/userProfileService';
 import { COLLECTIONS, USER_ROLES } from '../utils/constants';
 import Logger from '../utils/logger';
 import { AuthError, ValidationError, ErrorHandler } from '../utils/errors';
@@ -221,15 +222,18 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const fetchUserProfile = async () => {
-    if (!currentUser) return null;
+  const fetchUserProfile = async (user = null) => {
+    const targetUser = user || currentUser;
+    if (!targetUser) return null;
     
     try {
-      const userData = await firebaseService.getUser(currentUser.uid);
+      console.log('AuthContext DEBUG: fetchUserProfile starting for user:', targetUser.uid);
+      const userData = await getUserProfile(targetUser.uid);
       
       if (userData) {
         console.log('AuthContext DEBUG: userData loaded successfully');
         console.log('AuthContext DEBUG: userData.isFreelancer:', userData.isFreelancer);
+        console.log('AuthContext DEBUG: userData.activeRole:', userData.activeRole);
         
         // Set active role and available roles for the multi-role architecture
         if (userData.roles && userData.roles.length > 0) {
@@ -238,6 +242,7 @@ export function AuthProvider({ children }) {
         }
         
         setUserProfile(userData);
+        console.log('AuthContext DEBUG: userProfile state updated');
         return userData;
       } else {
         console.log('AuthContext DEBUG: userData is null/undefined');
@@ -317,8 +322,8 @@ export function AuthProvider({ children }) {
       // Reload user from Firebase Auth to get latest emailVerified status
       await currentUser.reload();
       
-      // Get current user data from Firestore
-      const userData = await firebaseService.getUser(currentUser.uid);
+      // Get current user data from Firestore using currentUser directly
+      const userData = await getUserProfile(currentUser.uid);
       
       if (userData && userData.emailVerified !== currentUser.emailVerified) {
         // Update Firestore with current emailVerified status from Auth
@@ -404,8 +409,9 @@ export function AuthProvider({ children }) {
         setCurrentUser(user);
         
         if (user) {
-          // Fetch user profile from Firestore
-          const userData = await fetchUserProfile();
+          console.log('AuthContext DEBUG: User authenticated, fetching profile...');
+          // Fetch user profile from Firestore - pass user directly to avoid race condition
+          const userData = await fetchUserProfile(user);
           
           // Sync emailVerified status from Firebase Auth to Firestore if different
           if (userData && userData.emailVerified !== user.emailVerified) {
@@ -428,16 +434,19 @@ export function AuthProvider({ children }) {
             }
           }
         } else {
+          console.log('AuthContext DEBUG: User not authenticated, clearing profile...');
           setUserProfile(null);
           setActiveRole(USER_ROLES.CLIENT);
           setAvailableRoles([USER_ROLES.CLIENT]);
         }
       } catch (err) {
+        console.error('AuthContext DEBUG: Error in auth state change:', err);
         setError(err.message);
       } finally {
         setLoading(false);
       }
     }, (error) => {
+      console.error('AuthContext DEBUG: Auth state change error:', error);
       setError(error.message);
       setLoading(false);
     });

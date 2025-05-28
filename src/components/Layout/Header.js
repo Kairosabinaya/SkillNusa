@@ -11,6 +11,7 @@ export default function Header() {
 
   const [combinedUserData, setCombinedUserData] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // Fetch complete profile data using the service
   useEffect(() => {
@@ -24,7 +25,8 @@ export default function Header() {
           setProfileData(completeProfile);
         }
       } catch (error) {
-        }
+        console.error('Error fetching profile data:', error);
+      }
     }
 
     fetchProfileData();
@@ -44,7 +46,8 @@ export default function Header() {
     try {
       await logout();
     } catch (error) {
-      }
+      console.error('Logout error:', error);
+    }
   };
 
   // Check if the user is a freelancer
@@ -55,6 +58,24 @@ export default function Header() {
     e.preventDefault();
     if (searchQuery.trim()) {
       navigate(`/browse?search=${encodeURIComponent(searchQuery)}`);
+    }
+  };
+
+  // Handle profile photo click - redirect to appropriate dashboard
+  const handleProfilePhotoClick = () => {
+    const activeRole = combinedUserData?.activeRole || 'client';
+    switch (activeRole) {
+      case 'client':
+        navigate('/dashboard/client');
+        break;
+      case 'freelancer':
+        navigate('/dashboard/freelancer');
+        break;
+      case 'admin':
+        navigate('/dashboard/admin');
+        break;
+      default:
+        navigate('/dashboard/client');
     }
   };
 
@@ -138,9 +159,17 @@ export default function Header() {
                 </Link>
                 
                 {/* User Profile Menu */}
-                <Menu as="div" className="relative">
-                  <MenuButton className="bg-white rounded-full flex text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#010042]">
-                    <span className="sr-only">Buka menu pengguna</span>
+                <div 
+                  className="relative"
+                  onMouseEnter={() => setIsMenuOpen(true)}
+                  onMouseLeave={() => setIsMenuOpen(false)}
+                >
+                  <div
+                    onClick={handleProfilePhotoClick}
+                    className="bg-white rounded-full flex text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#010042] cursor-pointer"
+                    title="Klik untuk dashboard, hover untuk menu"
+                  >
+                    <span className="sr-only">Buka dashboard atau menu</span>
                     <div className="h-8 w-8 rounded-full bg-[#010042]/10 flex items-center justify-center text-[#010042] overflow-hidden border border-gray-200 hover:border-[#010042] transition-all duration-200">
                       {combinedUserData?.profilePhoto ? (
                         <img 
@@ -155,156 +184,163 @@ export default function Header() {
                         </span>
                       )}
                     </div>
-                  </MenuButton>
+                  </div>
                   
-                  <MenuItems 
-                    className="absolute right-0 mt-2 w-64 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50"
-                  >
-                    <div className="border-b border-gray-100 pb-2 pt-2 px-4">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        {combinedUserData?.displayName || currentUser?.displayName || 'Pengguna'}
-                      </p>
-                      <p className="text-xs text-gray-500 truncate mb-2">
-                        {combinedUserData?.email || currentUser?.email}
-                      </p>
-                      {/* Role Switching Buttons */}
-                      {(combinedUserData?.activeRole !== 'client' || 
-                        (isFreelancer && combinedUserData?.activeRole !== 'freelancer') || 
-                        (combinedUserData?.roles?.includes('admin') && combinedUserData?.activeRole !== 'admin')) && (
-                        <div className="border-t border-gray-100 pt-2 space-y-1">
-                          {combinedUserData?.activeRole !== 'client' && (
-                            <Link 
-                              to="/"
-                              onClick={async () => {
-                                try {
-                                  // Update active role in database
-                                  await updateUserProfile(currentUser.uid, {
-                                    activeRole: 'client'
-                                  });
-                                  
-                                  // Update local state
-                                  setCombinedUserData(prev => ({
-                                    ...prev,
-                                    activeRole: 'client'
-                                  }));
-                                } catch (error) {
-                                  console.error('Error updating active role:', error);
-                                  // Optionally show error notification to user
-                                }
-                              }}
-                              className="w-full text-center text-xs bg-blue-500 hover:bg-blue-600 text-white py-1.5 px-2 rounded transition-colors duration-200 block"
-                            >
-                              Akun Client
-                            </Link>
-                          )}
-                          
-                          {isFreelancer && combinedUserData?.activeRole !== 'freelancer' && (
-                            <Link 
-                              to="/"
-                              onClick={async () => {
-                                try {
-                                  // Update active role in database
-                                  await updateUserProfile(currentUser.uid, {
-                                    activeRole: 'freelancer'
-                                  });
-                                  
-                                  // Update local state
-                                  setCombinedUserData(prev => ({
-                                    ...prev,
-                                    activeRole: 'freelancer'
-                                  }));
-                                } catch (error) {
-                                  console.error('Error updating active role:', error);
-                                  // Optionally show error notification to user
-                                }
-                              }}
-                              className="w-full text-center text-xs bg-blue-500 hover:bg-blue-600 text-white py-1.5 px-2 rounded transition-colors duration-200 block"
-                            >
-                              Akun Freelancer
-                            </Link>
-                          )}
-                          
-                          {combinedUserData?.roles?.includes('admin') && combinedUserData?.activeRole !== 'admin' && (
-                            <Link 
-                              to="/"
-                              onClick={async () => {
-                                try {
-                                  // Update active role in database
-                                  await updateUserProfile(currentUser.uid, {
-                                    activeRole: 'admin'
-                                  });
-                                  
-                                  // Update local state
-                                  setCombinedUserData(prev => ({
-                                    ...prev,
-                                    activeRole: 'admin'
-                                  }));
-                                } catch (error) {
-                                  console.error('Error updating active role:', error);
-                                  // Optionally show error notification to user
-                                }
-                              }}
-                              className="w-full text-center text-xs bg-blue-500 hover:bg-blue-600 text-white py-1.5 px-2 rounded transition-colors duration-200 block"
-                            >
-                              Akun Admin
-                            </Link>
-                          )}
-                        </div>
-                      )}
+                  {/* Dropdown Menu */}
+                  {isMenuOpen && (
+                    <div className="absolute right-0 mt-2 w-64 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+                      {/* Arrow pointer */}
+                      <div className="absolute -top-2 right-3 w-4 h-4 bg-white transform rotate-45 border-l border-t border-black border-opacity-5"></div>
+                      
+                      <div className="border-b border-gray-100 pb-2 pt-2 px-4">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {combinedUserData?.displayName || currentUser?.displayName || 'Pengguna'}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate mb-2">
+                          {combinedUserData?.email || currentUser?.email}
+                        </p>
+                        {/* Role Switching Buttons */}
+                        {(combinedUserData?.activeRole !== 'client' || 
+                          (isFreelancer && combinedUserData?.activeRole !== 'freelancer') || 
+                          (combinedUserData?.roles?.includes('admin') && combinedUserData?.activeRole !== 'admin')) && (
+                          <div className="border-t border-gray-100 pt-2 space-y-1">
+                            {combinedUserData?.activeRole !== 'client' && (
+                              <Link 
+                                to="/dashboard/client"
+                                onClick={async () => {
+                                  try {
+                                    // Update active role in database
+                                    await updateUserProfile(currentUser.uid, {
+                                      activeRole: 'client'
+                                    });
+                                    
+                                    // Update local state
+                                    setCombinedUserData(prev => ({
+                                      ...prev,
+                                      activeRole: 'client'
+                                    }));
+                                    setIsMenuOpen(false);
+                                  } catch (error) {
+                                    console.error('Error updating active role:', error);
+                                  }
+                                }}
+                                className="w-full text-center text-xs bg-[#010042] hover:bg-blue-700 text-white py-1.5 px-2 rounded transition-colors duration-200 block"
+                              >
+                                Akun Client
+                              </Link>
+                            )}
+                            
+                            {isFreelancer && combinedUserData?.activeRole !== 'freelancer' && (
+                              <Link 
+                                to="/dashboard/freelancer"
+                                onClick={async () => {
+                                  try {
+                                    // Update active role in database
+                                    await updateUserProfile(currentUser.uid, {
+                                      activeRole: 'freelancer'
+                                    });
+                                    
+                                    // Update local state
+                                    setCombinedUserData(prev => ({
+                                      ...prev,
+                                      activeRole: 'freelancer'
+                                    }));
+                                    setIsMenuOpen(false);
+                                  } catch (error) {
+                                    console.error('Error updating active role:', error);
+                                  }
+                                }}
+                                className="w-full text-center text-xs bg-[#010042] hover:bg-blue-700 text-white py-1.5 px-2 rounded transition-colors duration-200 block"
+                              >
+                                Akun Freelancer
+                              </Link>
+                            )}
+                            
+                            {combinedUserData?.roles?.includes('admin') && combinedUserData?.activeRole !== 'admin' && (
+                              <Link 
+                                to="/dashboard/admin"
+                                onClick={async () => {
+                                  try {
+                                    // Update active role in database
+                                    await updateUserProfile(currentUser.uid, {
+                                      activeRole: 'admin'
+                                    });
+                                    
+                                    // Update local state
+                                    setCombinedUserData(prev => ({
+                                      ...prev,
+                                      activeRole: 'admin'
+                                    }));
+                                    setIsMenuOpen(false);
+                                  } catch (error) {
+                                    console.error('Error updating active role:', error);
+                                  }
+                                }}
+                                className="w-full text-center text-xs bg-[#010042] hover:bg-blue-700 text-white py-1.5 px-2 rounded transition-colors duration-200 block"
+                              >
+                                Akun Admin
+                              </Link>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="py-1">
+                        <Link 
+                          to={combinedUserData?.activeRole === 'client' ? '/dashboard/client' :
+                             combinedUserData?.activeRole === 'freelancer' ? '/dashboard/freelancer' :
+                             combinedUserData?.activeRole === 'admin' ? '/dashboard/admin' :
+                             '/dashboard/client'}
+                          className="text-gray-700 hover:bg-gray-100 hover:text-gray-900 group flex items-center px-4 py-2 text-sm"
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-[#010042]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5a2 2 0 012-2h4a2 2 0 012 2v5H8V5z" />
+                          </svg>
+                          Dashboard
+                        </Link>
+                        
+                        <Link 
+                          to="/about" 
+                          className="text-gray-700 hover:bg-gray-100 hover:text-gray-900 group flex items-center px-4 py-2 text-sm"
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-[#010042]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                          </svg>
+                          Tentang
+                        </Link>
+                        
+                        <Link 
+                          to="/contact" 
+                          className="text-gray-700 hover:bg-gray-100 hover:text-gray-900 group flex items-center px-4 py-2 text-sm"
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-[#010042]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+                          </svg>
+                          Kontak
+                        </Link>
+                        
+                        <div className="border-t border-gray-100 my-1"></div>
+                        
+                        <button
+                          onClick={() => {
+                            handleLogout();
+                            setIsMenuOpen(false);
+                          }}
+                          className="text-gray-700 hover:bg-gray-100 hover:text-gray-900 group flex w-full items-center px-4 py-2 text-sm"
+                        >
+                          <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1V7.414l-4-4H3zm9 2.586L15.414 9H12V5.586zM4 6a1 1 0 011-1h4a1 1 0 010 2H5a1 1 0 01-1-1zm1 3a1 1 0 100 2h3a1 1 0 100-2H5zm0 3a1 1 0 100 2h3a1 1 0 100-2H5z" clipRule="evenodd" />
+                          </svg>
+                          Keluar
+                        </button>
+                      </div>
                     </div>
-                    
-                    <div className="py-1">
-                      <MenuItem>
-                        {({ active }) => (
-                          <Link to="/profile" className={`${active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'} group flex items-center px-4 py-2 text-sm`}>
-                            <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-[#010042]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                            </svg>
-                            Profil Saya
-                          </Link>
-                        )}
-                      </MenuItem>
-                      
-                      <MenuItem>
-                        {({ active }) => (
-                          <Link to="/about" className={`${active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'} group flex items-center px-4 py-2 text-sm`}>
-                            <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-[#010042]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                            </svg>
-                            Tentang
-                          </Link>
-                        )}
-                      </MenuItem>
-                      
-                      <MenuItem>
-                        {({ active }) => (
-                          <Link to="/contact" className={`${active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'} group flex items-center px-4 py-2 text-sm`}>
-                            <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-[#010042]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                              <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
-                            </svg>
-                            Kontak
-                          </Link>
-                        )}
-                      </MenuItem>
-                      
-                      <div className="border-t border-gray-100 my-1"></div>
-                      
-                      <MenuItem>
-                        {({ active }) => (
-                          <button
-                            onClick={handleLogout}
-                            className={`${active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'} group flex w-full items-center px-4 py-2 text-sm`}
-                          >
-                            <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1V7.414l-4-4H3zm9 2.586L15.414 9H12V5.586zM4 6a1 1 0 011-1h4a1 1 0 010 2H5a1 1 0 01-1-1zm1 3a1 1 0 100 2h3a1 1 0 100-2H5zm0 3a1 1 0 100 2h3a1 1 0 100-2H5z" clipRule="evenodd" />
-                            </svg>
-                            Keluar
-                          </button>
-                        )}
-                      </MenuItem>
-                    </div>
-                  </MenuItems>
-                </Menu>
+                  )}
+                </div>
               </div>
             </div>
           ) : (

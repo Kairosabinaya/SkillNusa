@@ -550,8 +550,8 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Banner FreelancerCTA - ditampilkan hanya untuk user yang login sebagai client tapi belum menjadi freelancer */}
-      {!isFreelancer && (
+      {/* Banner `Freelancer`CTA - ditampilkan hanya untuk user yang login sebagai client tapi belum menjadi freelancer */}
+      {currentUser && !isFreelancer && (
         <div className="mb-6 relative z-10">
           <FreelancerCTA variant="home" />
         </div>

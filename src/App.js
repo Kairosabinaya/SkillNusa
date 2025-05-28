@@ -5,6 +5,7 @@ import ErrorBoundary from './components/common/ErrorBoundary';
 
 // Layouts
 import PublicLayout from './components/Layout/PublicLayout';
+import DashboardLayout from './components/Layout/DashboardLayout';
 
 // Public Pages
 import Home from './pages/Home';
@@ -34,12 +35,21 @@ import Checkout from './pages/Checkout';
 import Transactions from './pages/Transactions';
 import Messages from './pages/Messages';
 
+// Dashboard Pages
+import ClientDashboard from './pages/Dashboard/ClientDashboard';
+import ClientTransactions from './pages/Dashboard/ClientTransactions';
+import ClientCart from './pages/Dashboard/ClientCart';
+import ClientFavorites from './pages/Dashboard/ClientFavorites';
+import ClientMessages from './pages/Dashboard/ClientMessages';
+
 // Test Pages
 import TestPopulate from './pages/TestPopulate';
 import SeedingPage from './pages/SeedingPage';
 
 // Protected Routes
 import ProtectedRoute from './components/ProtectedRoute';
+import RoleRoute from './components/RoleRoute';
+import DashboardRedirect from './components/DashboardRedirect';
 
 function App() {
   return (
@@ -60,7 +70,80 @@ function App() {
             <Route index element={<GigDetail />} />
           </Route>
 
-          {/* Client Feature Routes */}
+          {/* Dashboard Routes */}
+          <Route 
+            path="/dashboard" 
+            element={
+              <ProtectedRoute>
+                <RoleRoute allowedRoles={['client', 'freelancer', 'admin']}>
+                  <DashboardLayout />
+                </RoleRoute>
+              </ProtectedRoute>
+            }
+          >
+            {/* Dashboard root redirect */}
+            <Route 
+              index 
+              element={
+                <DashboardRedirect />
+              } 
+            />
+            
+            {/* Client Dashboard Routes */}
+            <Route 
+              path="client" 
+              element={
+                <RoleRoute allowedRoles="client">
+                  <ClientDashboard />
+                </RoleRoute>
+              } 
+            />
+            <Route 
+              path="client/transactions" 
+              element={
+                <RoleRoute allowedRoles="client">
+                  <ClientTransactions />
+                </RoleRoute>
+              } 
+            />
+            <Route 
+              path="client/cart" 
+              element={
+                <RoleRoute allowedRoles="client">
+                  <ClientCart />
+                </RoleRoute>
+              } 
+            />
+            <Route 
+              path="client/favorites" 
+              element={
+                <RoleRoute allowedRoles="client">
+                  <ClientFavorites />
+                </RoleRoute>
+              } 
+            />
+            <Route 
+              path="client/messages" 
+              element={
+                <RoleRoute allowedRoles="client">
+                  <ClientMessages />
+                </RoleRoute>
+              } 
+            />
+            <Route 
+              path="client/messages/:chatId" 
+              element={
+                <RoleRoute allowedRoles="client">
+                  <ClientMessages />
+                </RoleRoute>
+              } 
+            />
+            
+            {/* TODO: Add Freelancer Dashboard Routes */}
+            {/* TODO: Add Admin Dashboard Routes */}
+          </Route>
+
+          {/* Legacy Client Feature Routes (for backward compatibility) */}
           <Route 
             path="/favorites" 
             element={

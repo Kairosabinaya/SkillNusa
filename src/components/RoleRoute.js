@@ -1,48 +1,53 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import LoadingSpinner from './UI/LoadingSpinner';
 import PropTypes from 'prop-types';
 import { ROUTES } from '../routes';
 import { useEffect, useState } from 'react';
 
 /**
- * A route wrapper component that checks if the user has the required role(s)
- * Simplified to use isFreelancer property
+ * Route component that checks user role before allowing access
+ * @param {Object} props - Component props
+ * @param {React.ReactNode} props.children - Child components to render if access is allowed
+ * @param {string|Array<string>} props.allowedRoles - Role(s) allowed to access this route
+ * @param {string} props.redirectTo - Path to redirect if access is denied (default: '/')
+ * @returns {React.ReactNode} - Rendered children or redirect
  */
-export default function RoleRoute({ roles, children, redirectTo = ROUTES.HOME }) {
-  const { userProfile, currentUser, loading } = useAuth();
-  const [isChecking, setIsChecking] = useState(true);
+export default function RoleRoute({ 
+  children, 
+  allowedRoles, 
+  redirectTo = '/' 
+}) {
+  const { currentUser, userProfile, loading } = useAuth();
 
-  useEffect(() => {
-    // If auth is no longer loading and we have user data, we can stop checking
-    if (!loading && userProfile) {
-      setIsChecking(false);
-    }
-  }, [loading, userProfile]);
-
-  // Show loading state while checking authentication or profile
-  if (loading || isChecking) {
-    // You can replace this with a loading spinner component
-    return <div className="flex items-center justify-center h-screen">Loading...</div>;
+  // Show loading while auth state is being determined
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <LoadingSpinner size="large" text="Memuat..." />
+      </div>
+    );
   }
 
-  // If user is not authenticated, redirect
-  if (!currentUser || !userProfile) {
-    return <Navigate to={ROUTES.LOGIN} replace />;
+  // Redirect if user is not authenticated
+  if (!currentUser) {
+    return <Navigate to="/login" replace />;
   }
   
-  // Check if user has the required role based on isFreelancer property
-  const hasRequiredRole = roles.some(role => {
-    if (role === 'freelancer') {
-      return userProfile.isFreelancer === true;
-    } else if (role === 'client') {
-      return !userProfile.isFreelancer;
-    } else if (role === 'admin') {
-      return userProfile.roles && userProfile.roles.includes('admin');
-    }
-    return false;
-  });
-    
-  if (!hasRequiredRole) {
+  // Redirect if user profile is not loaded yet
+  if (!userProfile) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <LoadingSpinner size="large" text="Memuat profil..." />
+      </div>
+    );
+  }
+
+  // Check if user's active role is allowed
+  const userRole = userProfile.activeRole;
+  const rolesArray = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
+  
+  if (!rolesArray.includes(userRole)) {
     return <Navigate to={redirectTo} replace />;
   }
 
@@ -50,7 +55,10 @@ export default function RoleRoute({ roles, children, redirectTo = ROUTES.HOME })
 } 
 
 RoleRoute.propTypes = {
-  roles: PropTypes.arrayOf(PropTypes.string).isRequired,
+  allowedRoles: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.arrayOf(PropTypes.string)
+  ]).isRequired,
   children: PropTypes.node.isRequired,
   redirectTo: PropTypes.string
 }; 
