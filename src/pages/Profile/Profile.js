@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import LoadingSpinner from '../../components/UI/LoadingSpinner';
 import FreelancerCTA from '../../components/UI/FreelancerCTA';
-import MeshGradientBackground from '../../components/UI/MeshGradientBackground';
+import ParticleBackground from '../../components/UI/ParticleBackground';
 import DeleteAccountModal from '../../components/Profile/DeleteAccountModal';
 import { uploadProfilePhoto as uploadToCloudinary } from '../../services/cloudinaryService';
 import { getUserProfile, updateUserProfile } from '../../services/userProfileService';
@@ -198,6 +198,8 @@ export default function Profile() {
       // Penanganan foto baru menggunakan Cloudinary
       let photoURL = null;
       let photoPublicId = null;
+      let photoWasUpdated = false;
+      
       if (photoFile) {
         try {
           const uploadResult = await uploadProfilePhotoToCloudinary();
@@ -207,6 +209,7 @@ export default function Profile() {
           }
           photoURL = uploadResult.url;
           photoPublicId = uploadResult.publicId;
+          photoWasUpdated = true;
           } catch (photoError) {
           throw new Error('Gagal mengupload foto: ' + (photoError.message || 'Unknown error'));
         }
@@ -240,6 +243,13 @@ export default function Profile() {
         setPhotoPreview(null);
         setEditedData({});
         alert('Profil berhasil diperbarui!');
+        
+        // Reload halaman jika foto profil diupdate untuk memastikan semua komponen mendapat foto terbaru
+        if (photoWasUpdated) {
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000); // Delay 1 detik agar user bisa melihat pesan sukses
+        }
       } else {
         alert('Gagal menyimpan perubahan profil. Silakan coba lagi.');
       }
@@ -258,7 +268,7 @@ export default function Profile() {
     <div className="min-h-screen bg-gray-50/50 relative">
       {/* Particle Background */}
       <div className="absolute inset-0 overflow-hidden opacity-80">
-        <MeshGradientBackground variant="dashboard" />
+        <ParticleBackground variant="dashboard" />
       </div>
       
       <div className="max-w-7xl mx-auto px-6 py-12 pb-24 relative">
@@ -345,22 +355,9 @@ export default function Profile() {
                   </h1>
                 )}
                 <p className="text-gray-500 mb-2">{combinedUserData?.email}</p>
-                <div className="text-sm font-medium text-gray-900 mb-4">
+                <div className="text-sm font-medium text-gray-900">
                   {combinedUserData?.activeRole?.charAt(0).toUpperCase() + combinedUserData?.activeRole?.slice(1)}
                 </div>
-                
-                {/* Edit Profile Button */}
-                {!isEditing && (
-                  <button
-                    onClick={toggleEditMode}
-                    className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#010042] transition-colors duration-200"
-                  >
-                    <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                    Edit Profile
-                  </button>
-                )}
               </div>
             </div>
 

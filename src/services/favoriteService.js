@@ -276,13 +276,25 @@ class FavoriteService {
     try {
       const isFav = await this.isFavorited(userId, gigId);
       
+      let result;
       if (isFav) {
         await this.removeFromFavorites(userId, gigId);
-        return { isFavorited: false, message: 'Dihapus dari favorit' };
+        result = { isFavorited: false, message: 'Dihapus dari favorit' };
       } else {
         await this.addToFavorites(userId, gigId);
-        return { isFavorited: true, message: 'Ditambahkan ke favorit' };
+        result = { isFavorited: true, message: 'Ditambahkan ke favorit' };
       }
+      
+      // Refresh dashboard stats if available
+      if (typeof window.refreshClientDashboardStats === 'function') {
+        try {
+          await window.refreshClientDashboardStats();
+        } catch (error) {
+          console.warn('Failed to refresh dashboard stats:', error);
+        }
+      }
+      
+      return result;
     } catch (error) {
       console.error('Error toggling favorite:', error);
       throw error;

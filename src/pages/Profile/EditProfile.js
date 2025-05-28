@@ -113,10 +113,13 @@ export default function EditProfile() {
 
       // Upload photo if selected
       let photoURL = userProfile?.profilePhoto || null;
+      let photoWasUpdated = false;
+      
       if (photoFile) {
         const storageRef = ref(storage, `profilePhotos/${currentUser.uid}`);
         await uploadBytes(storageRef, photoFile);
         photoURL = await getDownloadURL(storageRef);
+        photoWasUpdated = true;
       }
 
       // Update Firestore user document
@@ -137,8 +140,15 @@ export default function EditProfile() {
       await fetchUserProfile();
       
       setSuccess('Profile updated successfully!');
+      
       setTimeout(() => {
-        navigate('/profile');
+        if (photoWasUpdated) {
+          // Reload halaman jika foto profil diupdate
+          window.location.href = '/profile';
+        } else {
+          // Navigate biasa jika hanya update data tanpa foto
+          navigate('/profile');
+        }
       }, 2000);
     } catch (error) {
       setError('Failed to update profile. Please try again.');

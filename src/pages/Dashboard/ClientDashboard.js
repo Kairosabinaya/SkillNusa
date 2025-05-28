@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { motion } from 'framer-motion';
@@ -9,6 +9,8 @@ import { uploadProfilePhoto as uploadToCloudinary } from '../../services/cloudin
 import { getUserProfile, updateUserProfile } from '../../services/userProfileService';
 import { getIndonesianCities } from '../../services/profileService';
 import orderService from '../../services/orderService';
+import favoriteService from '../../services/favoriteService';
+import cartService from '../../services/cartService';
 
 export default function ClientDashboard() {
   const { userProfile, currentUser, loading: authLoading } = useAuth();
@@ -33,6 +35,60 @@ export default function ClientDashboard() {
     totalCart: 0
   });
   const [statsLoading, setStatsLoading] = useState(true);
+
+  // Function to refresh stats - can be called from other components
+  const refreshStats = useCallback(async () => {
+    if (!currentUser) return;
+    
+    try {
+      setStatsLoading(true);
+      console.log('ClientDashboard - Refreshing stats for user:', currentUser.uid);
+      
+      // Fetch all stats in parallel for better performance
+      const [orders, favorites, cartCount] = await Promise.all([
+        orderService.getOrdersWithDetails(currentUser.uid, 'client'),
+        favoriteService.getUserFavorites(currentUser.uid),
+        Promise.resolve(cartService.getCartCount(currentUser.uid))
+      ]);
+      
+      const newStats = {
+        totalTransactions: orders.length,
+        totalFavorites: favorites.length,
+        totalMessages: 0, // TODO: Implement message counting service
+        totalCart: cartCount
+      };
+      
+      console.log('ClientDashboard - Stats refreshed:', newStats);
+      setStats(newStats);
+      return newStats;
+    } catch (error) {
+      console.error('Error refreshing stats:', error);
+      // Set default stats on error
+      setStats({
+        totalTransactions: 0,
+        totalFavorites: 0,
+        totalMessages: 0,
+        totalCart: 0
+      });
+      return null;
+    } finally {
+      setStatsLoading(false);
+    }
+  }, [currentUser]);
+
+  // Expose refreshStats globally for other components to use
+  useEffect(() => {
+    if (currentUser) {
+      window.refreshClientDashboardStats = refreshStats;
+    }
+    
+    return () => {
+      // Clean up global function when component unmounts
+      if (window.refreshClientDashboardStats === refreshStats) {
+        delete window.refreshClientDashboardStats;
+      }
+    };
+  }, [currentUser, refreshStats]);
 
   // Update combinedUserData when component data changes
   useEffect(() => {
@@ -74,41 +130,10 @@ export default function ClientDashboard() {
 
   // Fetch dashboard stats
   useEffect(() => {
-    const fetchStats = async () => {
-      if (!currentUser) {
-        console.log('ClientDashboard - No currentUser for stats');
-        return;
-      }
-      
-      try {
-        setStatsLoading(true);
-        console.log('ClientDashboard - Fetching stats for user:', currentUser.uid);
-        
-        // Fetch transactions count
-        const orders = await orderService.getOrdersWithDetails(currentUser.uid, 'client');
-        
-        // Fetch other stats from localStorage (since we don't have dedicated services yet)
-        const favorites = JSON.parse(localStorage.getItem(`favorites_${currentUser.uid}`)) || [];
-        const cart = JSON.parse(localStorage.getItem(`cart_${currentUser.uid}`)) || [];
-        
-        const newStats = {
-          totalTransactions: orders.length,
-          totalFavorites: favorites.length,
-          totalMessages: 0, // TODO: Implement message counting
-          totalCart: cart.length
-        };
-        
-        console.log('ClientDashboard - Stats fetched:', newStats);
-        setStats(newStats);
-      } catch (error) {
-        console.error('Error fetching stats:', error);
-      } finally {
-        setStatsLoading(false);
-      }
-    };
-    
-    fetchStats();
-  }, [currentUser]);
+    if (currentUser) {
+      refreshStats();
+    }
+  }, [currentUser, refreshStats]);
 
   useEffect(() => {
     async function fetchProfileData() {
@@ -267,12 +292,14 @@ export default function ClientDashboard() {
       setSaving(true);
       let photoURL = null;
       let photoPublicId = null;
+      let photoWasUpdated = false;
 
       if (photoFile) {
         const uploadResult = await uploadProfilePhotoToCloudinary();
         if (uploadResult) {
           photoURL = uploadResult.url;
           photoPublicId = uploadResult.publicId;
+          photoWasUpdated = true;
         }
       }
 
@@ -286,22 +313,35 @@ export default function ClientDashboard() {
         updateData.profilePhotoPublicId = photoPublicId;
       }
 
-      await updateUserProfile(currentUser.uid, updateData);
+      const success = await updateUserProfile(currentUser.uid, updateData, true);
       
-      setProfileData(prev => ({
-        ...prev,
-        ...updateData
-      }));
-      
-      setIsEditing(false);
-      setEditedData({});
-      setPhotoFile(null);
-      setPhotoPreview(null);
-      alert('Profil berhasil diperbarui!');
-      
+      if (success) {
+        const updatedProfile = await getUserProfile(currentUser.uid);
+        setProfileData(updatedProfile);
+        setCombinedUserData({
+          ...userProfile,
+          ...updatedProfile
+        });
+        
+        // Exit edit mode dan reset semua state
+        setIsEditing(false);
+        setEditedData({});
+        setPhotoFile(null);
+        setPhotoPreview(null);
+        
+        alert('Profil berhasil diperbarui!');
+        
+        // Reload halaman jika foto profil diupdate untuk memastikan semua komponen mendapat foto terbaru
+        if (photoWasUpdated) {
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000); // Delay 1 detik agar user bisa melihat pesan sukses
+        }
+      } else {
+        alert('Gagal menyimpan perubahan profil. Silakan coba lagi.');
+      }
     } catch (error) {
-      console.error('Error saving profile:', error);
-      alert('Gagal menyimpan profil: ' + error.message);
+      alert('Gagal menyimpan perubahan profil: ' + (error.message || 'Unknown error'));
     } finally {
       clearTimeout(saveTimeout);
       setSaving(false);
@@ -584,14 +624,18 @@ export default function ClientDashboard() {
                   >
                     <option value="">Pilih Kota</option>
                     {cities.map((city) => (
-                      <option key={city} value={city}>
-                        {city}
+                      <option key={city.id} value={city.id}>
+                        {city.name}
                       </option>
                     ))}
                   </select>
                 ) : (
                   <p className="text-gray-900 py-2">
-                    {combinedUserData?.location?.charAt(0).toUpperCase() + combinedUserData?.location?.slice(1) || '-'}
+                    {combinedUserData?.location ? 
+                      cities.find(city => city.id === combinedUserData.location)?.name ||
+                      combinedUserData.location.charAt(0).toUpperCase() + combinedUserData.location.slice(1) : 
+                      '-'
+                    }
                   </p>
                 )}
               </div>
@@ -609,13 +653,20 @@ export default function ClientDashboard() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
                   >
                     <option value="">Pilih Jenis Kelamin</option>
-                    <option value="male">Laki-laki</option>
-                    <option value="female">Perempuan</option>
+                    <option value="Male">Laki-laki</option>
+                    <option value="Female">Perempuan</option>
+                    <option value="Other">Lainnya</option>
+                    <option value="Prefer not to say">Tidak ingin memberi tahu</option>
                   </select>
                 ) : (
                   <p className="text-gray-900 py-2">
-                    {combinedUserData?.gender === 'male' ? 'Laki-laki' : 
-                     combinedUserData?.gender === 'female' ? 'Perempuan' : '-'}
+                    {combinedUserData?.gender ? (
+                      combinedUserData.gender === 'Male' || combinedUserData.gender === 'male' ? 'Laki-laki' : 
+                      combinedUserData.gender === 'Female' || combinedUserData.gender === 'female' ? 'Perempuan' : 
+                      combinedUserData.gender === 'Other' ? 'Lainnya' :
+                      combinedUserData.gender === 'Prefer not to say' ? 'Tidak ingin memberi tahu' :
+                      combinedUserData.gender
+                    ) : '-'}
                   </p>
                 )}
               </div>
