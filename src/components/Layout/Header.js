@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/react';
 import { useAuth } from '../../context/AuthContext';
 import { useState, useEffect } from 'react';
@@ -7,11 +7,24 @@ import { getUserProfile, updateUserProfile } from '../../services/userProfileSer
 export default function Header() {
   const { currentUser, userProfile, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [profileData, setProfileData] = useState(null);
 
   const [combinedUserData, setCombinedUserData] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  // Check if current page is browse
+  const isBrowsePage = location.pathname === '/browse';
+
+  // Get initial search query from URL params if on browse page
+  useEffect(() => {
+    if (isBrowsePage) {
+      const urlParams = new URLSearchParams(location.search);
+      const initialSearch = urlParams.get('search') || '';
+      setSearchQuery(initialSearch);
+    }
+  }, [location, isBrowsePage]);
 
   // Fetch complete profile data using the service
   useEffect(() => {
@@ -345,26 +358,54 @@ export default function Header() {
             </div>
           ) : (
             /* Non-logged in navigation */
-            <div className="flex items-center">
-              <nav className="hidden md:flex items-center space-x-8 mr-8">
-                <Link to="/" className="inline-flex items-center px-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-900 hover:border-[#010042] transition-all duration-200">
-                  Beranda
-                </Link>
-                <Link to="/about" className="inline-flex items-center px-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-900 hover:border-[#010042] transition-all duration-200">
-                  Tentang
-                </Link>
-                <Link to="/contact" className="inline-flex items-center px-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-900 hover:border-[#010042] transition-all duration-200">
-                  Kontak
-                </Link>
-              </nav>
+            <div className={`flex items-center ${isBrowsePage ? 'flex-grow justify-between' : ''}`}>
+              {/* Search Bar - only show on browse page for non-logged users */}
+              {isBrowsePage && (
+                <div className="flex-grow max-w-xl mx-4">
+                  <form onSubmit={handleSearchSubmit}>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Cari layanan, keahlian, atau proyek..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full px-4 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
+                      />
+                      <button 
+                        type="submit" 
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-[#010042]"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
               
-              <div className="flex items-center space-x-4">
-                <Link to="/login" className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-[#010042] hover:bg-[#0100a3] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#010042]">
-                  Masuk
-                </Link>
-                <Link to="/register" className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#010042]">
-                  Daftar
-                </Link>
+              {/* Navigation and Auth buttons - always positioned on the right */}
+              <div className="flex items-center">
+                <nav className="hidden md:flex items-center space-x-8 mr-8">
+                  <Link to="/" className="inline-flex items-center px-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-900 hover:border-[#010042] transition-all duration-200">
+                    Beranda
+                  </Link>
+                  <Link to="/about" className="inline-flex items-center px-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-900 hover:border-[#010042] transition-all duration-200">
+                    Tentang
+                  </Link>
+                  <Link to="/contact" className="inline-flex items-center px-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-900 hover:border-[#010042] transition-all duration-200">
+                    Kontak
+                  </Link>
+                </nav>
+                
+                <div className="flex items-center space-x-4">
+                  <Link to="/login" className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-[#010042] hover:bg-[#0100a3] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#010042]">
+                    Masuk
+                  </Link>
+                  <Link to="/register" className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#010042]">
+                    Daftar
+                  </Link>
+                </div>
               </div>
             </div>
           )}
