@@ -292,6 +292,71 @@ export default function FreelancerDashboard() {
     return 'Baru saja';
   };
 
+  // Format functions for profile display
+  const formatSkills = (skills) => {
+    if (!skills || !Array.isArray(skills) || skills.length === 0) return '-';
+    
+    return skills.map(skillObj => {
+      if (typeof skillObj === 'object' && skillObj !== null) {
+        const skill = skillObj.skill || '';
+        const level = skillObj.experienceLevel || '';
+        return `${skill}${level ? ` (${getExperienceLevelLabel(level)})` : ''}`;
+      } else if (typeof skillObj === 'string') {
+        return skillObj;
+      }
+      return '';
+    }).filter(Boolean).join(', ');
+  };
+
+  const formatCertifications = (certifications) => {
+    if (!certifications || !Array.isArray(certifications) || certifications.length === 0) return '-';
+    
+    return certifications.map(cert => {
+      if (typeof cert === 'object' && cert !== null) {
+        const name = cert.name || '';
+        const issuedBy = cert.issuedBy || '';
+        const year = cert.year || '';
+        return `${name}${issuedBy ? ` dari ${issuedBy}` : ''}${year ? ` (${year})` : ''}`;
+      } else if (typeof cert === 'string') {
+        return cert;
+      }
+      return '';
+    }).filter(Boolean).join(', ');
+  };
+
+  const formatGender = (gender) => {
+    if (gender === 'male') return 'Laki-laki';
+    if (gender === 'female') return 'Perempuan';
+    return '-';
+  };
+
+  const getExperienceLevelLabel = (level) => {
+    const levels = {
+      'pemula': 'Pemula',
+      'menengah': 'Menengah',
+      'ahli': 'Ahli'
+    };
+    return levels[level?.toLowerCase()] || level || '-';
+  };
+
+  const formatEducation = (education) => {
+    if (!education || !Array.isArray(education) || education.length === 0) return '-';
+    
+    return education.map(edu => {
+      if (typeof edu === 'object' && edu !== null) {
+        const degree = edu.degree || '-';
+        const university = edu.university || edu.institution || '-';
+        const fieldOfStudy = edu.fieldOfStudy ? `, ${edu.fieldOfStudy}` : '';
+        const graduationYear = edu.graduationYear || '-';
+        const country = edu.country ? ` (${edu.country})` : '';
+        return `${degree}${fieldOfStudy} di ${university}${country} (${graduationYear})`;
+      } else if (typeof edu === 'string') {
+        return edu;
+      }
+      return '';
+    }).filter(Boolean).join(', ');
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -470,50 +535,159 @@ export default function FreelancerDashboard() {
         </motion.div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Recent Activities */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          className="lg:col-span-2"
-        >
-          <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Aktivitas Terbaru</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+        <div className="lg:col-span-2 flex flex-col gap-8">
+          {/* Freelancer Profile Section */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="bg-white rounded-lg shadow"
+          >
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+              <h2 className="text-lg font-semibold text-gray-900">Profil Freelancer</h2>
+              <Link 
+                to="/dashboard/freelancer/settings" 
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-[#010042] hover:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+              >
+                Edit Profil
+              </Link>
             </div>
-            <div className="divide-y divide-gray-200">
-              {recentActivities.length > 0 ? (
-                recentActivities.map((activity) => (
-                  <div key={activity.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
-                    <div className="flex items-start">
-                      <div className="flex-shrink-0">
-                        {getActivityIcon(activity.type)}
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                {/* Profile Picture and Basic Info */}
+                <div className="md:col-span-1">
+                  <div className="flex flex-col items-center">
+                    {userProfile?.profilePhoto ? (
+                      <img 
+                        src={userProfile.profilePhoto} 
+                        alt="Profile" 
+                        className="w-32 h-32 rounded-full object-cover border-4 border-[#010042]" 
+                      />
+                    ) : (
+                      <div className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center border-4 border-[#010042]">
+                        <UserIcon className="h-16 w-16 text-gray-400" />
                       </div>
-                      <div className="ml-3 flex-1">
-                        <p className="text-sm text-gray-900">{activity.message}</p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {formatTime(activity.createdAt)}
+                    )}
+                    <h3 className="text-xl font-bold text-gray-900 mt-4">
+                      {userProfile?.displayName || 'Nama Freelancer'}
+                    </h3>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {userProfile?.email || 'email@example.com'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Bio & Skills Section */}
+                <div className="md:col-span-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-500 mb-1">Bio</h4>
+                        <p className="text-sm text-gray-900">
+                          {userProfile?.bio || '-'}
+                        </p>
+                      </div>
+
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-500 mb-1">Keahlian</h4>
+                        <p className="text-sm text-gray-900">
+                          {formatSkills(freelancerProfile?.skills)}
+                        </p>
+                      </div>
+
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-500 mb-1">Pendidikan</h4>
+                        <p className="text-sm text-gray-900">
+                          {formatEducation(freelancerProfile?.education)}
                         </p>
                       </div>
                     </div>
+
+                    <div className="space-y-4">
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-500 mb-1">Sertifikasi & Penghargaan</h4>
+                        <p className="text-sm text-gray-900">
+                          {formatCertifications(freelancerProfile?.certifications)}
+                        </p>
+                      </div>
+
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-500 mb-1">Kontak</h4>
+                        <div className="grid grid-cols-2 gap-2 text-sm text-gray-900">
+                          <div>
+                            <span className="text-gray-500">Telepon:</span> {userProfile?.phoneNumber || '-'}
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Lokasi:</span> {userProfile?.location ? userProfile.location.charAt(0).toUpperCase() + userProfile.location.slice(1) : '-'}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-500 mb-1">Ketersediaan</h4>
+                        <div className="grid grid-cols-2 gap-2 text-sm text-gray-900">
+                          <div>
+                            <span className="text-gray-500">Status:</span>{' '}
+                            <span className={`${freelancerProfile?.availability === 'available' ? 'text-green-600' : 'text-red-600'}`}>
+                              {freelancerProfile?.availability === 'available' ? 'Tersedia' : 'Tidak Tersedia'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Jam Kerja:</span> {freelancerProfile?.workingHours || '-'}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                ))
-              ) : (
-                <div className="px-6 py-12 text-center">
-                  <p className="text-gray-500">Belum ada aktivitas terbaru</p>
                 </div>
-              )}
+              </div>
             </div>
-          </div>
-        </motion.div>
+          </motion.div>
+
+          {/* Recent Activities */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+          >
+            <div className="bg-white rounded-lg shadow">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-900">Aktivitas Terbaru</h2>
+              </div>
+              <div className="divide-y divide-gray-200">
+                {recentActivities.length > 0 ? (
+                  recentActivities.map((activity) => (
+                    <div key={activity.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
+                      <div className="flex items-start">
+                        <div className="flex-shrink-0">
+                          {getActivityIcon(activity.type)}
+                        </div>
+                        <div className="ml-3 flex-1">
+                          <p className="text-sm text-gray-900">{activity.message}</p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {formatTime(activity.createdAt)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-6 py-12 text-center">
+                    <p className="text-gray-500">Belum ada aktivitas terbaru</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        </div>
 
         {/* Seller Level Progress */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
-          className="bg-white rounded-lg shadow"
+          className="bg-white rounded-lg shadow h-full"
         >
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-900">Level Seller</h2>

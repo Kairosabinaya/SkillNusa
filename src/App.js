@@ -162,6 +162,7 @@ function App() {
                 </RoleRoute>
               } 
             />
+            {/* Route untuk profile sudah diintegrasikan ke dalam FreelancerDashboard */}
             <Route 
               path="freelancer/guides" 
               element={
