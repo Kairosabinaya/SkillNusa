@@ -18,7 +18,7 @@ export default function DashboardLayout({ children }) {
   const [combinedUserData, setCombinedUserData] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [switchingRole, setSwitchingRole] = useState(null);
+  // No longer need switchingRole state as we've removed role switching functionality
 
   // Fetch complete profile data using the service
   useEffect(() => {
@@ -57,22 +57,9 @@ export default function DashboardLayout({ children }) {
     }
   };
 
-  // Handle profile photo click - redirect to appropriate dashboard
+  // Handle profile photo click - always redirect to client dashboard
   const handleProfilePhotoClick = () => {
-    const activeRole = combinedUserData?.activeRole || 'client';
-    switch (activeRole) {
-      case 'client':
-        navigate('/dashboard/client');
-        break;
-      case 'freelancer':
-        navigate('/dashboard/freelancer');
-        break;
-      case 'admin':
-        navigate('/dashboard/admin');
-        break;
-      default:
-        navigate('/dashboard/client');
-    }
+    navigate('/dashboard/client');
   };
 
   // Check if the user is a freelancer
@@ -418,7 +405,7 @@ export default function DashboardLayout({ children }) {
               whileHover={{ x: 2 }}
               transition={{ type: "spring", stiffness: 400 }}
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v6" />
             </motion.svg>
             Keluar
           </motion.button>
@@ -562,9 +549,9 @@ export default function DashboardLayout({ children }) {
                     <div
                       onClick={handleProfilePhotoClick}
                       className="bg-white rounded-full flex text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#010042] cursor-pointer"
-                      title="Klik untuk dashboard, hover untuk menu"
+                      title="Klik untuk dashboard client"
                     >
-                      <span className="sr-only">Buka dashboard atau menu</span>
+                      <span className="sr-only">Buka dashboard client</span>
                       <div className="h-8 w-8 rounded-full bg-[#010042]/10 flex items-center justify-center text-[#010042] overflow-hidden border border-gray-200 hover:border-[#010042] transition-all duration-200">
                         {combinedUserData?.profilePhoto ? (
                           <img 
@@ -594,122 +581,12 @@ export default function DashboardLayout({ children }) {
                           <p className="text-xs text-gray-500 truncate mb-2">
                             {combinedUserData?.email || currentUser?.email}
                           </p>
-                          {/* Role Switching Buttons */}
-                          {(combinedUserData?.activeRole !== 'client' || 
-                            (isFreelancer && combinedUserData?.activeRole !== 'freelancer') || 
-                            (combinedUserData?.roles?.includes('admin') && combinedUserData?.activeRole !== 'admin')) && (
-                            <div className="border-t border-gray-100 pt-2 space-y-1">
-                              {combinedUserData?.activeRole !== 'client' && (
-                                <button 
-                                  onClick={async () => {
-                                    try {
-                                      // Set visual feedback for switching role
-                                      setSwitchingRole('client');
-                                      
-                                      // Update active role in database
-                                      await updateUserProfile(currentUser.uid, {
-                                        activeRole: 'client'
-                                      });
-                                      
-                                      // Update local state
-                                      setCombinedUserData(prev => ({
-                                        ...prev,
-                                        activeRole: 'client'
-                                      }));
-                                      
-                                      // Navigate to client dashboard and close menu
-                                      navigate('/dashboard/client');
-                                      setIsMenuOpen(false);
-                                      setSwitchingRole(null);
-                                    } catch (error) {
-                                      console.error('Error updating active role:', error);
-                                      setSwitchingRole(null);
-                                    }
-                                  }}
-                                  disabled={switchingRole === 'client'}
-                                  className={`w-full text-center text-xs ${switchingRole === 'client' ? 'bg-blue-300 cursor-wait' : 'bg-[#010042] hover:bg-blue-700 cursor-pointer'} text-white py-1.5 px-2 rounded transition-colors duration-200 block`}
-                                >
-                                  {switchingRole === 'client' ? 'Beralih...' : 'Akun Client'}
-                                </button>
-                              )}
-                              
-                              {isFreelancer && combinedUserData?.activeRole !== 'freelancer' && (
-                                <button 
-                                  onClick={async () => {
-                                    try {
-                                      // Set visual feedback for switching role
-                                      setSwitchingRole('freelancer');
-                                      
-                                      // Update active role in database
-                                      await updateUserProfile(currentUser.uid, {
-                                        activeRole: 'freelancer'
-                                      });
-                                      
-                                      // Update local state
-                                      setCombinedUserData(prev => ({
-                                        ...prev,
-                                        activeRole: 'freelancer'
-                                      }));
-                                      
-                                      // Navigate to freelancer dashboard and close menu
-                                      navigate('/dashboard/freelancer');
-                                      setIsMenuOpen(false);
-                                      setSwitchingRole(null);
-                                    } catch (error) {
-                                      console.error('Error updating active role:', error);
-                                      setSwitchingRole(null);
-                                    }
-                                  }}
-                                  disabled={switchingRole === 'freelancer'}
-                                  className={`w-full text-center text-xs ${switchingRole === 'freelancer' ? 'bg-blue-300 cursor-wait' : 'bg-[#010042] hover:bg-blue-700 cursor-pointer'} text-white py-1.5 px-2 rounded transition-colors duration-200 block`}
-                                >
-                                  {switchingRole === 'freelancer' ? 'Beralih...' : 'Akun Freelancer'}
-                                </button>
-                              )}
-                              
-                              {combinedUserData?.roles?.includes('admin') && combinedUserData?.activeRole !== 'admin' && (
-                                <button 
-                                  onClick={async () => {
-                                    try {
-                                      // Set visual feedback for switching role
-                                      setSwitchingRole('admin');
-                                      
-                                      // Update active role in database
-                                      await updateUserProfile(currentUser.uid, {
-                                        activeRole: 'admin'
-                                      });
-                                      
-                                      // Update local state
-                                      setCombinedUserData(prev => ({
-                                        ...prev,
-                                        activeRole: 'admin'
-                                      }));
-                                      
-                                      // Navigate to admin dashboard and close menu
-                                      navigate('/dashboard/admin');
-                                      setIsMenuOpen(false);
-                                      setSwitchingRole(null);
-                                    } catch (error) {
-                                      console.error('Error updating active role:', error);
-                                      setSwitchingRole(null);
-                                    }
-                                  }}
-                                  disabled={switchingRole === 'admin'}
-                                  className={`w-full text-center text-xs ${switchingRole === 'admin' ? 'bg-blue-300 cursor-wait' : 'bg-[#010042] hover:bg-blue-700 cursor-pointer'} text-white py-1.5 px-2 rounded transition-colors duration-200 block`}
-                                >
-                                  {switchingRole === 'admin' ? 'Beralih...' : 'Akun Admin'}
-                                </button>
-                              )}
-                            </div>
-                          )}
                         </div>
                         
                         <div className="py-1">
+                          {/* Client Dashboard */}
                           <Link 
-                            to={combinedUserData?.activeRole === 'client' ? '/dashboard/client' :
-                               combinedUserData?.activeRole === 'freelancer' ? '/dashboard/freelancer' :
-                               combinedUserData?.activeRole === 'admin' ? '/dashboard/admin' :
-                               '/dashboard/client'}
+                            to="/dashboard/client"
                             className="text-gray-700 hover:bg-gray-100 hover:text-gray-900 group flex items-center px-4 py-2 text-sm"
                             onClick={() => setIsMenuOpen(false)}
                           >
@@ -717,8 +594,39 @@ export default function DashboardLayout({ children }) {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" />
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5a2 2 0 012-2h4a2 2 0 012 2v5H8V5z" />
                             </svg>
-                            Dashboard
+                            Dashboard Client
                           </Link>
+                          
+                          {/* Freelancer Dashboard (conditional) */}
+                          {isFreelancer && (
+                            <Link 
+                              to="/dashboard/freelancer"
+                              className="text-gray-700 hover:bg-gray-100 hover:text-gray-900 group flex items-center px-4 py-2 text-sm"
+                              onClick={() => setIsMenuOpen(false)}
+                            >
+                              <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-[#010042]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                              </svg>
+                              Dashboard Freelancer
+                            </Link>
+                          )}
+                          
+                          {/* Admin Dashboard (conditional) */}
+                          {combinedUserData?.roles?.includes('admin') && (
+                            <Link 
+                              to="/dashboard/admin"
+                              className="text-gray-700 hover:bg-gray-100 hover:text-gray-900 group flex items-center px-4 py-2 text-sm"
+                              onClick={() => setIsMenuOpen(false)}
+                            >
+                              <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-[#010042]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              </svg>
+                              Dashboard Admin
+                            </Link>
+                          )}
+                          
+                          <div className="border-t border-gray-100 my-1"></div>
                           
                           <Link 
                             to="/about" 

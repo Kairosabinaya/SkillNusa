@@ -43,15 +43,32 @@ export default function RoleRoute({
     );
   }
 
-  // Check if user's active role is allowed
-  const userRole = userProfile.activeRole;
+  // Check if user has the required role
   const rolesArray = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
   
-  if (!rolesArray.includes(userRole)) {
-    return <Navigate to={redirectTo} replace />;
+  // For client role, always allow access
+  if (rolesArray.includes('client')) {
+    return children;
   }
-
-  return children;
+  
+  // For freelancer role, check if user is a freelancer
+  if (rolesArray.includes('freelancer')) {
+    const hasFreelancerRole = userProfile.roles?.includes('freelancer') || userProfile.isFreelancer;
+    if (hasFreelancerRole) {
+      return children;
+    }
+  }
+  
+  // For admin role, check if user is an admin
+  if (rolesArray.includes('admin')) {
+    const hasAdminRole = userProfile.roles?.includes('admin');
+    if (hasAdminRole) {
+      return children;
+    }
+  }
+  
+  // If no matching role, redirect
+  return <Navigate to={redirectTo} replace />;
 } 
 
 RoleRoute.propTypes = {
