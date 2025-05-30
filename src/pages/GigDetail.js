@@ -340,83 +340,136 @@ export default function GigDetail() {
             <div className="bg-white rounded-lg shadow-sm p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-6">About The Freelancer</h2>
               
-              <div className="flex items-start space-x-4 mb-6">
-                <img 
-                  src={gig.freelancer.profilePhoto} 
-                  alt={gig.freelancer.displayName}
-                  className="w-24 h-24 rounded-full object-cover"
-                />
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2 mb-1">
-                    <h3 className="text-lg font-semibold text-gray-900">{gig.freelancer.displayName}</h3>
-                    {gig.freelancer.isVerified && (
-                      <svg className="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                      </svg>
-                    )}
-                    <div className={`flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${getTierBadgeColor(gig.freelancer.tier)}`}>
-                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M11.1459 7.02251C11.5259 6.34084 11.7159 6 12 6C12.2841 6 12.4741 6.34084 12.8541 7.02251L12.9524 7.19887C13.0603 7.39258 13.1143 7.48944 13.1985 7.55334C13.2827 7.61725 13.3875 7.64097 13.5972 7.68841L13.7881 7.73161C14.526 7.89857 14.895 7.98205 14.9828 8.26432C15.0706 8.54659 14.819 8.84072 14.316 9.42898L14.1858 9.58117C14.0429 9.74833 13.9714 9.83191 13.9392 9.93531C13.9071 10.0387 13.9179 10.1502 13.9395 10.3733L13.9592 10.5763C14.0352 11.3612 14.0733 11.7536 13.8435 11.9281C13.6136 12.1025 13.2682 11.9435 12.5773 11.6254L12.3986 11.5431C12.2022 11.4527 12.1041 11.4075 12 11.4075C11.8959 11.4075 11.7978 11.4527 11.6014 11.5431L11.4227 11.6254C10.7318 11.9435 10.3864 12.1025 10.1565 11.9281C9.92674 11.7536 9.96476 11.3612 10.0408 10.5763L10.0605 10.3733C10.0821 10.1502 10.0929 10.0387 10.0608 9.93531C10.0286 9.83191 9.95713 9.74833 9.81418 9.58117L9.68403 9.42898C9.18097 8.84072 8.92945 8.54659 9.01723 8.26432C9.10501 7.98205 9.47396 7.89857 10.2119 7.73161L10.4028 7.68841C10.6125 7.64097 10.7173 7.61725 10.8015 7.55334C10.8857 7.48944 10.9397 7.39258 11.0476 7.19887L11.1459 7.02251Z" stroke="currentColor" strokeWidth="1.5"></path>
-                        <path d="M7.35111 15L6.71424 17.323C6.0859 19.6148 5.77173 20.7607 6.19097 21.3881C6.3379 21.6079 6.535 21.7844 6.76372 21.9008C7.41635 22.2331 8.42401 21.7081 10.4393 20.658C11.1099 20.3086 11.4452 20.1339 11.8014 20.0959C11.9335 20.0818 12.0665 20.0818 12.1986 20.0959C12.5548 20.1339 12.8901 20.3086 13.5607 20.658C15.576 21.7081 16.5837 22.2331 17.2363 21.9008C17.465 21.7844 17.6621 21.6079 17.809 21.3881C18.2283 20.7607 17.9141 19.6148 17.2858 17.323L16.6489 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"></path>
-                        <path d="M5.5 6.39691C5.17745 7.20159 5 8.08007 5 9C5 12.866 8.13401 16 12 16C15.866 16 19 12.866 19 9C19 5.13401 15.866 2 12 2C11.0801 2 10.2016 2.17745 9.39691 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"></path>
-                      </svg>
-                      {gig.freelancer.tier.toUpperCase()}
+              {/* Profile Section */}
+              <div className="flex flex-col items-start mb-6">
+                <div className="flex items-start w-full mb-4">
+                  <img 
+                    src={gig.freelancer.profilePhoto} 
+                    alt={gig.freelancer.displayName}
+                    className="w-24 h-24 rounded-full object-cover mr-4 flex-shrink-0"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <h3 className="text-lg font-semibold text-gray-900">{gig.freelancer.displayName}</h3>
+                      {gig.freelancer.isVerified && (
+                        <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                      )}
                     </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-4 text-sm text-gray-600 mb-2">
-                    <div className="flex items-center">
-                      <svg className="w-4 h-4 text-yellow-400 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                      </svg>
-                      <span className="font-medium">{gig.freelancer.rating}</span>
-                      <span className="text-gray-500">({gig.freelancer.totalReviews} reviews)</span>
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="flex items-center">
+                        <svg className="w-4 h-4 text-yellow-400 fill-current" viewBox="0 0 24 24">
+                          <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                        </svg>
+                        <span className="ml-1 text-sm font-medium text-gray-900">
+                          {gig.freelancer.rating || 5.0}
+                        </span>
+                      </div>
+                      <span className="text-sm text-gray-500">
+                        ({gig.freelancer.totalReviews || 0} reviews)
+                      </span>
+                      <span className="text-gray-400">•</span>
+                      <span className="text-sm text-gray-500">
+                        {gig.freelancer.completedProjects || 0} orders completed
+                      </span>
                     </div>
-                    <span>•</span>
-                    <span>{gig.freelancer.completedProjects} projects completed</span>
+                    <div className="flex">
+                      <div className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${getTierBadgeColor(gig.freelancer.tier)}`}>
+                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M11.1459 7.02251C11.5259 6.34084 11.7159 6 12 6C12.2841 6 12.4741 6.34084 12.8541 7.02251L12.9524 7.19887C13.0603 7.39258 13.1143 7.48944 13.1985 7.55334C13.2827 7.61725 13.3875 7.64097 13.5972 7.68841L13.7881 7.73161C14.526 7.89857 14.895 7.98205 14.9828 8.26432C15.0706 8.54659 14.819 8.84072 14.316 9.42898L14.1858 9.58117C14.0429 9.74833 13.9714 9.83191 13.9392 9.93531C13.9071 10.0387 13.9179 10.1502 13.9395 10.3733L13.9592 10.5763C14.0352 11.3612 14.0733 11.7536 13.8435 11.9281C13.6136 12.1025 13.2682 11.9435 12.5773 11.6254L12.3986 11.5431C12.2022 11.4527 12.1041 11.4075 12 11.4075C11.8959 11.4075 11.7978 11.4527 11.6014 11.5431L11.4227 11.6254C10.7318 11.9435 10.3864 12.1025 10.1565 11.9281C9.92674 11.7536 9.96476 11.3612 10.0408 10.5763L10.0605 10.3733C10.0821 10.1502 10.0929 10.0387 10.0608 9.93531C10.0286 9.83191 9.95713 9.74833 9.81418 9.58117L9.68403 9.42898C9.18097 8.84072 8.92945 8.54659 9.01723 8.26432C9.10501 7.98205 9.47396 7.89857 10.2119 7.73161L10.4028 7.68841C10.6125 7.64097 10.7173 7.61725 10.8015 7.55334C10.8857 7.48944 10.9397 7.39258 11.0476 7.19887L11.1459 7.02251Z" stroke="currentColor" strokeWidth="1.5"></path>
+                          <path d="M7.35111 15L6.71424 17.323C6.0859 19.6148 5.77173 20.7607 6.19097 21.3881C6.3379 21.6079 6.535 21.7844 6.76372 21.9008C7.41635 22.2331 8.42401 21.7081 10.4393 20.658C11.1099 20.3086 11.4452 20.1339 11.8014 20.0959C11.9335 20.0818 12.0665 20.0818 12.1986 20.0959C12.5548 20.1339 12.8901 20.3086 13.5607 20.658C15.576 21.7081 16.5837 22.2331 17.2363 21.9008C17.465 21.7844 17.6621 21.6079 17.809 21.3881C18.2283 20.7607 17.9141 19.6148 17.2858 17.323L16.6489 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"></path>
+                          <path d="M5.5 6.39691C5.17745 7.20159 5 8.08007 5 9C5 12.866 8.13401 16 12 16C15.866 16 19 12.866 19 9C19 5.13401 15.866 2 12 2C11.0801 2 10.2016 2.17745 9.39691 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"></path>
+                        </svg>
+                        {gig.freelancer.tier.toUpperCase()}
+                      </div>
+                    </div>
+                    
                   </div>
-                  
-                  <p className="text-gray-700 text-sm">{gig.freelancer.bio}</p>
+                    
+
                 </div>
+                <p className="text-gray-700 text-base w-full">
+                  {gig.freelancer.bio}
+                </p>
               </div>
 
-              {/* Skills */}
-              <div className="mb-6">
-                <h4 className="font-semibold text-gray-900 mb-2">Skills</h4>
-                <div className="flex flex-wrap gap-2">
-                  {gig.freelancer.skills.map((skill, index) => (
-                    <span key={index} className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
-                      {skill}
-                    </span>
-                  ))}
+              {/* Detailed Sections */}
+              <div className="space-y-6">
+                {/* Skills Section */}
+                <div className="border-t pt-6">
+                  <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
+                    <svg className="w-5 h-5 text-blue-600 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                    </svg>
+                    Skills
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {gig.freelancer.skills.map((skill, index) => (
+                      <span key={index} className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full text-sm font-medium">
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
                 </div>
+
+                {/* Education Section */}
+                {gig.freelancer.education && gig.freelancer.education.length > 0 && (
+                  <div className="border-t pt-6">
+                    <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
+                      <svg className="w-5 h-5 text-blue-600 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M12 14l9-5-9-5-9 5 9 5z" />
+                        <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                      </svg>
+                      Education
+                    </h4>
+                    <div className="space-y-4">
+                      {gig.freelancer.education.map((edu, index) => (
+                        <div key={index} className="bg-gray-50 rounded-lg p-4">
+                          <div className="font-medium text-gray-900">{edu.degree}</div>
+                          <div className="text-gray-600 mt-1 text-sm">
+                            {edu.institution}
+                            <span className="mx-2">•</span>
+                            <span className="text-blue-600">{edu.year}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Certifications Section */}
+                {gig.freelancer.certifications && gig.freelancer.certifications.length > 0 && (
+                  <div className="border-t pt-6">
+                    <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
+                      <svg className="w-5 h-5 text-blue-600 mr-2" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
+                        <g id="Layer_2" data-name="Layer 2">
+                          <g id="icons_Q2" data-name="icons Q2">
+                            <g>
+                              <path d="M20,39H6V9H40a2,2,0,0,0,0-4H4A2,2,0,0,0,2,7V41a2,2,0,0,0,2,2H20a2,2,0,0,0,0-4Z"></path>
+                              <path d="M46,24A13,13,0,0,0,33,11a12.8,12.8,0,0,0-8.3,3H12a2,2,0,0,0,0,4h9.5a11.1,11.1,0,0,0-1.3,4H12a2,2,0,0,0,0,4h8.2a11.1,11.1,0,0,0,1.3,4H12a2,2,0,0,0,0,4H24.7l1.3.9v9.7A2.3,2.3,0,0,0,28,47a1.8,1.8,0,0,0,1.3-.6L33,43l3.7,3.4A1.8,1.8,0,0,0,38,47a2.3,2.3,0,0,0,2-2.4V35A13.2,13.2,0,0,0,46,24ZM36,32.5v7.8l-3-2.8-3,2.8V32.5A9.1,9.1,0,0,1,24,24a9,9,0,0,1,18,0A9.1,9.1,0,0,1,36,32.5Z"></path>
+                              <circle cx="33" cy="24" r="5"></circle>
+                            </g>
+                          </g>
+                        </g>
+                      </svg>
+                      Certification
+                    </h4>
+                    <div className="space-y-4">
+                      {gig.freelancer.certifications.map((cert, index) => (
+                        <div key={index} className="bg-gray-50 rounded-lg p-4">
+                          <div className="font-medium text-gray-900">{cert.name}</div>
+                          <div className="text-gray-600 mt-1 text-sm">
+                            {cert.issuer}
+                            <span className="mx-2">•</span>
+                            <span className="text-blue-600">{cert.year}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-
-              {/* Education */}
-              {gig.freelancer.education && gig.freelancer.education.length > 0 && (
-                <div className="mb-6">
-                  <h4 className="font-semibold text-gray-900 mb-2">Education</h4>
-                  {gig.freelancer.education.map((edu, index) => (
-                    <div key={index} className="text-sm text-gray-700">
-                      <div className="font-medium">{edu.degree}</div>
-                      <div className="text-gray-600">{edu.institution} • {edu.year}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Certifications */}
-              {gig.freelancer.certifications && gig.freelancer.certifications.length > 0 && (
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">Certifications</h4>
-                  {gig.freelancer.certifications.map((cert, index) => (
-                    <div key={index} className="text-sm text-gray-700 mb-1">
-                      <div className="font-medium">{cert.name}</div>
-                      <div className="text-gray-600">{cert.issuer} • {cert.year}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
 
             {/* 6. Reviews */}

@@ -351,7 +351,7 @@ export default function Browse() {
             {/* Results Header */}
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">
+                <h2 className="text-2xl font-semibold text-gray-900">
                   {searchQuery ? `Hasil pencarian untuk "${searchQuery}"` : 
                    filters.category ? `Gigs dalam ${filters.category}` : 'Semua Gigs'}
                 </h2>

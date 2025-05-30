@@ -4,7 +4,6 @@ import { useAuth } from '../../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSpring, animated } from '@react-spring/web';
 import PropTypes from 'prop-types';
-import MeshGradientBackground from '../UI/MeshGradientBackground';
 import { getUserProfile, updateUserProfile } from '../../services/userProfileService';
 
 /**
@@ -273,11 +272,6 @@ export default function DashboardLayout({ children }) {
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
-      {/* Background particles */}
-      <div className="absolute inset-0 z-0">
-        <MeshGradientBackground variant="dashboard" />
-      </div>
-
       {/* Sidebar */}
       <motion.aside 
         initial={{ x: -300 }}

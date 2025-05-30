@@ -129,7 +129,7 @@ export default function GigCard({ gig, showFavoriteButton = true, className = ""
         
         {/* Gig Title */}
         <Link to={`/gig/${gig.id}`}>
-          <h3 className="font-medium text-gray-900 line-clamp-2 hover:text-[#010042] transition-colors mb-2">
+          <h3 className="font-medium text-gray-900 line-clamp-2 hover:text-[#010042] hover:underline transition-colors mb-2">
             {gig.title}
           </h3>
         </Link>

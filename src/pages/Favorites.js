@@ -53,7 +53,7 @@ export default function Favorites() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 pt-16">
+      <div className="min-h-screen bg-gray-50 ">
         <div className="max-w-7xl mx-auto px-6 py-8">
           <div className="animate-pulse">
             <div className="h-8 bg-gray-300 rounded w-1/4 mb-6"></div>
@@ -75,7 +75,7 @@ export default function Favorites() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 pt-16">
+      <div className="min-h-screen bg-gray-50 ">
         <div className="max-w-7xl mx-auto px-6 py-8">
           <div className="text-center">
             <div className="text-red-500 text-lg">{error}</div>
@@ -92,7 +92,7 @@ export default function Favorites() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-16">
+    <div className="min-h-screen bg-gray-50 ">
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Layanan Favorit</h1>
@@ -168,7 +168,7 @@ export default function Favorites() {
                       </div>
                       
                       <Link to={`/gig/${gig.id}`}>
-                        <h3 className="font-medium text-gray-900 line-clamp-2 hover:text-[#010042] transition-colors">
+                        <h3 className="font-medium text-gray-900 line-clamp-2 hover:text-[#010042] hover:underline transition-colors">
                           {gig.title}
                         </h3>
                       </Link>

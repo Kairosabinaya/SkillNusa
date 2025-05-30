@@ -101,7 +101,7 @@ export default function Transactions() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 pt-16">
+      <div className="min-h-screen bg-gray-50 ">
         <div className="max-w-7xl mx-auto px-6 py-8">
           <div className="animate-pulse">
             <div className="h-8 bg-gray-300 rounded w-1/4 mb-6"></div>
@@ -122,7 +122,7 @@ export default function Transactions() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-16">
+    <div className="min-h-screen bg-gray-50 ">
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -256,7 +256,7 @@ export default function Transactions() {
 
                         {/* Order Details */}
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-medium text-gray-900 line-clamp-2 mb-2">
+                          <h3 className="font-medium text-gray-900 line-clamp-2 hover:text-[#010042] hover:underline transition-colors mb-2">
                             {order.title}
                           </h3>
                           
