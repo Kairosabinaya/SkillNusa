@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import NavigationRoleHandler from './components/NavigationRoleHandler';
 import { AuthProvider } from './context/AuthContext';
 import { ROUTES } from './routes';
 import ErrorBoundary from './components/common/ErrorBoundary';
@@ -51,12 +52,25 @@ import ProtectedRoute from './components/ProtectedRoute';
 import RoleRoute from './components/RoleRoute';
 import DashboardRedirect from './components/DashboardRedirect';
 
+// Freelancer Pages
+import FreelancerDashboard from './pages/Dashboard/FreelancerDashboard';
+import FreelancerGuides from './pages/Dashboard/FreelancerGuides';
+import FreelancerChat from './pages/Dashboard/FreelancerChat';
+import FreelancerGigs from './pages/Dashboard/FreelancerGigs';
+import CreateGig from './pages/Dashboard/CreateGig';
+import FreelancerOrders from './pages/Dashboard/FreelancerOrders';
+import FreelancerAnalytics from './pages/Dashboard/FreelancerAnalytics';
+import FreelancerWallet from './pages/Dashboard/FreelancerWallet';
+import FreelancerSettings from './pages/Dashboard/FreelancerSettings';
+import FreelancerNotifications from './pages/Dashboard/FreelancerNotifications';
+
 function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
         <Router>
-          <Routes>
+          <NavigationRoleHandler>
+            <Routes>
           {/* Public Routes */}
           <Route path={ROUTES.HOME} element={<PublicLayout />}>
             <Route index element={<Home />} />
@@ -139,7 +153,88 @@ function App() {
               } 
             />
             
-            {/* TODO: Add Freelancer Dashboard Routes */}
+            {/* Freelancer Dashboard Routes */}
+            <Route 
+              path="freelancer" 
+              element={
+                <RoleRoute allowedRoles="freelancer">
+                  <FreelancerDashboard />
+                </RoleRoute>
+              } 
+            />
+            <Route 
+              path="freelancer/guides" 
+              element={
+                <RoleRoute allowedRoles="freelancer">
+                  <FreelancerGuides />
+                </RoleRoute>
+              } 
+            />
+            <Route 
+              path="freelancer/chat" 
+              element={
+                <RoleRoute allowedRoles="freelancer">
+                  <FreelancerChat />
+                </RoleRoute>
+              } 
+            />
+            <Route 
+              path="freelancer/gigs" 
+              element={
+                <RoleRoute allowedRoles="freelancer">
+                  <FreelancerGigs />
+                </RoleRoute>
+              } 
+            />
+            <Route 
+              path="freelancer/gigs/create" 
+              element={
+                <RoleRoute allowedRoles="freelancer">
+                  <CreateGig />
+                </RoleRoute>
+              } 
+            />
+            <Route 
+              path="freelancer/orders" 
+              element={
+                <RoleRoute allowedRoles="freelancer">
+                  <FreelancerOrders />
+                </RoleRoute>
+              } 
+            />
+            <Route 
+              path="freelancer/notifications" 
+              element={
+                <RoleRoute allowedRoles="freelancer">
+                  <FreelancerNotifications />
+                </RoleRoute>
+              } 
+            />
+            <Route 
+              path="freelancer/analytics" 
+              element={
+                <RoleRoute allowedRoles="freelancer">
+                  <FreelancerAnalytics />
+                </RoleRoute>
+              } 
+            />
+            <Route 
+              path="freelancer/wallet" 
+              element={
+                <RoleRoute allowedRoles="freelancer">
+                  <FreelancerWallet />
+                </RoleRoute>
+              } 
+            />
+            <Route 
+              path="freelancer/settings" 
+              element={
+                <RoleRoute allowedRoles="freelancer">
+                  <FreelancerSettings />
+                </RoleRoute>
+              } 
+            />
+            
             {/* TODO: Add Admin Dashboard Routes */}
           </Route>
 
@@ -237,8 +332,9 @@ function App() {
 
           {/* Catch all - 404 */}
           <Route path="*" element={<NotFound />} />
-        </Routes>
-      </Router>
+            </Routes>
+          </NavigationRoleHandler>
+        </Router>
     </AuthProvider>
     </ErrorBoundary>
   );

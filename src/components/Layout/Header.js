@@ -13,6 +13,7 @@ export default function Header() {
   const [combinedUserData, setCombinedUserData] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [switchingRole, setSwitchingRole] = useState(null);
 
   // Check if current page is browse
   const isBrowsePage = location.pathname === '/browse';
@@ -70,7 +71,12 @@ export default function Header() {
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      navigate(`/browse?search=${encodeURIComponent(searchQuery)}`);
+      // If user is a freelancer, search in guides instead of browse
+      if (combinedUserData?.activeRole === 'freelancer') {
+        navigate(`/dashboard/freelancer/guides?search=${encodeURIComponent(searchQuery)}`);
+      } else {
+        navigate(`/browse?search=${encodeURIComponent(searchQuery)}`);
+      }
     }
   };
 
@@ -111,7 +117,7 @@ export default function Header() {
                   <div className="relative">
                     <input
                       type="text"
-                      placeholder="Cari layanan, keahlian, atau proyek..."
+                      placeholder={combinedUserData?.activeRole === 'freelancer' ? "Cari video panduan freelancer..." : "Cari layanan, keahlian, atau proyek..."}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="w-full px-4 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
@@ -130,46 +136,59 @@ export default function Header() {
               
               {/* Action Icons */}
               <div className="flex items-center space-x-4">
-                {/* Favorites */}
-                <Link to="/favorites" className="text-gray-500 hover:text-[#010042] transition-all duration-200" title="Favorit">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                  </svg>
-                </Link>
-                
-                {/* Cart/Checkout */}
-                <Link to="/cart" className="text-gray-500 hover:text-[#010042] transition-all duration-200 relative" title="Keranjang">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l-1 7a2 2 0 01-2 2H8a2 2 0 01-2-2L5 9z" />
-                  </svg>
-                  {/* Cart badge - optional for showing item count */}
-                  {false && (
-                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                      0
-                    </span>
-                  )}
-                </Link>
-                
-                {/* Transactions */}
-                <Link to="/transactions" className="text-gray-500 hover:text-[#010042] transition-all duration-200" title="Riwayat Transaksi">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </Link>
-                
-                {/* Messages */}
-                <Link to="/messages" className="text-gray-500 hover:text-[#010042] transition-all duration-200" title="Pesan">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                  </svg>
-                </Link>
-                
-                {/* SkillBot */}
-                <Link to="/skillbot" className="text-gray-500 hover:text-[#010042] transition-all duration-200" title="SkillBot">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                </Link>
+                {/* For freelancer in dashboard, show only notification icon */}
+                {(combinedUserData?.activeRole === 'freelancer' && location.pathname.startsWith('/dashboard/freelancer')) ? (
+                  /* Only Notifications for Freelancers */
+                  <Link to="/dashboard/freelancer/notifications" className="text-gray-500 hover:text-[#010042] transition-all duration-200" title="Notifikasi">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                  </Link>
+                ) : (
+                  /* Regular menu items for other user roles */
+                  <>
+                    {/* Favorites */}
+                    <Link to="/favorites" className="text-gray-500 hover:text-[#010042] transition-all duration-200" title="Favorit">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                      </svg>
+                    </Link>
+                    
+                    {/* Cart/Checkout */}
+                    <Link to="/cart" className="text-gray-500 hover:text-[#010042] transition-all duration-200 relative" title="Keranjang">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l-1 7a2 2 0 01-2 2H8a2 2 0 01-2-2L5 9z" />
+                      </svg>
+                      {/* Cart badge - optional for showing item count */}
+                      {false && (
+                        <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                          0
+                        </span>
+                      )}
+                    </Link>
+                    
+                    {/* Transactions */}
+                    <Link to="/transactions" className="text-gray-500 hover:text-[#010042] transition-all duration-200" title="Riwayat Transaksi">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </Link>
+                    
+                    {/* Messages */}
+                    <Link to="/messages" className="text-gray-500 hover:text-[#010042] transition-all duration-200" title="Pesan">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                      </svg>
+                    </Link>
+                    
+                    {/* SkillBot */}
+                    <Link to="/skillbot" className="text-gray-500 hover:text-[#010042] transition-all duration-200" title="SkillBot">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                    </Link>
+                  </>
+                )}
                 
                 {/* User Profile Menu */}
                 <div 
@@ -218,10 +237,12 @@ export default function Header() {
                           (combinedUserData?.roles?.includes('admin') && combinedUserData?.activeRole !== 'admin')) && (
                           <div className="border-t border-gray-100 pt-2 space-y-1">
                             {combinedUserData?.activeRole !== 'client' && (
-                              <Link 
-                                to="/dashboard/client"
+                              <button 
                                 onClick={async () => {
                                   try {
+                                    // Set visual feedback for switching role
+                                    setSwitchingRole('client');
+                                    
                                     // Update active role in database
                                     await updateUserProfile(currentUser.uid, {
                                       activeRole: 'client'
@@ -232,22 +253,30 @@ export default function Header() {
                                       ...prev,
                                       activeRole: 'client'
                                     }));
+                                    
+                                    // Navigate after state update
+                                    navigate('/dashboard/client');
                                     setIsMenuOpen(false);
+                                    setSwitchingRole(null);
                                   } catch (error) {
                                     console.error('Error updating active role:', error);
+                                    setSwitchingRole(null);
                                   }
                                 }}
-                                className="w-full text-center text-xs bg-[#010042] hover:bg-blue-700 text-white py-1.5 px-2 rounded transition-colors duration-200 block"
+                                disabled={switchingRole === 'client'}
+                                className={`w-full text-center text-xs ${switchingRole === 'client' ? 'bg-blue-300 cursor-wait' : 'bg-[#010042] hover:bg-blue-700 cursor-pointer'} text-white py-1.5 px-2 rounded transition-colors duration-200 block`}
                               >
-                                Akun Client
-                              </Link>
+                                {switchingRole === 'client' ? 'Beralih...' : 'Akun Client'}
+                              </button>
                             )}
                             
                             {isFreelancer && combinedUserData?.activeRole !== 'freelancer' && (
-                              <Link 
-                                to="/dashboard/freelancer"
+                              <button 
                                 onClick={async () => {
                                   try {
+                                    // Set visual feedback for switching role
+                                    setSwitchingRole('freelancer');
+                                    
                                     // Update active role in database
                                     await updateUserProfile(currentUser.uid, {
                                       activeRole: 'freelancer'
@@ -258,22 +287,30 @@ export default function Header() {
                                       ...prev,
                                       activeRole: 'freelancer'
                                     }));
+                                    
+                                    // Navigate after state update
+                                    navigate('/dashboard/freelancer');
                                     setIsMenuOpen(false);
+                                    setSwitchingRole(null);
                                   } catch (error) {
                                     console.error('Error updating active role:', error);
+                                    setSwitchingRole(null);
                                   }
                                 }}
-                                className="w-full text-center text-xs bg-[#010042] hover:bg-blue-700 text-white py-1.5 px-2 rounded transition-colors duration-200 block"
+                                disabled={switchingRole === 'freelancer'}
+                                className={`w-full text-center text-xs ${switchingRole === 'freelancer' ? 'bg-blue-300 cursor-wait' : 'bg-[#010042] hover:bg-blue-700 cursor-pointer'} text-white py-1.5 px-2 rounded transition-colors duration-200 block`}
                               >
-                                Akun Freelancer
-                              </Link>
+                                {switchingRole === 'freelancer' ? 'Beralih...' : 'Akun Freelancer'}
+                              </button>
                             )}
                             
                             {combinedUserData?.roles?.includes('admin') && combinedUserData?.activeRole !== 'admin' && (
-                              <Link 
-                                to="/dashboard/admin"
+                              <button 
                                 onClick={async () => {
                                   try {
+                                    // Set visual feedback for switching role
+                                    setSwitchingRole('admin');
+                                    
                                     // Update active role in database
                                     await updateUserProfile(currentUser.uid, {
                                       activeRole: 'admin'
@@ -284,15 +321,21 @@ export default function Header() {
                                       ...prev,
                                       activeRole: 'admin'
                                     }));
+                                    
+                                    // Navigate after state update
+                                    navigate('/dashboard/admin');
                                     setIsMenuOpen(false);
+                                    setSwitchingRole(null);
                                   } catch (error) {
                                     console.error('Error updating active role:', error);
+                                    setSwitchingRole(null);
                                   }
                                 }}
-                                className="w-full text-center text-xs bg-[#010042] hover:bg-blue-700 text-white py-1.5 px-2 rounded transition-colors duration-200 block"
+                                disabled={switchingRole === 'admin'}
+                                className={`w-full text-center text-xs ${switchingRole === 'admin' ? 'bg-blue-300 cursor-wait' : 'bg-[#010042] hover:bg-blue-700 cursor-pointer'} text-white py-1.5 px-2 rounded transition-colors duration-200 block`}
                               >
-                                Akun Admin
-                              </Link>
+                                {switchingRole === 'admin' ? 'Beralih...' : 'Akun Admin'}
+                              </button>
                             )}
                           </div>
                         )}
