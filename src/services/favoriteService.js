@@ -131,112 +131,43 @@ class FavoriteService {
           try {
             console.log('Loading gig details for:', favorite.gigId);
             const gigDoc = await getDoc(doc(db, 'gigs', favorite.gigId));
+            
             if (gigDoc.exists()) {
               console.log('Gig found:', gigDoc.id);
+              const gigData = gigDoc.data();
+              
+              // Fetch freelancer details
+              let freelancerData = null;
+              if (gigData.freelancerId) {
+                const freelancerDoc = await getDoc(doc(db, 'users', gigData.freelancerId));
+                if (freelancerDoc.exists()) {
+                  freelancerData = {
+                    id: freelancerDoc.id,
+                    displayName: freelancerDoc.data().displayName,
+                    profilePhoto: freelancerDoc.data().profilePhoto,
+                    isTopRated: freelancerDoc.data().isTopRated || false,
+                    isVerified: freelancerDoc.data().isVerified || false
+                  };
+                }
+              }
+
               return {
                 ...favorite,
                 gig: {
                   id: gigDoc.id,
-                  ...gigDoc.data()
+                  ...gigData,
+                  freelancer: freelancerData || {
+                    displayName: 'Freelancer',
+                    profilePhoto: `https://picsum.photos/seed/freelancer${gigDoc.id}/32/32`,
+                    isTopRated: false,
+                    isVerified: false
+                  }
                 }
               };
             } else {
               console.log('Gig not found in database:', favorite.gigId);
               // Return with mock gig data based on gig ID for consistency
-              const mockGigs = {
-                '1': {
-                  id: '1',
-                  images: ["https://picsum.photos/seed/gig1/400/300"],
-                  title: "I will build shopify ecommerce website, redesign online store",
-                  category: "Programming & Tech",
-                  rating: 4.9,
-                  totalReviews: 1234,
-                  packages: { basic: { price: 195000 } },
-                  freelancer: {
-                    displayName: "Fillinx Sol",
-                    profilePhoto: "https://picsum.photos/seed/freelancer1/50/50",
-                    isVerified: true,
-                    isTopRated: true
-                  }
-                },
-                '2': {
-                  id: '2',
-                  images: ["https://picsum.photos/seed/logo1/400/300"],
-                  title: "I will create professional logo design for your business",
-                  category: "Design & Creative",
-                  rating: 4.8,
-                  totalReviews: 287,
-                  packages: { basic: { price: 150000 } },
-                  freelancer: {
-                    displayName: "Maya Design",
-                    profilePhoto: "https://picsum.photos/seed/freelancer2/50/50",
-                    isVerified: true,
-                    isTopRated: false
-                  }
-                },
-                '3': {
-                  id: '3',
-                  images: ["https://picsum.photos/seed/gig3/400/300"],
-                  title: "Professional Social Media Management",
-                  category: "Digital Marketing",
-                  rating: 4.7,
-                  totalReviews: 156,
-                  packages: { basic: { price: 1200000 } },
-                  freelancer: {
-                    displayName: "Dina Wijaya",
-                    profilePhoto: "https://picsum.photos/seed/freelancer3/50/50",
-                    isVerified: false,
-                    isTopRated: true
-                  }
-                },
-                '4': {
-                  id: '4',
-                  images: ["https://picsum.photos/seed/gig4/400/300"],
-                  title: "Mobile App Development iOS & Android",
-                  category: "Programming & Tech",
-                  rating: 5.0,
-                  totalReviews: 32,
-                  packages: { basic: { price: 5000000 } },
-                  freelancer: {
-                    displayName: "Farhan Ahmad",
-                    profilePhoto: "https://picsum.photos/seed/freelancer4/50/50",
-                    isVerified: true,
-                    isTopRated: true
-                  }
-                },
-                '5': {
-                  id: '5',
-                  images: ["https://picsum.photos/seed/gig5/400/300"],
-                  title: "Content Writing Services",
-                  category: "Writing & Translation",
-                  rating: 4.9,
-                  totalReviews: 45,
-                  packages: { basic: { price: 450000 } },
-                  freelancer: {
-                    displayName: "Elsa Putri",
-                    profilePhoto: "https://picsum.photos/seed/freelancer5/50/50",
-                    isVerified: true,
-                    isTopRated: false
-                  }
-                },
-                '6': {
-                  id: '6',
-                  images: ["https://picsum.photos/seed/gig6/400/300"],
-                  title: "Business Plan Development",
-                  category: "Business",
-                  rating: 4.8,
-                  totalReviews: 19,
-                  packages: { basic: { price: 2000000 } },
-                  freelancer: {
-                    displayName: "Gunawan Prawiro",
-                    profilePhoto: "https://picsum.photos/seed/freelancer6/50/50",
-                    isVerified: true,
-                    isTopRated: true
-                  }
-                }
-              };
-
-              const mockGig = mockGigs[favorite.gigId] || {
+              const mockGig = {
                 id: favorite.gigId,
                 title: 'Sample Gig',
                 images: [`https://picsum.photos/seed/gig${favorite.gigId}/400/300`],
@@ -245,7 +176,9 @@ class FavoriteService {
                 packages: { basic: { price: 100000 } },
                 freelancer: {
                   displayName: 'Freelancer',
-                  profilePhoto: `https://picsum.photos/seed/freelancer${favorite.gigId}/32/32`
+                  profilePhoto: `https://picsum.photos/seed/freelancer${favorite.gigId}/32/32`,
+                  isTopRated: false,
+                  isVerified: false
                 }
               };
 
@@ -303,4 +236,4 @@ class FavoriteService {
 }
 
 const favoriteService = new FavoriteService();
-export default favoriteService; 
+export default favoriteService;

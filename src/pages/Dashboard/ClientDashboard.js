@@ -500,24 +500,24 @@ export default function ClientDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Profile Photo Section */}
           <motion.div 
-            className="lg:col-span-1"
+            className="lg:col-span-1 flex items-center justify-center"
             variants={itemVariants}
           >
             <div className="text-center">
               <div className="relative inline-block mb-4">
                 <motion.div 
-                  className="h-32 w-32 rounded-full bg-[#010042]/10 flex items-center justify-center overflow-hidden border-4 border-white shadow-lg mx-auto"
+                  className="h-40 w-40 rounded-full bg-[#010042]/10 flex items-center justify-center overflow-hidden border-4 border-white shadow-lg mx-auto"
                   whileHover={{ scale: 1.05 }}
                   transition={{ type: "spring", stiffness: 400 }}
                 >
                   {(photoPreview || combinedUserData?.profilePhoto) ? (
                     <img 
-                      className="h-32 w-32 rounded-full object-cover" 
+                      className="h-40 w-40 rounded-full object-cover" 
                       src={photoPreview || combinedUserData.profilePhoto} 
                       alt={combinedUserData?.displayName || currentUser?.email} 
                     />
                   ) : (
-                    <span className="text-3xl font-bold text-[#010042]">
+                    <span className="text-4xl font-bold text-[#010042]">
                       {(combinedUserData?.displayName || currentUser?.displayName)?.charAt(0).toUpperCase() || 
                       currentUser?.email?.charAt(0).toUpperCase() || 'U'}
                     </span>
@@ -526,11 +526,11 @@ export default function ClientDashboard() {
                 
                 {isEditing && (
                   <motion.label 
-                    className="absolute bottom-0 right-0 bg-[#010042] text-white p-2 rounded-full cursor-pointer hover:bg-[#010042]/90 transition-colors"
+                    className="absolute bottom-0 right-0 bg-[#010042] text-white p-3 rounded-full cursor-pointer hover:bg-[#010042]/90 transition-colors"
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                   >
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
@@ -544,13 +544,28 @@ export default function ClientDashboard() {
                 )}
               </div>
               
-              <h3 className="text-lg font-semibold text-gray-900">
-                {combinedUserData?.displayName || currentUser?.displayName || 'Pengguna'}
-              </h3>
-              <p className="text-gray-600">{combinedUserData?.email || currentUser?.email}</p>
-              <div className="mt-2">
+              {isEditing ? (
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600 mb-2">Nama Lengkap</p>
+                  <input
+                    type="text"
+                    name="displayName"
+                    value={editedData.displayName || ''}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 text-center border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent text-xl font-semibold"
+                    placeholder="Masukkan nama lengkap"
+                  />
+                </div>
+              ) : (
+                <h3 className="text-2xl font-semibold text-gray-900 mb-2">
+                  {combinedUserData?.displayName || currentUser?.displayName || 'Pengguna'}
+                </h3>
+              )}
+              
+              <p className="text-lg text-gray-600 mb-3">{combinedUserData?.email || currentUser?.email}</p>
+              <div className="mt-3">
                 <motion.span 
-                  className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                  className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800"
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ delay: 0.3 }}
@@ -566,148 +581,152 @@ export default function ClientDashboard() {
             className="lg:col-span-2"
             variants={itemVariants}
           >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Display Name */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nama Lengkap
-                </label>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    name="displayName"
-                    value={editedData.displayName || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
-                    placeholder="Masukkan nama lengkap"
-                  />
-                ) : (
-                  <p className="text-gray-900 py-2">
-                    {combinedUserData?.displayName || '-'}
-                  </p>
-                )}
+            <div className="space-y-6">
+              {/* Contact & Basic Info */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Phone */}
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0">
+                    <svg className="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-500">PHONE</p>
+                    {isEditing ? (
+                      <input
+                        type="tel"
+                        name="phoneNumber"
+                        value={editedData.phoneNumber || ''}
+                        onChange={handleInputChange}
+                        className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
+                        placeholder="Masukkan nomor telepon"
+                      />
+                    ) : (
+                      <p className="mt-1 text-gray-900">{combinedUserData?.phoneNumber || '-'}</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Location */}
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0">
+                    <svg className="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-500">LOCATION</p>
+                    {isEditing ? (
+                      <select
+                        name="location"
+                        value={editedData.location || ''}
+                        onChange={handleInputChange}
+                        className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
+                        disabled={loadingCities}
+                      >
+                        <option value="">Pilih Kota</option>
+                        {cities.map((city) => (
+                          <option key={city.id} value={city.id}>
+                            {city.name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <p className="mt-1 text-gray-900">
+                        {combinedUserData?.location ? 
+                          cities.find(city => city.id === combinedUserData.location)?.name ||
+                          combinedUserData.location.charAt(0).toUpperCase() + combinedUserData.location.slice(1) : 
+                          '-'
+                        }
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Gender */}
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0">
+                    <svg className="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-500">GENDER</p>
+                    {isEditing ? (
+                      <select
+                        name="gender"
+                        value={editedData.gender || ''}
+                        onChange={handleInputChange}
+                        className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
+                      >
+                        <option value="">Pilih Jenis Kelamin</option>
+                        <option value="Male">Laki-laki</option>
+                        <option value="Female">Perempuan</option>
+                        <option value="Other">Lainnya</option>
+                        <option value="Prefer not to say">Tidak ingin memberi tahu</option>
+                      </select>
+                    ) : (
+                      <p className="mt-1 text-gray-900">
+                        {combinedUserData?.gender ? (
+                          combinedUserData.gender === 'Male' || combinedUserData.gender === 'male' ? 'Laki-laki' : 
+                          combinedUserData.gender === 'Female' || combinedUserData.gender === 'female' ? 'Perempuan' : 
+                          combinedUserData.gender === 'Other' ? 'Lainnya' :
+                          combinedUserData.gender === 'Prefer not to say' ? 'Tidak ingin memberi tahu' :
+                          combinedUserData.gender
+                        ) : '-'}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Birth Date */}
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0">
+                    <svg className="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-500">BIRTH DATE</p>
+                    {isEditing ? (
+                      <input
+                        type="date"
+                        name="dateOfBirth"
+                        value={editedData.dateOfBirth || ''}
+                        onChange={handleInputChange}
+                        className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
+                      />
+                    ) : (
+                      <p className="mt-1 text-gray-900">
+                        {combinedUserData?.dateOfBirth ? 
+                          new Date(combinedUserData.dateOfBirth).toLocaleDateString('id-ID') : '-'}
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
 
-              {/* Phone Number */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nomor Telepon
-                </label>
-                {isEditing ? (
-                  <input
-                    type="tel"
-                    name="phoneNumber"
-                    value={editedData.phoneNumber || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
-                    placeholder="Masukkan nomor telepon"
-                  />
-                ) : (
-                  <p className="text-gray-900 py-2">
-                    {combinedUserData?.phoneNumber || '-'}
-                  </p>
-                )}
-              </div>
-
-              {/* Location */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Lokasi
-                </label>
-                {isEditing ? (
-                  <select
-                    name="location"
-                    value={editedData.location || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
-                    disabled={loadingCities}
-                  >
-                    <option value="">Pilih Kota</option>
-                    {cities.map((city) => (
-                      <option key={city.id} value={city.id}>
-                        {city.name}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <p className="text-gray-900 py-2">
-                    {combinedUserData?.location ? 
-                      cities.find(city => city.id === combinedUserData.location)?.name ||
-                      combinedUserData.location.charAt(0).toUpperCase() + combinedUserData.location.slice(1) : 
-                      '-'
-                    }
-                  </p>
-                )}
-              </div>
-
-              {/* Gender */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Jenis Kelamin
-                </label>
-                {isEditing ? (
-                  <select
-                    name="gender"
-                    value={editedData.gender || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
-                  >
-                    <option value="">Pilih Jenis Kelamin</option>
-                    <option value="Male">Laki-laki</option>
-                    <option value="Female">Perempuan</option>
-                    <option value="Other">Lainnya</option>
-                    <option value="Prefer not to say">Tidak ingin memberi tahu</option>
-                  </select>
-                ) : (
-                  <p className="text-gray-900 py-2">
-                    {combinedUserData?.gender ? (
-                      combinedUserData.gender === 'Male' || combinedUserData.gender === 'male' ? 'Laki-laki' : 
-                      combinedUserData.gender === 'Female' || combinedUserData.gender === 'female' ? 'Perempuan' : 
-                      combinedUserData.gender === 'Other' ? 'Lainnya' :
-                      combinedUserData.gender === 'Prefer not to say' ? 'Tidak ingin memberi tahu' :
-                      combinedUserData.gender
-                    ) : '-'}
-                  </p>
-                )}
-              </div>
-
-              {/* Date of Birth */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tanggal Lahir
-                </label>
-                {isEditing ? (
-                  <input
-                    type="date"
-                    name="dateOfBirth"
-                    value={editedData.dateOfBirth || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
-                  />
-                ) : (
-                  <p className="text-gray-900 py-2">
-                    {combinedUserData?.dateOfBirth ? 
-                      new Date(combinedUserData.dateOfBirth).toLocaleDateString('id-ID') : '-'}
-                  </p>
-                )}
-              </div>
-
-              {/* Bio */}
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Bio
-                </label>
+              {/* About Section */}
+              <div className="bg-gray-50 rounded-lg p-6">
+                <div className="flex items-center space-x-2 mb-4">
+                  <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  <h3 className="text-lg font-medium text-gray-900">About</h3>
+                </div>
                 {isEditing ? (
                   <textarea
                     name="bio"
                     value={editedData.bio || ''}
                     onChange={handleInputChange}
-                    rows={3}
+                    rows={4}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
                     placeholder="Ceritakan tentang diri Anda..."
                   />
                 ) : (
-                  <p className="text-gray-900 py-2">
+                  <p className="text-gray-700">
                     {combinedUserData?.bio || 'Belum ada bio yang ditambahkan.'}
                   </p>
                 )}
