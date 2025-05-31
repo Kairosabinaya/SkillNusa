@@ -4,6 +4,9 @@ import { AuthProvider } from './context/AuthContext';
 import { ROUTES } from './routes';
 import ErrorBoundary from './components/common/ErrorBoundary';
 
+// Debug utilities (available in console as window.debugFirestore)
+import './utils/debugFirestore';
+
 // Layouts
 import PublicLayout from './components/Layout/PublicLayout';
 import DashboardLayout from './components/Layout/DashboardLayout';
@@ -46,6 +49,7 @@ import ClientMessages from './pages/Dashboard/ClientMessages';
 // Test Pages
 import TestPopulate from './pages/TestPopulate';
 import SeedingPage from './pages/SeedingPage';
+import FreelancerProfile from './pages/FreelancerProfile';
 
 // Protected Routes
 import ProtectedRoute from './components/ProtectedRoute';
@@ -63,6 +67,9 @@ import FreelancerAnalytics from './pages/Dashboard/FreelancerAnalytics';
 import FreelancerWallet from './pages/Dashboard/FreelancerWallet';
 import FreelancerSettings from './pages/Dashboard/FreelancerSettings';
 import FreelancerNotifications from './pages/Dashboard/FreelancerNotifications';
+
+// Settings page
+import Settings from './pages/Settings';
 
 function App() {
   return (
@@ -82,6 +89,11 @@ function App() {
           {/* Gig Routes */}
           <Route path="/gig/:gigId" element={<PublicLayout />}>
             <Route index element={<GigDetail />} />
+          </Route>
+
+          {/* Freelancer Profile Route */}
+          <Route path="/freelancer/:freelancerId" element={<PublicLayout />}>
+            <Route index element={<FreelancerProfile />} />
           </Route>
 
           {/* Dashboard Routes */}
@@ -114,6 +126,14 @@ function App() {
             />
             <Route 
               path="client/transactions" 
+              element={
+                <RoleRoute allowedRoles="client">
+                  <ClientTransactions />
+                </RoleRoute>
+              } 
+            />
+            <Route 
+              path="client/transactions/:transactionId" 
               element={
                 <RoleRoute allowedRoles="client">
                   <ClientTransactions />
@@ -196,7 +216,23 @@ function App() {
               } 
             />
             <Route 
+              path="freelancer/gigs/edit/:gigId" 
+              element={
+                <RoleRoute allowedRoles="freelancer">
+                  <CreateGig />
+                </RoleRoute>
+              } 
+            />
+            <Route 
               path="freelancer/orders" 
+              element={
+                <RoleRoute allowedRoles="freelancer">
+                  <FreelancerOrders />
+                </RoleRoute>
+              } 
+            />
+            <Route 
+              path="freelancer/orders/:orderId" 
               element={
                 <RoleRoute allowedRoles="freelancer">
                   <FreelancerOrders />
@@ -235,9 +271,35 @@ function App() {
                 </RoleRoute>
               } 
             />
+            <Route 
+              path="freelancer/messages" 
+              element={
+                <RoleRoute allowedRoles="freelancer">
+                  <Messages />
+                </RoleRoute>
+              } 
+            />
+            <Route 
+              path="freelancer/messages/:chatId" 
+              element={
+                <RoleRoute allowedRoles="freelancer">
+                  <Messages />
+                </RoleRoute>
+              } 
+            />
             
             {/* TODO: Add Admin Dashboard Routes */}
           </Route>
+
+          {/* Settings Route - accessible by all authenticated users */}
+          <Route 
+            path="/settings" 
+            element={
+              <ProtectedRoute>
+                <Settings />
+              </ProtectedRoute>
+            } 
+          />
 
           {/* Legacy Client Feature Routes (for backward compatibility) */}
           <Route 

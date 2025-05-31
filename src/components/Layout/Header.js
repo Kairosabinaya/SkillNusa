@@ -3,6 +3,9 @@ import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/react';
 import { useAuth } from '../../context/AuthContext';
 import { useState, useEffect } from 'react';
 import { getUserProfile } from '../../services/userProfileService';
+import favoriteService from '../../services/favoriteService';
+import cartService from '../../services/cartService';
+import chatService from '../../services/chatService';
 
 export default function Header() {
   const { currentUser, userProfile, logout } = useAuth();
@@ -13,6 +16,11 @@ export default function Header() {
   const [combinedUserData, setCombinedUserData] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  
+  // Real-time counts
+  const [favoritesCount, setFavoritesCount] = useState(0);
+  const [cartCount, setCartCount] = useState(0);
+  const [messagesCount, setMessagesCount] = useState(0);
 
   // Check if current page is browse
   const isBrowsePage = location.pathname === '/browse';
@@ -25,6 +33,45 @@ export default function Header() {
       setSearchQuery(initialSearch);
     }
   }, [location, isBrowsePage]);
+
+  // Set up real-time count subscriptions
+  useEffect(() => {
+    if (!currentUser) {
+      // Reset counts when logged out
+      setFavoritesCount(0);
+      setCartCount(0);
+      setMessagesCount(0);
+      return;
+    }
+
+    console.log('Header - Setting up real-time count subscriptions for user:', currentUser.uid);
+
+    // Subscribe to favorites count
+    const favoritesUnsubscribe = favoriteService.subscribeToFavoritesCount(currentUser.uid, (count) => {
+      console.log('Header - Favorites count update:', count);
+      setFavoritesCount(count);
+    });
+
+    // Subscribe to cart count
+    const cartUnsubscribe = cartService.subscribeToCartCount(currentUser.uid, (count) => {
+      console.log('Header - Cart count update:', count);
+      setCartCount(count);
+    });
+
+    // Subscribe to unread messages count
+    const messagesUnsubscribe = chatService.subscribeToUnreadCount(currentUser.uid, (count) => {
+      console.log('Header - Messages count update:', count);
+      setMessagesCount(count);
+    });
+
+    // Cleanup subscriptions
+    return () => {
+      console.log('Header - Cleaning up real-time subscriptions');
+      if (favoritesUnsubscribe) favoritesUnsubscribe();
+      if (cartUnsubscribe) cartUnsubscribe();
+      if (messagesUnsubscribe) messagesUnsubscribe();
+    };
+  }, [currentUser]);
 
   // Fetch complete profile data using the service
   useEffect(() => {
@@ -81,6 +128,18 @@ export default function Header() {
     navigate('/dashboard/client');
   };
 
+  // Render count badge
+  const renderCountBadge = (count) => {
+    if (count > 0) {
+      return (
+        <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
+          {count > 99 ? '99+' : count}
+        </span>
+      );
+    }
+    return null;
+  };
+
   return (
     <header className="bg-white border-b border-gray-100 fixed top-0 left-0 right-0 z-50">
       <div className="max-w-7xl mx-auto px-6">
@@ -123,24 +182,20 @@ export default function Header() {
                 {
                   /* Regular menu items for other user roles */
                   <>
-                    {/* Favorites */}
-                    <Link to="/favorites" className="text-gray-500 hover:text-[#010042] transition-all duration-200" title="Favorit">
+                    {/* Favorites with count */}
+                    <Link to="/favorites" className="text-gray-500 hover:text-[#010042] transition-all duration-200 relative" title="Favorit">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                       </svg>
+                      {renderCountBadge(favoritesCount)}
                     </Link>
                     
-                    {/* Cart/Checkout */}
+                    {/* Cart with count */}
                     <Link to="/cart" className="text-gray-500 hover:text-[#010042] transition-all duration-200 relative" title="Keranjang">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l-1 7a2 2 0 01-2 2H8a2 2 0 01-2-2L5 9z" />
                       </svg>
-                      {/* Cart badge - optional for showing item count */}
-                      {false && (
-                        <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                          0
-                        </span>
-                      )}
+                      {renderCountBadge(cartCount)}
                     </Link>
                     
                     {/* Transactions */}
@@ -150,11 +205,12 @@ export default function Header() {
                       </svg>
                     </Link>
                     
-                    {/* Messages */}
-                    <Link to="/messages" className="text-gray-500 hover:text-[#010042] transition-all duration-200" title="Pesan">
+                    {/* Messages with count */}
+                    <Link to="/messages" className="text-gray-500 hover:text-[#010042] transition-all duration-200 relative" title="Pesan">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                       </svg>
+                      {renderCountBadge(messagesCount)}
                     </Link>
                     
                     {/* SkillBot */}
@@ -255,6 +311,19 @@ export default function Header() {
                         )}
                         
                         <div className="border-t border-gray-100 my-1"></div>
+                        
+                        {/* Settings */}
+                        <Link 
+                          to="/settings" 
+                          className="text-gray-700 hover:bg-gray-100 hover:text-gray-900 group flex items-center px-4 py-2 text-sm"
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-[#010042]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                          Pengaturan
+                        </Link>
                         
                         <Link 
                           to="/about" 

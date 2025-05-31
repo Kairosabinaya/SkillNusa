@@ -4,17 +4,14 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { 
   collection, 
-  query, 
-  where, 
-  orderBy,
-  getDocs,
   doc,
   updateDoc,
   addDoc,
-  getDoc,
+  onSnapshot,
   serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../../firebase/config';
+import orderService from '../../services/orderService';
 import {
   MagnifyingGlassIcon,
   FunnelIcon,
@@ -40,6 +37,8 @@ export default function FreelancerOrders() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [deliveryMessage, setDeliveryMessage] = useState('');
+  const [attachedFiles, setAttachedFiles] = useState([]);
+  const [isUploading, setIsUploading] = useState(false);
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
@@ -64,45 +63,73 @@ export default function FreelancerOrders() {
 
     setLoading(true);
     try {
-      const ordersQuery = query(
-        collection(db, 'orders'),
-        where('sellerId', '==', currentUser.uid),
-        orderBy('createdAt', 'desc')
-      );
+      console.log('🔍 [FreelancerOrders] Fetching orders for freelancer:', currentUser.uid);
+      
+      // Use OrderService with details to get client data properly
+      const ordersData = await orderService.getOrdersWithDetails(currentUser.uid, 'freelancer');
+      
+      console.log('📥 [FreelancerOrders] Orders received:', {
+        count: ordersData.length,
+        orders: ordersData.map(o => ({ id: o.id, status: o.status, title: o.title }))
+      });
 
-      const snapshot = await getDocs(ordersQuery);
-      const ordersData = [];
+      // Debug: Check client data for each order
+      ordersData.forEach((order, index) => {
+        console.log(`🧪 [FreelancerOrders] Order ${index + 1} detailed data:`, {
+          id: order.id,
+          title: order.title,
+          status: order.status,
+          price: order.price,
+          amount: order.amount,
+          totalPrice: order.totalPrice,
+          clientId: order.clientId,
+          client: order.client,
+          freelancerId: order.freelancerId,
+          allFields: Object.keys(order)
+        });
+      });
+
+      // Calculate stats with better status handling
       let statusCounts = { total: 0, active: 0, completed: 0, pending: 0, cancelled: 0 };
-
-      for (const doc of snapshot.docs) {
-        const orderData = { id: doc.id, ...doc.data() };
-        
-        // Fetch buyer info
-        const buyerDoc = await getDoc(doc(db, 'users', orderData.buyerId));
-        orderData.buyer = buyerDoc.data();
-
-        // Fetch gig info
-        const gigDoc = await getDoc(doc(db, 'gigs', orderData.gigId));
-        orderData.gig = gigDoc.data();
-
-        ordersData.push(orderData);
-        
+      
+      ordersData.forEach(order => {
         statusCounts.total++;
-        if (orderData.status === 'active' || orderData.status === 'in_revision') {
+        console.log('📊 [FreelancerOrders] Processing order status:', { 
+          id: order.id, 
+          status: order.status, 
+          title: order.title 
+        });
+        
+        // More comprehensive status categorization
+        if (order.status === 'active' || 
+            order.status === 'in_progress' || 
+            order.status === 'in_revision' ||
+            order.status === 'delivered') {
           statusCounts.active++;
-        } else if (orderData.status === 'completed') {
+        } else if (order.status === 'completed') {
           statusCounts.completed++;
-        } else if (orderData.status === 'pending') {
+        } else if (order.status === 'pending' || order.status === 'awaiting_confirmation') {
           statusCounts.pending++;
-        } else if (orderData.status === 'cancelled') {
+        } else if (order.status === 'cancelled' || order.status === 'rejected') {
           statusCounts.cancelled++;
+        } else {
+          // Unknown status, treat as pending for now
+          console.warn('📊 [FreelancerOrders] Unknown order status:', order.status);
+          statusCounts.pending++;
         }
-      }
+      });
+
+      console.log('📊 [FreelancerOrders] Final status counts:', statusCounts);
 
       setOrders(ordersData);
       setStats(statusCounts);
+      
+      console.log('✅ [FreelancerOrders] Orders state updated:', {
+        orders: ordersData.length,
+        stats: statusCounts
+      });
     } catch (error) {
-      console.error('Error fetching orders:', error);
+      console.error('💥 [FreelancerOrders] Error fetching orders:', error);
     } finally {
       setLoading(false);
     }
@@ -110,21 +137,27 @@ export default function FreelancerOrders() {
 
   const updateOrderStatus = async (orderId, newStatus, message = '') => {
     try {
+      console.log('🔄 [FreelancerOrders] Updating order status:', { orderId, newStatus, message });
+      
       await updateDoc(doc(db, 'orders', orderId), {
         status: newStatus,
         updatedAt: serverTimestamp(),
         ...(message && { statusMessage: message })
       });
 
-      // Send notification to buyer
-      await addDoc(collection(db, 'notifications'), {
-        userId: selectedOrder.buyerId,
-        type: 'order_update',
-        message: `Status pesanan ${orderId.slice(-8)} diubah menjadi ${getStatusText(newStatus)}`,
-        orderId: orderId,
-        createdAt: serverTimestamp(),
-        read: false
-      });
+      // Find the order to get clientId
+      const order = orders.find(o => o.id === orderId);
+      if (order) {
+        // Send notification to client (not buyer)
+        await addDoc(collection(db, 'notifications'), {
+          userId: order.clientId, // Use clientId instead of buyerId
+          type: 'order_update',
+          message: `Status pesanan ${orderId.slice(-8)} diubah menjadi ${getStatusText(newStatus)}`,
+          orderId: orderId,
+          createdAt: serverTimestamp(),
+          read: false
+        });
+      }
 
       // Update local state
       setOrders(prevOrders => 
@@ -143,8 +176,14 @@ export default function FreelancerOrders() {
           statusMessage: message 
         }));
       }
+      
+      // Refresh orders to get updated data
+      fetchOrders();
+      
+      console.log('✅ [FreelancerOrders] Order status updated successfully');
     } catch (error) {
-      console.error('Error updating order status:', error);
+      console.error('💥 [FreelancerOrders] Error updating order status:', error);
+      alert('Gagal mengupdate status pesanan. Silakan coba lagi.');
     }
   };
 
@@ -155,28 +194,85 @@ export default function FreelancerOrders() {
     }
 
     try {
-      await updateDoc(doc(db, 'orders', selectedOrder.id), {
+      setIsUploading(true);
+      
+      // Prepare delivery data
+      const deliveryData = {
         status: 'delivered',
         deliveryMessage: deliveryMessage,
         deliveredAt: serverTimestamp(),
         updatedAt: serverTimestamp()
-      });
+      };
+      
+      // Add file information if files are attached
+      if (attachedFiles.length > 0) {
+        deliveryData.attachedFiles = attachedFiles.map(file => ({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          lastModified: file.lastModified
+        }));
+        deliveryData.hasAttachments = true;
+      }
 
-      // Send notification to buyer
+      await updateDoc(doc(db, 'orders', selectedOrder.id), deliveryData);
+
+      // Send notification to client
       await addDoc(collection(db, 'notifications'), {
-        userId: selectedOrder.buyerId,
+        userId: selectedOrder.clientId,
         type: 'order_delivered',
-        message: `Pesanan ${selectedOrder.id.slice(-8)} telah dikirim`,
+        message: `Pesanan ${selectedOrder.id.slice(-8)} telah dikirim${attachedFiles.length > 0 ? ` dengan ${attachedFiles.length} file lampiran` : ''}`,
         orderId: selectedOrder.id,
         createdAt: serverTimestamp(),
         read: false
       });
 
+      // Reset form
       setDeliveryMessage('');
-      fetchOrders(); // Refresh data
+      setAttachedFiles([]);
+      
+      // Refresh data
+      fetchOrders();
+      
+      alert('Hasil pekerjaan berhasil dikirim!');
     } catch (error) {
       console.error('Error delivering order:', error);
+      alert('Gagal mengirim hasil pekerjaan. Silakan coba lagi.');
+    } finally {
+      setIsUploading(false);
     }
+  };
+
+  const handleFileUpload = (event) => {
+    const files = Array.from(event.target.files);
+    const validFiles = files.filter(file => {
+      // Check file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        alert(`File ${file.name} terlalu besar. Maksimal 10MB.`);
+        return false;
+      }
+      
+      // Check file type
+      const allowedTypes = [
+        'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+        'application/pdf', 'text/plain', 'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/zip', 'application/rar'
+      ];
+      
+      if (!allowedTypes.includes(file.type)) {
+        alert(`File ${file.name} tidak didukung.`);
+        return false;
+      }
+      
+      return true;
+    });
+    
+    setAttachedFiles(prev => [...prev, ...validFiles]);
+  };
+
+  const removeFile = (indexToRemove) => {
+    setAttachedFiles(prev => prev.filter((_, index) => index !== indexToRemove));
   };
 
   const getStatusText = (status) => {
@@ -230,8 +326,8 @@ export default function FreelancerOrders() {
   };
 
   const filteredOrders = orders.filter(order => {
-    const matchesSearch = order.gig?.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         order.buyer?.displayName?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = order.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         order.client?.displayName?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = filterStatus === 'all' || order.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
@@ -261,7 +357,7 @@ export default function FreelancerOrders() {
               Detail Pesanan #{selectedOrder.id.slice(-8)}
             </h1>
             <p className="text-gray-600">
-              {selectedOrder.gig?.title}
+              {selectedOrder.title}
             </p>
           </div>
         </div>
@@ -291,7 +387,7 @@ export default function FreelancerOrders() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Harga:</span>
-                  <span className="font-medium">{formatCurrency(selectedOrder.amount)}</span>
+                  <span className="font-medium">{formatCurrency(selectedOrder.price || selectedOrder.amount || selectedOrder.totalPrice || 0)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Tanggal Pemesanan:</span>
@@ -313,7 +409,7 @@ export default function FreelancerOrders() {
                 className="bg-white rounded-lg shadow p-6"
               >
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                  Persyaratan dari Buyer
+                  Persyaratan dari Client
                 </h2>
                 <p className="text-gray-700">{selectedOrder.requirements}</p>
               </motion.div>
@@ -344,17 +440,60 @@ export default function FreelancerOrders() {
                     />
                   </div>
                   <div className="flex items-center gap-2">
-                    <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                    <input
+                      type="file"
+                      multiple
+                      onChange={handleFileUpload}
+                      className="hidden"
+                      id="file-upload"
+                      accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.doc,.docx,.zip,.rar"
+                    />
+                    <label 
+                      htmlFor="file-upload"
+                      className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer"
+                    >
                       <PaperClipIcon className="h-5 w-5 text-gray-600" />
                       Lampirkan File
-                    </button>
+                    </label>
+                    <span className="text-sm text-gray-500">
+                      Max 10MB per file
+                    </span>
                   </div>
+                  
+                  {/* Display attached files */}
+                  {attachedFiles.length > 0 && (
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700">
+                        File Terlampir ({attachedFiles.length})
+                      </label>
+                      <div className="space-y-2">
+                        {attachedFiles.map((file, index) => (
+                          <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <PaperClipIcon className="h-4 w-4 text-gray-500" />
+                              <span className="text-sm text-gray-700">{file.name}</span>
+                              <span className="text-xs text-gray-500">
+                                ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => removeFile(index)}
+                              className="text-red-500 hover:text-red-700 text-sm"
+                            >
+                              Hapus
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
                   <button 
                     onClick={deliverOrder}
-                    disabled={!deliveryMessage.trim()}
+                    disabled={!deliveryMessage.trim() || isUploading}
                     className="w-full bg-[#010042] text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Kirim Hasil Pekerjaan
+                    {isUploading ? 'Mengirim...' : 'Kirim Hasil Pekerjaan'}
                   </button>
                 </div>
               </motion.div>
@@ -383,21 +522,21 @@ export default function FreelancerOrders() {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Buyer Info */}
+            {/* Client Info */}
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               className="bg-white rounded-lg shadow p-6"
             >
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Informasi Buyer
+                Informasi Client
               </h3>
               <div className="flex items-center mb-4">
                 <div className="h-12 w-12 rounded-full bg-[#010042]/10 flex items-center justify-center">
-                  {selectedOrder.buyer?.profilePhoto ? (
+                  {selectedOrder.client?.profilePhoto ? (
                     <img 
-                      src={selectedOrder.buyer.profilePhoto} 
-                      alt={selectedOrder.buyer.displayName}
+                      src={selectedOrder.client.profilePhoto} 
+                      alt={selectedOrder.client.displayName}
                       className="h-12 w-12 rounded-full object-cover"
                     />
                   ) : (
@@ -406,20 +545,47 @@ export default function FreelancerOrders() {
                 </div>
                 <div className="ml-3">
                   <p className="font-medium text-gray-900">
-                    {selectedOrder.buyer?.displayName || 'User'}
+                    {selectedOrder.client?.displayName || 'User'}
                   </p>
                   <p className="text-sm text-gray-500">
-                    {selectedOrder.buyer?.email}
+                    {selectedOrder.client?.email}
                   </p>
                 </div>
               </div>
               
               <Link 
-                to={`/dashboard/freelancer/chat/${selectedOrder.conversationId || selectedOrder.id}`}
+                to={`/dashboard/freelancer/messages/${selectedOrder.conversationId || selectedOrder.id}`}
                 className="w-full flex items-center justify-center gap-2 bg-[#010042] text-white py-2 px-4 rounded-lg hover:bg-blue-700"
+                onClick={async (e) => {
+                  // Prevent default navigation
+                  e.preventDefault();
+                  
+                  if (selectedOrder.clientId) {
+                    try {
+                      // Import chatService dynamically
+                      const { default: chatService } = await import('../../services/chatService');
+                      
+                      // Create or get chat with this client
+                      const chat = await chatService.createOrGetChat(
+                        currentUser.uid, 
+                        selectedOrder.clientId
+                      );
+                      
+                      // Navigate to the chat
+                      window.location.href = `/dashboard/freelancer/messages?chatId=${chat.id}`;
+                    } catch (error) {
+                      console.error('Error creating chat:', error);
+                      // Fallback to basic messages page
+                      window.location.href = `/dashboard/freelancer/messages`;
+                    }
+                  } else {
+                    // Fallback if no clientId
+                    window.location.href = `/dashboard/freelancer/messages`;
+                  }
+                }}
               >
                 <ChatBubbleLeftRightIcon className="h-5 w-5" />
-                Chat dengan Buyer
+                Chat dengan Client
               </Link>
             </motion.div>
 
@@ -591,7 +757,7 @@ export default function FreelancerOrders() {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="text-lg font-semibold text-gray-900">
-                        {order.gig?.title}
+                        {order.title}
                       </h3>
                       <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(order.status)}`}>
                         {getStatusText(order.status)}
@@ -601,11 +767,11 @@ export default function FreelancerOrders() {
                     <div className="flex items-center gap-6 text-sm text-gray-600 mb-4">
                       <div className="flex items-center gap-1">
                         <UserIcon className="h-4 w-4" />
-                        <span>{order.buyer?.displayName || 'User'}</span>
+                        <span>{order.client?.displayName || 'Client'}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <CurrencyDollarIcon className="h-4 w-4" />
-                        <span>{formatCurrency(order.amount)}</span>
+                        <span>{formatCurrency(order.price || order.amount || order.totalPrice || 0)}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <CalendarIcon className="h-4 w-4" />
@@ -626,8 +792,35 @@ export default function FreelancerOrders() {
                       </Link>
                       
                       <Link 
-                        to={`/dashboard/freelancer/chat/${order.conversationId || order.id}`}
+                        to={`/dashboard/freelancer/messages/${order.conversationId || order.id}`}
                         className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+                        onClick={async (e) => {
+                          // Prevent default navigation
+                          e.preventDefault();
+                          
+                          if (order.clientId) {
+                            try {
+                              // Import chatService dynamically
+                              const { default: chatService } = await import('../../services/chatService');
+                              
+                              // Create or get chat with this client
+                              const chat = await chatService.createOrGetChat(
+                                currentUser.uid, 
+                                order.clientId
+                              );
+                              
+                              // Navigate to the chat
+                              window.location.href = `/dashboard/freelancer/messages?chatId=${chat.id}`;
+                            } catch (error) {
+                              console.error('Error creating chat:', error);
+                              // Fallback to basic messages page
+                              window.location.href = `/dashboard/freelancer/messages`;
+                            }
+                          } else {
+                            // Fallback if no clientId
+                            window.location.href = `/dashboard/freelancer/messages`;
+                          }
+                        }}
                       >
                         <ChatBubbleLeftRightIcon className="h-4 w-4" />
                         Chat

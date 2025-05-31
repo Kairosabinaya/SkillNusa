@@ -5,6 +5,7 @@ import gigService from '../services/gigService';
 import reviewService from '../services/reviewService';
 import firebaseService from '../services/firebaseService';
 import favoriteService from '../services/favoriteService';
+import cartService from '../services/cartService';
 import chatService from '../services/chatService';
 
 export default function GigDetail() {
@@ -22,6 +23,8 @@ export default function GigDetail() {
   const [reviewsSortBy, setReviewsSortBy] = useState('date');
   const [isFavorited, setIsFavorited] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
+  const [cartLoading, setCartLoading] = useState(false);
+  const [isInCart, setIsInCart] = useState(false);
 
   // Load gig data
   useEffect(() => {
@@ -29,6 +32,13 @@ export default function GigDetail() {
       setLoading(true);
       try {
         const gigData = await gigService.getGigById(gigId);
+        
+        // Debug logging for freelancer data
+        console.log('🔍 GigDetail: Full gig data received:', gigData);
+        console.log('👤 GigDetail: Freelancer data:', gigData.freelancer);
+        console.log('🎓 GigDetail: Education data:', gigData.freelancer?.education);
+        console.log('📜 GigDetail: Certification data:', gigData.freelancer?.certifications);
+        
         setGig(gigData);
         setReviews(gigData.reviews || []);
       } catch (error) {
@@ -60,38 +70,59 @@ export default function GigDetail() {
     checkFavoriteStatus();
   }, [currentUser, gig]);
 
+  // Check if item is in cart when package changes
+  useEffect(() => {
+    const checkCartStatus = async () => {
+      if (currentUser && gig) {
+        try {
+          const inCart = await cartService.isInCart(currentUser.uid, gig.id, selectedPackage);
+          setIsInCart(inCart);
+        } catch (error) {
+          console.error('Error checking cart status:', error);
+        }
+      }
+    };
+
+    checkCartStatus();
+  }, [currentUser, gig, selectedPackage]);
+
   // Handle package selection
   const handlePackageSelect = (packageType) => {
     setSelectedPackage(packageType);
   };
 
   // Handle add to cart
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (!currentUser) {
       navigate('/login');
       return;
     }
-    
-    const currentPackage = gig.packages[selectedPackage];
-    const cartItem = {
-      gigId: gig.id,
-      gigTitle: gig.title,
-      freelancerId: gig.freelancerId,
-      freelancerName: gig.freelancer.displayName,
-      packageType: selectedPackage,
-      packageName: currentPackage.name,
-      price: currentPackage.price,
-      deliveryTime: currentPackage.deliveryTime,
-      revisions: currentPackage.revisions,
-      gigImage: gig.images[0]
-    };
-    
-    // Add to cart (implement cart service)
-    console.log('Adding to cart:', cartItem);
-    // cartService.addToCart(cartItem);
-    
-    // Show success message
-    alert('Item added to cart!');
+
+    if (!gig) return;
+
+    setCartLoading(true);
+    try {
+      await cartService.addToCart(currentUser.uid, {
+        gigId: gig.id,
+        packageType: selectedPackage,
+        quantity: 1
+      });
+
+      setIsInCart(true);
+      
+      // Show success message - you might want to use a toast notification here
+      alert('Item berhasil ditambahkan ke keranjang!');
+      
+      // Refresh cart count in dashboard if available
+      if (window.refreshClientOrdersCount) {
+        window.refreshClientOrdersCount();
+      }
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      alert('Gagal menambahkan ke keranjang: ' + error.message);
+    } finally {
+      setCartLoading(false);
+    }
   };
 
   // Handle direct checkout
@@ -101,18 +132,20 @@ export default function GigDetail() {
       return;
     }
     
+    if (!gig) return;
+    
     const currentPackage = gig.packages[selectedPackage];
     navigate('/checkout', {
       state: {
         orderData: {
           gigId: gig.id,
-          gigTitle: gig.title,
+          title: gig.title,
+          description: currentPackage.description,
           freelancerId: gig.freelancerId,
-          freelancerName: gig.freelancer.displayName,
+          freelancer: gig.freelancer,
           packageType: selectedPackage,
-          packageName: currentPackage.name,
           price: currentPackage.price,
-          deliveryTime: currentPackage.deliveryTime,
+          deliveryTime: `${currentPackage.deliveryTime} hari`,
           revisions: currentPackage.revisions,
           features: currentPackage.features
         }
@@ -154,6 +187,34 @@ export default function GigDetail() {
     return colors[tier] || colors.bronze;
   };
 
+  // Handle freelancer profile click
+  const handleFreelancerProfileClick = () => {
+    navigate(`/freelancer/${gig.freelancerId}`);
+  };
+
+  // Handle contact freelancer
+  const handleContactFreelancer = async () => {
+    if (!currentUser) {
+      navigate('/login');
+      return;
+    }
+
+    try {
+      // Create or get chat with gig context
+      const chat = await chatService.createOrGetChat(
+        currentUser.uid, 
+        gig.freelancerId, 
+        gig.id
+      );
+
+      // Navigate to messages with specific chat
+      navigate(`/messages?chatId=${chat.id}`);
+    } catch (error) {
+      console.error('Error contacting freelancer:', error);
+      alert('Gagal memulai chat. Silakan coba lagi.');
+    }
+  };
+
   // Handle favorite toggle
   const handleFavoriteToggle = async () => {
     if (!currentUser) {
@@ -165,26 +226,19 @@ export default function GigDetail() {
     try {
       const result = await favoriteService.toggleFavorite(currentUser.uid, gig.id);
       setIsFavorited(result.isFavorited);
+      
+      // Don't automatically navigate to favorites page - just show success message
+      if (result.isFavorited) {
+        // You could show a toast notification here instead of alert
+        alert('Ditambahkan ke favorit!');
+      } else {
+        alert('Dihapus dari favorit!');
+      }
     } catch (error) {
       console.error('Error toggling favorite:', error);
+      alert('Gagal memproses favorit. Silakan coba lagi.');
     } finally {
       setFavoriteLoading(false);
-    }
-  };
-
-  // Handle contact freelancer
-  const handleContactFreelancer = async () => {
-    if (!currentUser) {
-      navigate('/login');
-      return;
-    }
-
-    try {
-      // Create or find existing chat
-      const chat = await chatService.createOrGetChat(currentUser.uid, gig.freelancer.id, gig.id);
-      navigate(`/messages/${chat.id}`);
-    } catch (error) {
-      console.error('Error creating chat:', error);
     }
   };
 
@@ -246,11 +300,19 @@ export default function GigDetail() {
               <img 
                 src={gig.freelancer.profilePhoto} 
                 alt={gig.freelancer.displayName}
-                className="w-10 h-10 rounded-full object-cover"
+                className="w-10 h-10 rounded-full object-cover cursor-pointer hover:ring-2 hover:ring-[#010042] transition-all"
+                onClick={handleFreelancerProfileClick}
+                title="Lihat profil freelancer"
               />
               <div>
                 <div className="flex items-center space-x-2">
-                  <span className="font-medium text-gray-900">{gig.freelancer.displayName}</span>
+                  <span 
+                    className="font-medium text-gray-900 cursor-pointer hover:text-[#010042] hover:underline transition-colors"
+                    onClick={handleFreelancerProfileClick}
+                    title="Lihat profil freelancer"
+                  >
+                    {gig.freelancer.displayName}
+                  </span>
                   {gig.freelancer.isVerified && (
                     <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -346,11 +408,19 @@ export default function GigDetail() {
                   <img 
                     src={gig.freelancer.profilePhoto} 
                     alt={gig.freelancer.displayName}
-                    className="w-24 h-24 rounded-full object-cover mr-4 flex-shrink-0"
+                    className="w-24 h-24 rounded-full object-cover mr-4 flex-shrink-0 cursor-pointer hover:ring-4 hover:ring-[#010042]/20 transition-all"
+                    onClick={handleFreelancerProfileClick}
+                    title="Lihat profil freelancer"
                   />
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-1">
-                      <h3 className="text-lg font-semibold text-gray-900">{gig.freelancer.displayName}</h3>
+                      <h3 
+                        className="text-lg font-semibold text-gray-900 cursor-pointer hover:text-[#010042] hover:underline transition-colors"
+                        onClick={handleFreelancerProfileClick}
+                        title="Lihat profil freelancer"
+                      >
+                        {gig.freelancer.displayName}
+                      </h3>
                       {gig.freelancer.isVerified && (
                         <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -405,11 +475,17 @@ export default function GigDetail() {
                     Skills
                   </h4>
                   <div className="flex flex-wrap gap-2">
-                    {gig.freelancer.skills.map((skill, index) => (
-                      <span key={index} className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full text-sm font-medium">
-                        {skill}
-                      </span>
-                    ))}
+                    {gig.freelancer.skills.map((skill, index) => {
+                      // Handle both string skills and object skills {skill, experienceLevel}
+                      const skillText = typeof skill === 'string' ? skill : skill?.skill || skill;
+                      const expLevel = typeof skill === 'object' && skill?.experienceLevel ? ` (${skill.experienceLevel})` : '';
+                      
+                      return (
+                        <span key={index} className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full text-sm font-medium">
+                          {skillText}{expLevel}
+                        </span>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -424,16 +500,46 @@ export default function GigDetail() {
                       Education
                     </h4>
                     <div className="space-y-4">
-                      {gig.freelancer.education.map((edu, index) => (
-                        <div key={index} className="bg-gray-50 rounded-lg p-4">
-                          <div className="font-medium text-gray-900">{edu.degree}</div>
-                          <div className="text-gray-600 mt-1 text-sm">
-                            {edu.institution}
-                            <span className="mx-2">•</span>
-                            <span className="text-blue-600">{edu.year}</span>
+                      {gig.freelancer.education.map((edu, index) => {
+                        // Debug logging for each education entry
+                        console.log(`🎓 Education entry ${index}:`, edu);
+                        
+                        // Handle different possible field names
+                        const degree = edu.degree || edu.title || 'Unknown Degree';
+                        const institution = edu.university || edu.institution || edu.school || 'Unknown Institution';
+                        const year = edu.graduationYear || edu.year || edu.endYear || 'Unknown Year';
+                        const fieldOfStudy = edu.fieldOfStudy || edu.major || '';
+                        
+                        return (
+                          <div key={index} className="bg-gray-50 rounded-lg p-4">
+                            <div className="font-medium text-gray-900">
+                              {degree}
+                              {fieldOfStudy && ` in ${fieldOfStudy}`}
+                            </div>
+                            <div className="text-gray-600 mt-1 text-sm">
+                              {institution}
+                              <span className="mx-2">•</span>
+                              <span className="text-blue-600">{year}</span>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Debug: Show if education array exists but is empty */}
+                {gig.freelancer.education && gig.freelancer.education.length === 0 && (
+                  <div className="border-t pt-6">
+                    <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
+                      <svg className="w-5 h-5 text-blue-600 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M12 14l9-5-9-5-9 5 9 5z" />
+                        <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                      </svg>
+                      Education
+                    </h4>
+                    <div className="text-gray-500 text-sm">
+                      No education information available
                     </div>
                   </div>
                 )}
@@ -456,16 +562,49 @@ export default function GigDetail() {
                       Certification
                     </h4>
                     <div className="space-y-4">
-                      {gig.freelancer.certifications.map((cert, index) => (
-                        <div key={index} className="bg-gray-50 rounded-lg p-4">
-                          <div className="font-medium text-gray-900">{cert.name}</div>
-                          <div className="text-gray-600 mt-1 text-sm">
-                            {cert.issuer}
-                            <span className="mx-2">•</span>
-                            <span className="text-blue-600">{cert.year}</span>
+                      {gig.freelancer.certifications.map((cert, index) => {
+                        // Debug logging for each certification entry
+                        console.log(`📜 Certification entry ${index}:`, cert);
+                        
+                        // Handle different possible field names
+                        const name = cert.name || cert.title || 'Unknown Certification';
+                        const issuer = cert.issuedBy || cert.issuer || cert.organization || 'Unknown Issuer';
+                        const year = cert.year || cert.issueYear || cert.date || 'Unknown Year';
+                        
+                        return (
+                          <div key={index} className="bg-gray-50 rounded-lg p-4">
+                            <div className="font-medium text-gray-900">{name}</div>
+                            <div className="text-gray-600 mt-1 text-sm">
+                              {issuer}
+                              <span className="mx-2">•</span>
+                              <span className="text-blue-600">{year}</span>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Debug: Show if certifications array exists but is empty */}
+                {gig.freelancer.certifications && gig.freelancer.certifications.length === 0 && (
+                  <div className="border-t pt-6">
+                    <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
+                      <svg className="w-5 h-5 text-blue-600 mr-2" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
+                        <g id="Layer_2" data-name="Layer 2">
+                          <g id="icons_Q2" data-name="icons Q2">
+                            <g>
+                              <path d="M20,39H6V9H40a2,2,0,0,0,0-4H4A2,2,0,0,0,2,7V41a2,2,0,0,0,2,2H20a2,2,0,0,0,0-4Z"></path>
+                              <path d="M46,24A13,13,0,0,0,33,11a12.8,12.8,0,0,0-8.3,3H12a2,2,0,0,0,0,4h9.5a11.1,11.1,0,0,0-1.3,4H12a2,2,0,0,0,0,4h8.2a11.1,11.1,0,0,0,1.3,4H12a2,2,0,0,0,0,4H24.7l1.3.9v9.7A2.3,2.3,0,0,0,28,47a1.8,1.8,0,0,0,1.3-.6L33,43l3.7,3.4A1.8,1.8,0,0,0,38,47a2.3,2.3,0,0,0,2-2.4V35A13.2,13.2,0,0,0,46,24ZM36,32.5v7.8l-3-2.8-3,2.8V32.5A9.1,9.1,0,0,1,24,24a9,9,0,0,1,18,0A9.1,9.1,0,0,1,36,32.5Z"></path>
+                              <circle cx="33" cy="24" r="5"></circle>
+                            </g>
+                          </g>
+                        </g>
+                      </svg>
+                      Certification
+                    </h4>
+                    <div className="text-gray-500 text-sm">
+                      No certification information available
                     </div>
                   </div>
                 )}
@@ -574,13 +713,13 @@ export default function GigDetail() {
                       <svg className="w-4 h-4" viewBox="0 0 50 50" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
                         <path d="M11 11C4.898438 11 0 15.898438 0 22C0 24.300781 0.699219 26.5 2 28.300781L2 42C2 43.601563 3.398438 45 5 45L7.09375 45C7.574219 47.828125 10.042969 50 13 50C15.957031 50 18.425781 47.828125 18.90625 45L28.097656 45C29.699219 45 30.902344 43.699219 30.902344 42.199219L30.902344 17.902344C31 16.300781 29.699219 15 28.199219 15L19.5 15C17.5 12.601563 14.398438 11 11 11 Z M 11 13C16 13 20 17 20 22C20 27 16 31 11 31C6 31 2 27 2 22C2 17 6 13 11 13 Z M 34 20C32.898438 20 32 20.898438 32 22L32 43C32 43.839844 32.527344 44.5625 33.265625 44.855469C33.6875 47.753906 36.191406 50 39.199219 50C42.15625 50 44.628906 47.828125 45.109375 45L47 45C48.699219 45 50 43.699219 50 42L50 32.402344C50 30.402344 48.601563 28.300781 48.402344 28.097656L46.097656 25L44.199219 22.5C43.199219 21.398438 41.699219 20 40 20 Z M 38 25L43.597656 25L46.800781 29.199219C47.101563 29.699219 48 31.199219 48 32.300781L48 33L38 33C37 33 36 32 36 31L36 27C36 25.898438 37 25 38 25 Z M 13 40C15.199219 40 17 41.800781 17 44C17 46.199219 15.199219 48 13 48C10.800781 48 9 46.199219 9 44C9 41.800781 10.800781 40 13 40 Z M 39.199219 40C41.398438 40 43.199219 41.800781 43.199219 44C43.199219 46.199219 41.398438 48 39.199219 48C37 48 35.199219 46.199219 35.199219 44C35.199219 41.800781 37 40 39.199219 40Z"/>
                       </svg>
-                      <span>{currentPackage.deliveryTime} days delivery</span>
+                      <span>{currentPackage.deliveryTime} hari delivery</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <svg className="w-4 h-4" viewBox="0 0 298.807 298.807" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
                         <path d="M223.383,255.164l-9.54-33.76c-71.4,63.126-130.786,5.012-141.612-11.675l5.504-3.399c2.433-1.508,3.857-4.221,3.707-7.081 c-0.149-2.857-1.846-5.41-4.423-6.654l-49.377-23.802c-1.08-0.523-2.239-0.782-3.399-0.782c-1.433,0-2.861,0.398-4.121,1.175 c-2.279,1.403-3.682,3.871-3.722,6.548l-0.841,54.812c-0.045,2.861,1.478,5.519,3.965,6.937c1.205,0.682,2.539,1.02,3.872,1.02 c1.429,0,2.857-0.389,4.121-1.169l2.633-1.627c45.271,73.442,149.175,80.638,205.414,32.69 C229.663,266.098,225.12,261.325,223.383,255.164z M56.666,169.026c-5.809-31.47,15.082-95.47,84.416-103.008v0.836c0,2.861,1.563,5.499,4.071,6.873 c1.174,0.647,2.474,0.965,3.767,0.965c1.469,0,2.936-0.413,4.221-1.234l46.196-29.5c2.26-1.443,3.623-3.931,3.623-6.608 c0-2.678-1.363-5.166-3.618-6.609L153.14,1.234C151.856,0.413,150.388,0,148.919,0c-1.293,0-2.593,0.318-3.767,0.965 c-2.508,1.374-4.071,4.011-4.071,6.873v8.639C73.737,16.189,2.111,79.857,6.727,165.732c0,0,10.425-10.112,17.517-10.112 C30.207,155.62,31.274,156.788,56.666,169.026z M292.123,212.351c-0.592-2.802-2.662-5.061-5.405-5.887l-5.652-1.707c16.622-46.53,11.226-126.807-66.247-171.649 c0.293,1.383,0.532,2.787,0.532,4.24c0,6.942-3.494,13.317-9.346,17.054l-26.679,17.035c23.634,6.821,77.648,48.932,54.274,118.997 l-3.384-1.02c-0.746-0.223-1.508-0.338-2.265-0.338c-2.025,0-4.006,0.792-5.488,2.249c-2.045,2.005-2.832,4.966-2.056,7.723 l14.899,52.746c0.727,2.574,2.717,4.599,5.275,5.375c0.741,0.223,1.507,0.333,2.265,0.333c1.846,0,3.662-0.658,5.105-1.892 l41.604-35.691C291.73,218.055,292.715,215.153,292.123,212.351z"/>
                       </svg>
-                      <span>{currentPackage.revisions} revisions</span>
+                      <span>{currentPackage.revisions === 'Unlimited' ? 'Unlimited' : `${currentPackage.revisions}`} revisions</span>
                     </div>
                   </div>
 
@@ -610,9 +749,10 @@ export default function GigDetail() {
                     
                     <button
                       onClick={handleAddToCart}
-                      className="w-full bg-white text-gray-900 py-3 px-4 rounded-lg font-medium border border-gray-300 hover:bg-gray-50 transition-colors"
+                      disabled={cartLoading || isInCart}
+                      className="w-full bg-white text-gray-900 py-3 px-4 rounded-lg font-medium border border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Add to Cart
+                      {cartLoading ? 'Adding...' : isInCart ? 'Already in Cart' : 'Add to Cart'}
                     </button>
 
                     <button
@@ -620,6 +760,41 @@ export default function GigDetail() {
                       className="w-full bg-white text-blue-600 py-3 px-4 rounded-lg font-medium border border-blue-200 hover:bg-blue-50 transition-colors"
                     >
                       Contact Freelancer
+                    </button>
+
+                    {/* Add to Favorites Button */}
+                    <button
+                      onClick={handleFavoriteToggle}
+                      disabled={favoriteLoading}
+                      className={`w-full py-3 px-4 rounded-lg font-medium border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                        isFavorited
+                          ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'
+                          : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {favoriteLoading ? (
+                        <div className="flex items-center justify-center">
+                          <div className="w-4 h-4 animate-spin rounded-full border-2 border-gray-300 border-t-current"></div>
+                          <span className="ml-2">Processing...</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center">
+                          <svg 
+                            className="w-5 h-5 mr-2" 
+                            fill={isFavorited ? 'currentColor' : 'none'} 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
+                          >
+                            <path 
+                              strokeLinecap="round" 
+                              strokeLinejoin="round" 
+                              strokeWidth={2} 
+                              d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" 
+                            />
+                          </svg>
+                          {isFavorited ? 'Go to Favorites' : 'Add to Favorites'}
+                        </div>
+                      )}
                     </button>
                   </div>
                 </div>

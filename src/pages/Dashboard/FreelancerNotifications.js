@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import LoadingSpinner from '../../components/UI/LoadingSpinner';
 
@@ -19,8 +19,8 @@ export default function FreelancerNotifications() {
         const notificationsRef = collection(db, 'notifications');
         const q = query(
           notificationsRef,
-          where('userId', '==', currentUser.uid),
-          orderBy('createdAt', 'desc')
+          where('userId', '==', currentUser.uid)
+          // Removed orderBy to avoid composite index requirement
         );
 
         const querySnapshot = await getDocs(q);
@@ -32,6 +32,13 @@ export default function FreelancerNotifications() {
             ...doc.data(),
             createdAt: doc.data().createdAt?.toDate() || new Date()
           });
+        });
+
+        // Sort by createdAt in JavaScript instead of Firestore
+        notificationsData.sort((a, b) => {
+          const aTime = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
+          const bTime = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
+          return bTime - aTime; // desc order (newest first)
         });
 
         setNotifications(notificationsData);

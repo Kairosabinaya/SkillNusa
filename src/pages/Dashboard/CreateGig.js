@@ -13,6 +13,7 @@ import {
   serverTimestamp 
 } from 'firebase/firestore';
 import { db } from '../../firebase/config';
+import { uploadMultipleToCloudinary } from '../../config/cloudinary';
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -26,17 +27,110 @@ import {
 } from '@heroicons/react/24/outline';
 
 const categories = [
-  'Desain Grafis',
-  'Pemrograman & Teknologi',
-  'Penulisan & Terjemahan',
-  'Video & Animasi',
-  'Musik & Audio',
+  'Programming & Tech',
+  'Graphics & Design', 
   'Digital Marketing',
-  'Bisnis',
-  'Lifestyle',
+  'Writing & Translation',
+  'Video & Animation',
+  'Music & Audio',
+  'Business',
   'Data',
-  'Fotografi'
+  'Photography',
+  'Lifestyle'
 ];
+
+const subcategories = {
+  'Programming & Tech': [
+    'Website Development',
+    'Mobile App Development',
+    'API Development',
+    'Database Design',
+    'Software Testing',
+    'DevOps & Cloud',
+    'Cybersecurity'
+  ],
+  'Graphics & Design': [
+    'Logo Design',
+    'Brand Identity',
+    'Web Design',
+    'Print Design',
+    'Packaging Design',
+    'Illustration',
+    'UI/UX Design'
+  ],
+  'Digital Marketing': [
+    'Social Media Marketing',
+    'SEO',
+    'Content Marketing',
+    'Email Marketing',
+    'PPC Advertising',
+    'Marketing Strategy',
+    'Influencer Marketing'
+  ],
+  'Writing & Translation': [
+    'Content Writing',
+    'Copywriting',
+    'Technical Writing',
+    'Translation',
+    'Proofreading',
+    'Creative Writing',
+    'Academic Writing'
+  ],
+  'Video & Animation': [
+    'Video Editing',
+    '2D Animation',
+    '3D Animation',
+    'Motion Graphics',
+    'Whiteboard Animation',
+    'Video Production',
+    'Visual Effects'
+  ],
+  'Music & Audio': [
+    'Music Production',
+    'Audio Editing',
+    'Voice Over',
+    'Sound Design',
+    'Mixing & Mastering',
+    'Jingles & Intros',
+    'Audio Ads'
+  ],
+  'Business': [
+    'Business Plan',
+    'Market Research',
+    'Presentation Design',
+    'Financial Consulting',
+    'Legal Consulting',
+    'HR Consulting',
+    'Project Management'
+  ],
+  'Data': [
+    'Data Analysis',
+    'Data Visualization',
+    'Data Entry',
+    'Data Mining',
+    'Machine Learning',
+    'Statistical Analysis',
+    'Database Management'
+  ],
+  'Photography': [
+    'Portrait Photography',
+    'Product Photography',
+    'Event Photography',
+    'Photo Editing',
+    'Photo Retouching',
+    'Real Estate Photography',
+    'Stock Photography'
+  ],
+  'Lifestyle': [
+    'Gaming',
+    'Fitness Training',
+    'Nutrition Consulting',
+    'Life Coaching',
+    'Travel Planning',
+    'Relationship Advice',
+    'Astrology & Readings'
+  ]
+};
 
 const deliveryTimes = [
   { value: 1, label: '1 hari' },
@@ -51,9 +145,8 @@ const deliveryTimes = [
 const steps = [
   { id: 1, name: 'Info Dasar', description: 'Judul, kategori, dan deskripsi' },
   { id: 2, name: 'Paket & Harga', description: 'Atur paket layanan Anda' },
-  { id: 3, name: 'Media', description: 'Tambahkan gambar dan video' },
-  { id: 4, name: 'Detail', description: 'FAQ dan informasi tambahan' },
-  { id: 5, name: 'Review', description: 'Periksa dan publikasikan' }
+  { id: 3, name: 'Media', description: 'Tambahkan gambar' },
+  { id: 4, name: 'Review', description: 'Periksa dan publikasikan' }
 ];
 
 const validationSchemas = [
@@ -64,7 +157,7 @@ const validationSchemas = [
       .min(10, 'Judul minimal 10 karakter')
       .max(80, 'Judul maksimal 80 karakter'),
     category: Yup.string().required('Kategori harus dipilih'),
-    subcategory: Yup.string(),
+    subcategory: Yup.string().required('Subkategori harus dipilih'),
     description: Yup.string()
       .required('Deskripsi harus diisi')
       .min(100, 'Deskripsi minimal 100 karakter')
@@ -79,7 +172,24 @@ const validationSchemas = [
   Yup.object({
     packages: Yup.object({
       basic: Yup.object({
-        name: Yup.string().required('Nama paket harus diisi'),
+        price: Yup.number()
+          .required('Harga harus diisi')
+          .min(50000, 'Harga minimal Rp 50.000'),
+        description: Yup.string().required('Deskripsi paket harus diisi'),
+        deliveryTime: Yup.number().required('Waktu pengerjaan harus diisi'),
+        revisions: Yup.number().min(0, 'Revisi minimal 0'),
+        features: Yup.array().of(Yup.string())
+      }),
+      standard: Yup.object({
+        price: Yup.number()
+          .required('Harga harus diisi')
+          .min(50000, 'Harga minimal Rp 50.000'),
+        description: Yup.string().required('Deskripsi paket harus diisi'),
+        deliveryTime: Yup.number().required('Waktu pengerjaan harus diisi'),
+        revisions: Yup.number().min(0, 'Revisi minimal 0'),
+        features: Yup.array().of(Yup.string())
+      }),
+      premium: Yup.object({
         price: Yup.number()
           .required('Harga harus diisi')
           .min(50000, 'Harga minimal Rp 50.000'),
@@ -95,29 +205,17 @@ const validationSchemas = [
   Yup.object({
     images: Yup.array()
       .min(1, 'Minimal 1 gambar')
-      .max(5, 'Maksimal 5 gambar'),
-    video: Yup.string().url('URL video tidak valid')
+      .max(5, 'Maksimal 5 gambar')
   }),
 
-  // Step 4: Details
-  Yup.object({
-    requirements: Yup.string(),
-    faqs: Yup.array().of(
-      Yup.object({
-        question: Yup.string().required('Pertanyaan harus diisi'),
-        answer: Yup.string().required('Jawaban harus diisi')
-      })
-    )
-  }),
-
-  // Step 5: Review
+  // Step 4: Review
   Yup.object({})
 ];
 
 export default function CreateGig() {
   const { gigId } = useParams();
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
+  const { currentUser, userProfile } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -131,7 +229,7 @@ export default function CreateGig() {
     tags: [],
     packages: {
       basic: {
-        name: 'Paket Basic',
+        name: 'Basic',
         price: 50000,
         description: '',
         deliveryTime: 3,
@@ -139,8 +237,7 @@ export default function CreateGig() {
         features: []
       },
       standard: {
-        enabled: false,
-        name: 'Paket Standard',
+        name: 'Standard',
         price: 100000,
         description: '',
         deliveryTime: 5,
@@ -148,8 +245,7 @@ export default function CreateGig() {
         features: []
       },
       premium: {
-        enabled: false,
-        name: 'Paket Premium',
+        name: 'Premium',
         price: 200000,
         description: '',
         deliveryTime: 7,
@@ -157,10 +253,7 @@ export default function CreateGig() {
         features: []
       }
     },
-    images: [],
-    video: '',
-    requirements: '',
-    faqs: []
+    images: []
   };
 
   const [formData, setFormData] = useState(initialValues);
@@ -171,6 +264,22 @@ export default function CreateGig() {
     }
   }, [gigId]);
 
+  // Force proper initialization of array fields
+  useEffect(() => {
+    if (!Array.isArray(formData.images)) {
+      setFormData(prev => ({
+        ...prev,
+        images: []
+      }));
+    }
+    if (!Array.isArray(formData.tags)) {
+      setFormData(prev => ({
+        ...prev,
+        tags: []
+      }));
+    }
+  }, [formData.images, formData.tags]);
+
   const fetchGigData = async () => {
     setLoading(true);
     try {
@@ -179,7 +288,27 @@ export default function CreateGig() {
         const data = gigDoc.data();
         setFormData({
           ...initialValues,
-          ...data
+          ...data,
+          // Ensure array fields are properly initialized
+          images: data.images || [],
+          tags: data.tags || [],
+          packages: {
+            basic: {
+              ...initialValues.packages.basic,
+              ...(data.packages?.basic || {}),
+              features: data.packages?.basic?.features || []
+            },
+            standard: {
+              ...initialValues.packages.standard,
+              ...(data.packages?.standard || {}),
+              features: data.packages?.standard?.features || []
+            },
+            premium: {
+              ...initialValues.packages.premium,
+              ...(data.packages?.premium || {}),
+              features: data.packages?.premium?.features || []
+            }
+          }
         });
         setIsEditing(true);
       }
@@ -192,7 +321,7 @@ export default function CreateGig() {
 
   const handleImageUpload = async (e, setFieldValue, values) => {
     const files = Array.from(e.target.files);
-    const currentImages = values.images || [];
+    const currentImages = Array.isArray(values.images) ? values.images : [];
     
     if (currentImages.length + files.length > 5) {
       alert('Maksimal 5 gambar');
@@ -201,45 +330,107 @@ export default function CreateGig() {
 
     setUploadingImage(true);
     
-    // In production, upload to Cloudinary
-    // For now, we'll use placeholder URLs
-    const newImages = files.map(file => URL.createObjectURL(file));
-    setFieldValue('images', [...currentImages, ...newImages]);
-    
-    setUploadingImage(false);
+    try {
+      // Upload files to Cloudinary
+      const uploadedUrls = await uploadMultipleToCloudinary(files);
+      
+      // Add uploaded URLs to the images array
+      setFieldValue('images', [...currentImages, ...uploadedUrls]);
+    } catch (error) {
+      console.error('Error uploading images:', error);
+      alert('Gagal upload gambar. Silakan coba lagi.');
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   const removeImage = (index, setFieldValue, values) => {
-    const newImages = values.images.filter((_, i) => i !== index);
+    const currentImages = Array.isArray(values.images) ? values.images : [];
+    const newImages = currentImages.filter((_, i) => i !== index);
     setFieldValue('images', newImages);
   };
 
   const handleSubmit = async (values) => {
     setLoading(true);
     try {
+      // Validate required fields
+      if (!values.title || !values.category || !values.subcategory || !values.description) {
+        alert('Please fill in all required fields');
+        setLoading(false);
+        return;
+      }
+
+      if (!Array.isArray(values.images) || values.images.length === 0) {
+        alert('Please add at least one image for your gig');
+        setLoading(false);
+        return;
+      }
+
+      // Clean up the data before saving - match the exact structure from example
       const gigData = {
-        ...values,
+        title: String(values.title || ''),
+        category: String(values.category || ''),
+        subcategory: String(values.subcategory || ''),
+        description: String(values.description || ''),
+        tags: Array.isArray(values.tags) ? values.tags.filter(tag => tag && typeof tag === 'string') : [],
+        packages: {
+          basic: {
+            name: String(values.packages?.basic?.name || 'Basic'),
+            price: Number(values.packages?.basic?.price || 0),
+            description: String(values.packages?.basic?.description || ''),
+            deliveryTime: Number(values.packages?.basic?.deliveryTime || 3),
+            revisions: Number(values.packages?.basic?.revisions || 1),
+            features: Array.isArray(values.packages?.basic?.features) 
+              ? values.packages.basic.features.filter(f => f && typeof f === 'string') 
+              : []
+          },
+          standard: {
+            name: String(values.packages?.standard?.name || 'Standard'),
+            price: Number(values.packages?.standard?.price || 0),
+            description: String(values.packages?.standard?.description || ''),
+            deliveryTime: Number(values.packages?.standard?.deliveryTime || 5),
+            revisions: Number(values.packages?.standard?.revisions || 2),
+            features: Array.isArray(values.packages?.standard?.features) 
+              ? values.packages.standard.features.filter(f => f && typeof f === 'string') 
+              : []
+          },
+          premium: {
+            name: String(values.packages?.premium?.name || 'Premium'),
+            price: Number(values.packages?.premium?.price || 0),
+            description: String(values.packages?.premium?.description || ''),
+            deliveryTime: Number(values.packages?.premium?.deliveryTime || 7),
+            revisions: Number(values.packages?.premium?.revisions || 3),
+            features: Array.isArray(values.packages?.premium?.features) 
+              ? values.packages.premium.features.filter(f => f && typeof f === 'string') 
+              : []
+          }
+        },
+        images: Array.isArray(values.images) ? values.images : [],
+        freelancerId: currentUser.uid,
         userId: currentUser.uid,
-        userName: currentUser.displayName || 'User',
-        status: 'active',
-        views: 0,
-        orders: 0,
+        isActive: true,
         rating: 0,
-        reviewCount: 0,
+        totalOrders: 0,
+        inQueue: 0,
         createdAt: isEditing ? values.createdAt : serverTimestamp(),
         updatedAt: serverTimestamp()
       };
 
+      console.log('Saving gig data:', gigData);
+
       if (isEditing) {
         await updateDoc(doc(db, 'gigs', gigId), gigData);
+        alert('Gig berhasil diupdate!');
       } else {
-        await addDoc(collection(db, 'gigs'), gigData);
+        const docRef = await addDoc(collection(db, 'gigs'), gigData);
+        console.log('Gig created with ID:', docRef.id);
+        alert('Gig berhasil dipublikasikan!');
       }
 
       navigate('/dashboard/freelancer/gigs');
     } catch (error) {
       console.error('Error saving gig:', error);
-      alert('Gagal menyimpan gig. Silakan coba lagi.');
+      alert(`Gagal menyimpan gig: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -254,6 +445,20 @@ export default function CreateGig() {
   const prevStep = () => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
+    }
+  };
+
+  // Validate current step before allowing navigation
+  const validateCurrentStep = (values) => {
+    const currentSchema = validationSchemas[currentStep - 1];
+    try {
+      currentSchema.validateSync(values, { abortEarly: false });
+      return true;
+    } catch (error) {
+      // Show validation errors
+      const errorMessages = error.inner.map(err => err.message).join(', ');
+      alert(`Please complete the following: ${errorMessages}`);
+      return false;
     }
   };
 
@@ -377,27 +582,53 @@ export default function CreateGig() {
                         <p className="mt-1 text-sm text-red-600">{errors.title}</p>
                       )}
                       <p className="mt-1 text-xs text-gray-500">
-                        {values.title.length}/80 karakter
+                        {values.title ? values.title.length : 0}/80 karakter
                       </p>
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Kategori *
-                      </label>
-                      <Field
-                        as="select"
-                        name="category"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042]"
-                      >
-                        <option value="">Pilih kategori</option>
-                        {categories.map(cat => (
-                          <option key={cat} value={cat}>{cat}</option>
-                        ))}
-                      </Field>
-                      {errors.category && touched.category && (
-                        <p className="mt-1 text-sm text-red-600">{errors.category}</p>
-                      )}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Kategori *
+                        </label>
+                        <Field
+                          as="select"
+                          name="category"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042]"
+                          onChange={(e) => {
+                            setFieldValue('category', e.target.value);
+                            setFieldValue('subcategory', ''); // Reset subcategory when category changes
+                          }}
+                        >
+                          <option value="">Pilih kategori</option>
+                          {categories.map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                        </Field>
+                        {errors.category && touched.category && (
+                          <p className="mt-1 text-sm text-red-600">{errors.category}</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Subkategori *
+                        </label>
+                        <Field
+                          as="select"
+                          name="subcategory"
+                          disabled={!values.category}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042] disabled:bg-gray-100"
+                        >
+                          <option value="">Pilih subkategori</option>
+                          {values.category && subcategories[values.category]?.map(subcat => (
+                            <option key={subcat} value={subcat}>{subcat}</option>
+                          ))}
+                        </Field>
+                        {errors.subcategory && touched.subcategory && (
+                          <p className="mt-1 text-sm text-red-600">{errors.subcategory}</p>
+                        )}
+                      </div>
                     </div>
 
                     <div>
@@ -415,7 +646,7 @@ export default function CreateGig() {
                         <p className="mt-1 text-sm text-red-600">{errors.description}</p>
                       )}
                       <p className="mt-1 text-xs text-gray-500">
-                        {values.description.length}/1200 karakter
+                        {values.description ? values.description.length : 0}/1200 karakter
                       </p>
                     </div>
 
@@ -426,7 +657,7 @@ export default function CreateGig() {
                       <FieldArray name="tags">
                         {({ push, remove }) => (
                           <div className="space-y-2">
-                            {values.tags.map((tag, index) => (
+                            {Array.isArray(values.tags) ? values.tags.map((tag, index) => (
                               <div key={index} className="flex gap-2">
                                 <Field
                                   name={`tags.${index}`}
@@ -442,11 +673,23 @@ export default function CreateGig() {
                                   <TrashIcon className="h-5 w-5" />
                                 </button>
                               </div>
-                            ))}
-                            {values.tags.length < 5 && (
+                            )) : null}
+                            {Array.isArray(values.tags) && values.tags.length < 5 && (
                               <button
                                 type="button"
                                 onClick={() => push('')}
+                                className="flex items-center gap-2 text-sm text-[#010042] hover:text-blue-700"
+                              >
+                                <PlusIcon className="h-4 w-4" />
+                                Tambah tag
+                              </button>
+                            )}
+                            {!Array.isArray(values.tags) && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setFieldValue('tags', ['']);
+                                }}
                                 className="flex items-center gap-2 text-sm text-[#010042] hover:text-blue-700"
                               >
                                 <PlusIcon className="h-4 w-4" />
@@ -471,111 +714,126 @@ export default function CreateGig() {
                         <InformationCircleIcon className="h-5 w-5 text-blue-600 mt-0.5" />
                         <div className="ml-3">
                           <p className="text-sm text-blue-800">
-                            Tawarkan beberapa paket untuk memberikan pilihan kepada client
+                            Anda harus mengisi ketiga paket (Basic, Standard, Premium) untuk memberikan pilihan lengkap kepada client
                           </p>
                         </div>
                       </div>
                     </div>
 
-                    {/* Basic Package */}
-                    <div className="border border-gray-200 rounded-lg p-6">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                        Paket Basic (Wajib)
-                      </h3>
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Nama Paket
-                          </label>
-                          <Field
-                            name="packages.basic.name"
-                            type="text"
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042]"
-                          />
-                        </div>
+                    {/* All Three Packages */}
+                    {['basic', 'standard', 'premium'].map((packageType) => (
+                      <div key={packageType} className="border border-gray-200 rounded-lg p-6">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4 capitalize">
+                          Paket {packageType === 'basic' ? 'Basic' : packageType === 'standard' ? 'Standard' : 'Premium'}
+                        </h3>
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Harga *
+                              </label>
+                              <Field
+                                name={`packages.${packageType}.price`}
+                                type="number"
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042]"
+                              />
+                              {errors.packages?.[packageType]?.price && touched.packages?.[packageType]?.price && (
+                                <p className="mt-1 text-sm text-red-600">{errors.packages[packageType].price}</p>
+                              )}
+                            </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Waktu Pengerjaan *
+                              </label>
+                              <Field
+                                as="select"
+                                name={`packages.${packageType}.deliveryTime`}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042]"
+                              >
+                                {deliveryTimes.map(time => (
+                                  <option key={time.value} value={time.value}>
+                                    {time.label}
+                                  </option>
+                                ))}
+                              </Field>
+                            </div>
+                          </div>
+
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Harga
+                              Deskripsi Paket *
                             </label>
                             <Field
-                              name="packages.basic.price"
-                              type="number"
+                              as="textarea"
+                              name={`packages.${packageType}.description`}
+                              rows={3}
+                              placeholder={`Jelaskan apa yang termasuk dalam paket ${packageType}...`}
                               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042]"
                             />
-                            {errors.packages?.basic?.price && touched.packages?.basic?.price && (
-                              <p className="mt-1 text-sm text-red-600">{errors.packages.basic.price}</p>
+                            {errors.packages?.[packageType]?.description && touched.packages?.[packageType]?.description && (
+                              <p className="mt-1 text-sm text-red-600">{errors.packages[packageType].description}</p>
                             )}
                           </div>
 
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Waktu Pengerjaan
+                              Jumlah Revisi
                             </label>
                             <Field
-                              as="select"
-                              name="packages.basic.deliveryTime"
+                              name={`packages.${packageType}.revisions`}
+                              type="number"
+                              min="0"
                               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042]"
-                            >
-                              {deliveryTimes.map(time => (
-                                <option key={time.value} value={time.value}>
-                                  {time.label}
-                                </option>
-                              ))}
-                            </Field>
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Fitur yang Termasuk
+                            </label>
+                            <FieldArray name={`packages.${packageType}.features`}>
+                              {({ push, remove }) => (
+                                <div className="space-y-2">
+                                  {Array.isArray(values.packages[packageType]?.features) ? 
+                                    values.packages[packageType].features.map((feature, index) => (
+                                      <div key={index} className="flex gap-2">
+                                        <Field
+                                          name={`packages.${packageType}.features.${index}`}
+                                          type="text"
+                                          placeholder="Contoh: Logo design"
+                                          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042]"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => remove(index)}
+                                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                                        >
+                                          <TrashIcon className="h-5 w-5" />
+                                        </button>
+                                      </div>
+                                    )) : null}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (!Array.isArray(values.packages[packageType]?.features)) {
+                                        setFieldValue(`packages.${packageType}.features`, ['']);
+                                      } else {
+                                        push('');
+                                      }
+                                    }}
+                                    className="flex items-center gap-2 text-sm text-[#010042] hover:text-blue-700"
+                                  >
+                                    <PlusIcon className="h-4 w-4" />
+                                    Tambah fitur
+                                  </button>
+                                </div>
+                              )}
+                            </FieldArray>
                           </div>
                         </div>
-
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Deskripsi Paket
-                          </label>
-                          <Field
-                            as="textarea"
-                            name="packages.basic.description"
-                            rows={3}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042]"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Jumlah Revisi
-                          </label>
-                          <Field
-                            name="packages.basic.revisions"
-                            type="number"
-                            min="0"
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042]"
-                          />
-                        </div>
                       </div>
-                    </div>
-
-                    {/* Optional Packages Toggle */}
-                    <div className="flex items-center gap-4">
-                      <label className="flex items-center">
-                        <Field
-                          type="checkbox"
-                          name="packages.standard.enabled"
-                          className="mr-2"
-                        />
-                        <span className="text-sm font-medium text-gray-700">
-                          Tambah Paket Standard
-                        </span>
-                      </label>
-                      <label className="flex items-center">
-                        <Field
-                          type="checkbox"
-                          name="packages.premium.enabled"
-                          className="mr-2"
-                        />
-                        <span className="text-sm font-medium text-gray-700">
-                          Tambah Paket Premium
-                        </span>
-                      </label>
-                    </div>
+                    ))}
                   </div>
                 )}
 
@@ -584,14 +842,14 @@ export default function CreateGig() {
                   <div className="space-y-6">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Gambar Gig (Minimal 1, Maksimal 5)
+                        Gambar Gig (Minimal 1, Maksimal 5) *
                       </label>
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        {values.images.map((image, index) => (
+                        {Array.isArray(values.images) ? values.images.map((image, index) => (
                           <div key={index} className="relative">
                             <img
                               src={image}
-                              alt={`Gig image ${index + 1}`}
+                              alt={`Gig ${index + 1}`}
                               className="w-full h-32 object-cover rounded-lg"
                             />
                             <button
@@ -602,9 +860,9 @@ export default function CreateGig() {
                               <XMarkIcon className="h-4 w-4" />
                             </button>
                           </div>
-                        ))}
+                        )) : null}
                         
-                        {values.images.length < 5 && (
+                        {Array.isArray(values.images) && values.images.length < 5 && (
                           <label className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400">
                             <input
                               type="file"
@@ -614,7 +872,35 @@ export default function CreateGig() {
                               className="hidden"
                             />
                             {uploadingImage ? (
-                              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#010042]"></div>
+                              <div className="flex flex-col items-center">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#010042] mb-2"></div>
+                                <span className="text-sm text-gray-600">Uploading...</span>
+                              </div>
+                            ) : (
+                              <>
+                                <CloudArrowUpIcon className="h-8 w-8 text-gray-400" />
+                                <span className="mt-2 text-sm text-gray-600">
+                                  Upload gambar
+                                </span>
+                              </>
+                            )}
+                          </label>
+                        )}
+                        
+                        {!Array.isArray(values.images) && (
+                          <label className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              onChange={(e) => handleImageUpload(e, setFieldValue, values)}
+                              className="hidden"
+                            />
+                            {uploadingImage ? (
+                              <div className="flex flex-col items-center">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#010042] mb-2"></div>
+                                <span className="text-sm text-gray-600">Uploading...</span>
+                              </div>
                             ) : (
                               <>
                                 <CloudArrowUpIcon className="h-8 w-8 text-gray-400" />
@@ -629,102 +915,16 @@ export default function CreateGig() {
                       {errors.images && touched.images && (
                         <p className="mt-1 text-sm text-red-600">{errors.images}</p>
                       )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Video URL (Opsional)
-                      </label>
-                      <Field
-                        name="video"
-                        type="url"
-                        placeholder="https://youtube.com/watch?v=..."
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042]"
-                      />
-                      {errors.video && touched.video && (
-                        <p className="mt-1 text-sm text-red-600">{errors.video}</p>
-                      )}
-                      <p className="mt-1 text-xs text-gray-500">
-                        Tambahkan video YouTube untuk menjelaskan layanan Anda
+                      <p className="mt-2 text-sm text-gray-500">
+                        Gambar akan diupload ke Cloudinary untuk performa yang optimal. 
+                        Format yang didukung: JPG, PNG, GIF. Maksimal 10MB per gambar.
                       </p>
                     </div>
                   </div>
                 )}
 
-                {/* Step 4: Details */}
+                {/* Step 4: Review */}
                 {currentStep === 4 && (
-                  <div className="space-y-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Persyaratan dari Buyer (Opsional)
-                      </label>
-                      <Field
-                        as="textarea"
-                        name="requirements"
-                        rows={4}
-                        placeholder="Apa yang Anda butuhkan dari buyer untuk memulai pekerjaan?"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042]"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        FAQ (Frequently Asked Questions)
-                      </label>
-                      <FieldArray name="faqs">
-                        {({ push, remove }) => (
-                          <div className="space-y-4">
-                            {values.faqs.map((faq, index) => (
-                              <div key={index} className="border border-gray-200 rounded-lg p-4">
-                                <div className="space-y-3">
-                                  <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                      Pertanyaan
-                                    </label>
-                                    <Field
-                                      name={`faqs.${index}.question`}
-                                      type="text"
-                                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042]"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                      Jawaban
-                                    </label>
-                                    <Field
-                                      as="textarea"
-                                      name={`faqs.${index}.answer`}
-                                      rows={2}
-                                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042]"
-                                    />
-                                  </div>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => remove(index)}
-                                  className="mt-3 text-sm text-red-600 hover:text-red-700"
-                                >
-                                  Hapus FAQ
-                                </button>
-                              </div>
-                            ))}
-                            <button
-                              type="button"
-                              onClick={() => push({ question: '', answer: '' })}
-                              className="flex items-center gap-2 text-sm text-[#010042] hover:text-blue-700"
-                            >
-                              <PlusIcon className="h-4 w-4" />
-                              Tambah FAQ
-                            </button>
-                          </div>
-                        )}
-                      </FieldArray>
-                    </div>
-                  </div>
-                )}
-
-                {/* Step 5: Review */}
-                {currentStep === 5 && (
                   <div className="space-y-6">
                     <h3 className="text-lg font-semibold text-gray-900">
                       Review Gig Anda
@@ -732,26 +932,26 @@ export default function CreateGig() {
 
                     {/* Preview Card */}
                     <div className="border border-gray-200 rounded-lg overflow-hidden">
-                      {values.images[0] && (
+                      {Array.isArray(values.images) && values.images[0] && (
                         <img
                           src={values.images[0]}
-                          alt={values.title}
+                          alt={values.title || 'Untitled Gig'}
                           className="w-full h-48 object-cover"
                         />
                       )}
                       <div className="p-6">
                         <h4 className="text-xl font-semibold text-gray-900 mb-2">
-                          {values.title}
+                          {values.title || 'Untitled Gig'}
                         </h4>
                         <p className="text-gray-600 mb-4">
-                          {values.description}
+                          {values.description || 'No description provided'}
                         </p>
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-gray-500">
-                            {values.category}
+                            {values.category || 'No category'} • {values.subcategory || 'No subcategory'}
                           </span>
                           <span className="text-lg font-bold text-[#010042]">
-                            Mulai dari {formatCurrency(values.packages.basic.price)}
+                            Mulai dari {formatCurrency(values.packages?.basic?.price || 0)}
                           </span>
                         </div>
                       </div>
@@ -762,32 +962,41 @@ export default function CreateGig() {
                       <h4 className="font-medium text-gray-900 mb-4">Ringkasan Paket</h4>
                       <div className="space-y-3">
                         <div>
-                          <span className="font-medium">{values.packages.basic.name}:</span>
-                          <span className="ml-2">{formatCurrency(values.packages.basic.price)}</span>
+                          <span className="font-medium">Basic:</span>
+                          <span className="ml-2">{formatCurrency(values.packages?.basic?.price || 0)}</span>
                           <span className="ml-2 text-sm text-gray-600">
-                            ({values.packages.basic.deliveryTime} hari)
+                            ({values.packages?.basic?.deliveryTime || 0} hari)
                           </span>
                         </div>
-                        {values.packages.standard.enabled && (
-                          <div>
-                            <span className="font-medium">{values.packages.standard.name}:</span>
-                            <span className="ml-2">{formatCurrency(values.packages.standard.price)}</span>
-                            <span className="ml-2 text-sm text-gray-600">
-                              ({values.packages.standard.deliveryTime} hari)
-                            </span>
-                          </div>
-                        )}
-                        {values.packages.premium.enabled && (
-                          <div>
-                            <span className="font-medium">{values.packages.premium.name}:</span>
-                            <span className="ml-2">{formatCurrency(values.packages.premium.price)}</span>
-                            <span className="ml-2 text-sm text-gray-600">
-                              ({values.packages.premium.deliveryTime} hari)
-                            </span>
-                          </div>
-                        )}
+                        <div>
+                          <span className="font-medium">Standard:</span>
+                          <span className="ml-2">{formatCurrency(values.packages?.standard?.price || 0)}</span>
+                          <span className="ml-2 text-sm text-gray-600">
+                            ({values.packages?.standard?.deliveryTime || 0} hari)
+                          </span>
+                        </div>
+                        <div>
+                          <span className="font-medium">Premium:</span>
+                          <span className="ml-2">{formatCurrency(values.packages?.premium?.price || 0)}</span>
+                          <span className="ml-2 text-sm text-gray-600">
+                            ({values.packages?.premium?.deliveryTime || 0} hari)
+                          </span>
+                        </div>
                       </div>
                     </div>
+
+                    {Array.isArray(values.tags) && values.tags.length > 0 && (
+                      <div className="bg-blue-50 rounded-lg p-4">
+                        <h5 className="font-medium text-blue-900 mb-2">Tags</h5>
+                        <div className="flex flex-wrap gap-2">
+                          {values.tags.map((tag, index) => (
+                            <span key={index} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -810,22 +1019,32 @@ export default function CreateGig() {
                     Sebelumnya
                   </button>
 
-                  <button
-                    type="submit"
-                    disabled={isSubmitting || loading}
-                    className="flex items-center gap-2 px-6 py-2 bg-[#010042] text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {currentStep === steps.length ? (
-                      <>
-                        {loading ? 'Menyimpan...' : isEditing ? 'Update Gig' : 'Publikasikan Gig'}
-                      </>
-                    ) : (
-                      <>
-                        Selanjutnya
-                        <ChevronRightIcon className="h-5 w-5" />
-                      </>
-                    )}
-                  </button>
+                  {currentStep === steps.length ? (
+                    <button
+                      type="submit"
+                      disabled={isSubmitting || loading || uploadingImage}
+                      className="flex items-center gap-2 px-6 py-2 bg-[#010042] text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {loading ? 'Menyimpan...' : isEditing ? 'Update Gig' : 'Publikasikan Gig'}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // Validate current step before proceeding
+                        if (validateCurrentStep(values)) {
+                          // Save current form data and move to next step
+                          setFormData(values);
+                          nextStep();
+                        }
+                      }}
+                      disabled={uploadingImage}
+                      className="flex items-center gap-2 px-6 py-2 bg-[#010042] text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {uploadingImage ? 'Uploading...' : 'Selanjutnya'}
+                      <ChevronRightIcon className="h-5 w-5" />
+                    </button>
+                  )}
                 </div>
               </motion.div>
             </AnimatePresence>

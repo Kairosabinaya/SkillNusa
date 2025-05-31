@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import favoriteService from '../../services/favoriteService';
+import { formatPrice } from '../../utils/helpers';
 
 export default function GigCard({ gig, showFavoriteButton = true, className = "", imageClassName = "" }) {
   const { currentUser } = useAuth();
@@ -51,14 +52,6 @@ export default function GigCard({ gig, showFavoriteButton = true, className = ""
     }
   };
 
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-    }).format(price);
-  };
-
   if (!gig) return null;
 
   return (
@@ -106,7 +99,7 @@ export default function GigCard({ gig, showFavoriteButton = true, className = ""
       
       <div className="p-4">
         {/* Freelancer Info */}
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <img 
               src={gig.freelancer?.profilePhoto || gig.freelancer?.profileImage || 'https://picsum.photos/32/32'} 
@@ -126,6 +119,26 @@ export default function GigCard({ gig, showFavoriteButton = true, className = ""
             </div>
           )}
         </div>
+        
+        {/* Skills Preview (if available) */}
+        {gig.freelancer?.skills && Array.isArray(gig.freelancer.skills) && gig.freelancer.skills.length > 0 && (
+          <div className="mb-2">
+            <div className="flex flex-wrap gap-1">
+              {gig.freelancer.skills.slice(0, 3).map((skill, index) => {
+                // Handle both string skills and object skills safely
+                const skillText = typeof skill === 'string' ? skill : skill?.skill || String(skill);
+                return (
+                  <span key={index} className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
+                    {skillText}
+                  </span>
+                );
+              })}
+              {gig.freelancer.skills.length > 3 && (
+                <span className="text-xs text-gray-500">+{gig.freelancer.skills.length - 3} more</span>
+              )}
+            </div>
+          </div>
+        )}
         
         {/* Gig Title */}
         <Link to={`/gig/${gig.id}`}>

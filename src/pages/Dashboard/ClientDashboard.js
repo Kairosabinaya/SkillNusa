@@ -11,6 +11,7 @@ import { getIndonesianCities } from '../../services/profileService';
 import orderService from '../../services/orderService';
 import favoriteService from '../../services/favoriteService';
 import cartService from '../../services/cartService';
+import chatService from '../../services/chatService';
 
 export default function ClientDashboard() {
   const { userProfile, currentUser, loading: authLoading } = useAuth();
@@ -27,7 +28,7 @@ export default function ClientDashboard() {
   const [loadingCities, setLoadingCities] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   
-  // Dashboard stats state
+  // Dashboard stats state with real-time updates
   const [stats, setStats] = useState({
     totalTransactions: 0,
     totalFavorites: 0,
@@ -36,59 +37,106 @@ export default function ClientDashboard() {
   });
   const [statsLoading, setStatsLoading] = useState(true);
 
-  // Function to refresh stats - can be called from other components
-  const refreshStats = useCallback(async () => {
-    if (!currentUser) return;
-    
-    try {
-      setStatsLoading(true);
-      console.log('ClientDashboard - Refreshing stats for user:', currentUser.uid);
-      
-      // Fetch all stats in parallel for better performance
-      const [orders, favorites, cartCount] = await Promise.all([
-        orderService.getOrdersWithDetails(currentUser.uid, 'client'),
-        favoriteService.getUserFavorites(currentUser.uid),
-        Promise.resolve(cartService.getCartCount(currentUser.uid))
-      ]);
-      
-      const newStats = {
-        totalTransactions: orders.length,
-        totalFavorites: favorites.length,
-        totalMessages: 0, // TODO: Implement message counting service
-        totalCart: cartCount
-      };
-      
-      console.log('ClientDashboard - Stats refreshed:', newStats);
-      setStats(newStats);
-      return newStats;
-    } catch (error) {
-      console.error('Error refreshing stats:', error);
-      // Set default stats on error
+  // Set up real-time subscriptions for stats
+  useEffect(() => {
+    if (!currentUser) {
       setStats({
         totalTransactions: 0,
         totalFavorites: 0,
         totalMessages: 0,
         totalCart: 0
       });
-      return null;
-    } finally {
       setStatsLoading(false);
+      return;
+    }
+
+    console.log('ClientDashboard - Setting up real-time subscriptions for user:', currentUser.uid);
+
+    // Real-time favorites count subscription
+    const favoritesUnsubscribe = favoriteService.subscribeToFavoritesCount(currentUser.uid, (count) => {
+      console.log('ClientDashboard - Real-time favorites count update:', count);
+      setStats(prevStats => ({
+        ...prevStats,
+        totalFavorites: count
+      }));
+    });
+
+    // Real-time cart count subscription
+    const cartUnsubscribe = cartService.subscribeToCartCount(currentUser.uid, (count) => {
+      console.log('ClientDashboard - Real-time cart count update:', count);
+      setStats(prevStats => ({
+        ...prevStats,
+        totalCart: count
+      }));
+    });
+
+    // Real-time unread messages count subscription
+    const messagesUnsubscribe = chatService.subscribeToUnreadCount(currentUser.uid, (count) => {
+      console.log('ClientDashboard - Real-time messages count update:', count);
+      setStats(prevStats => ({
+        ...prevStats,
+        totalMessages: count
+      }));
+    });
+
+    // Load orders count (one-time fetch since it's less frequently updated)
+    const loadOrdersCount = async () => {
+      try {
+        const clientStats = await orderService.getClientStats(currentUser.uid);
+        console.log('ClientDashboard - Orders count loaded:', clientStats.total);
+        setStats(prevStats => ({
+          ...prevStats,
+          totalTransactions: clientStats.total
+        }));
+      } catch (error) {
+        console.error('Error loading orders count:', error);
+      } finally {
+        setStatsLoading(false);
+      }
+    };
+
+    loadOrdersCount();
+
+    // Cleanup subscriptions on unmount
+    return () => {
+      console.log('ClientDashboard - Cleaning up real-time subscriptions');
+      if (favoritesUnsubscribe) favoritesUnsubscribe();
+      if (cartUnsubscribe) cartUnsubscribe();
+      if (messagesUnsubscribe) messagesUnsubscribe();
+    };
+  }, [currentUser]);
+
+  // Function to manually refresh orders count (for when orders are created/updated)
+  const refreshOrdersCount = useCallback(async () => {
+    if (!currentUser) return;
+    
+    try {
+      console.log('ClientDashboard - Manually refreshing orders count');
+      const clientStats = await orderService.getClientStats(currentUser.uid);
+      setStats(prevStats => ({
+        ...prevStats,
+        totalTransactions: clientStats.total
+      }));
+      return clientStats.total;
+    } catch (error) {
+      console.error('Error refreshing orders count:', error);
+      return 0;
     }
   }, [currentUser]);
 
-  // Expose refreshStats globally for other components to use
+  // Expose refreshOrdersCount globally for other components to use
   useEffect(() => {
     if (currentUser) {
-      window.refreshClientDashboardStats = refreshStats;
+      window.refreshClientOrdersCount = refreshOrdersCount;
     }
     
     return () => {
       // Clean up global function when component unmounts
-      if (window.refreshClientDashboardStats === refreshStats) {
-        delete window.refreshClientDashboardStats;
+      if (window.refreshClientOrdersCount === refreshOrdersCount) {
+        delete window.refreshClientOrdersCount;
       }
     };
-  }, [currentUser, refreshStats]);
+  }, [currentUser, refreshOrdersCount]);
 
   // Update combinedUserData when component data changes
   useEffect(() => {
@@ -127,13 +175,6 @@ export default function ClientDashboard() {
     
     fetchCities();
   }, []);
-
-  // Fetch dashboard stats
-  useEffect(() => {
-    if (currentUser) {
-      refreshStats();
-    }
-  }, [currentUser, refreshStats]);
 
   useEffect(() => {
     async function fetchProfileData() {
@@ -196,7 +237,8 @@ export default function ClientDashboard() {
     currentUser: !!currentUser,
     userProfile: !!userProfile,
     profileData: !!profileData,
-    combinedUserData: !!combinedUserData
+    combinedUserData: !!combinedUserData,
+    stats
   });
 
   // Handle photo upload

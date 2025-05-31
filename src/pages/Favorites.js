@@ -10,50 +10,98 @@ export default function Favorites() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    loadFavorites();
-  }, [currentUser]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const loadFavorites = async () => {
-    if (!currentUser) return;
+    console.log('🔍 [Favorites] useEffect triggered with currentUser:', currentUser?.uid);
     
-    try {
-      setLoading(true);
-      console.log('Loading favorites for user:', currentUser.uid);
-      const userFavorites = await favoriteService.getUserFavoritesWithGigs(currentUser.uid);
-      console.log('Loaded favorites:', userFavorites);
-      setFavorites(userFavorites);
-    } catch (error) {
-      console.error('Error loading favorites:', error);
-      setError('Gagal memuat favorit: ' + error.message);
-    } finally {
+    if (!currentUser) {
+      console.log('❌ [Favorites] No currentUser, setting empty favorites');
+      setFavorites([]);
       setLoading(false);
+      return;
     }
-  };
 
+    console.log('📡 [Favorites] Setting up real-time subscription for user:', currentUser.uid);
+    
+    // Subscribe to real-time favorites updates
+    const unsubscribe = favoriteService.subscribeToUserFavorites(currentUser.uid, (favoritesData) => {
+      console.log('📥 [Favorites] Real-time favorites update received:', {
+        userId: currentUser.uid,
+        count: favoritesData?.length || 0,
+        favorites: favoritesData
+      });
+      
+      // Debug each favorite item
+      if (favoritesData && favoritesData.length > 0) {
+        favoritesData.forEach((fav, index) => {
+          console.log(`📋 [Favorites] Item ${index + 1}:`, {
+            id: fav.id,
+            gigId: fav.gigId,
+            userId: fav.userId,
+            gigData: fav.gigData,
+            freelancerData: fav.freelancerData,
+            createdAt: fav.createdAt
+          });
+        });
+      } else {
+        console.log('⚠️ [Favorites] No favorites data received or empty array');
+      }
+      
+      setFavorites(favoritesData || []);
+      setLoading(false);
+      setError('');
+    });
 
+    // Cleanup subscription on unmount
+    return () => {
+      console.log('🧹 [Favorites] Cleaning up subscription');
+      if (unsubscribe) unsubscribe();
+    };
+  }, [currentUser]);
 
   const handleRemoveFavorite = async (gigId) => {
     try {
       await favoriteService.removeFromFavorites(currentUser.uid, gigId);
-      // Remove from local state
-      setFavorites(prev => prev.filter(fav => fav.gigId !== gigId));
+      // No need to manually update state - real-time subscription will handle it
     } catch (error) {
       console.error('Error removing favorite:', error);
       setError('Gagal menghapus dari favorit');
+      // Clear error after 3 seconds
+      setTimeout(() => setError(''), 3000);
     }
   };
 
   const formatPrice = (price) => {
+    // Handle undefined, null, NaN, or non-numeric values
+    const numericPrice = parseFloat(price);
+    if (isNaN(numericPrice) || numericPrice < 0) {
+      return 'Rp 0';
+    }
+    
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
       currency: 'IDR',
       minimumFractionDigits: 0,
-    }).format(price);
+    }).format(numericPrice);
+  };
+
+  const formatDate = (timestamp) => {
+    if (!timestamp) return '';
+    
+    let date;
+    if (timestamp.seconds) {
+      // Firestore Timestamp
+      date = new Date(timestamp.seconds * 1000);
+    } else if (timestamp instanceof Date) {
+      date = timestamp;
+    } else {
+      date = new Date(timestamp);
+    }
+    
+    return date.toLocaleDateString('id-ID');
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 ">
+      <div className="min-h-screen bg-gray-50 pt-20">
         <div className="max-w-7xl mx-auto px-6 py-8">
           <div className="animate-pulse">
             <div className="h-8 bg-gray-300 rounded w-1/4 mb-6"></div>
@@ -75,16 +123,10 @@ export default function Favorites() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 ">
+      <div className="min-h-screen bg-gray-50 pt-20">
         <div className="max-w-7xl mx-auto px-6 py-8">
           <div className="text-center">
             <div className="text-red-500 text-lg">{error}</div>
-            <button 
-              onClick={loadFavorites}
-              className="mt-4 bg-[#010042] text-white px-4 py-2 rounded-lg hover:bg-[#0100a3]"
-            >
-              Coba Lagi
-            </button>
           </div>
         </div>
       </div>
@@ -92,7 +134,7 @@ export default function Favorites() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 ">
+    <div className="min-h-screen bg-gray-50 pt-24">
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Layanan Favorit</h1>
@@ -126,21 +168,23 @@ export default function Favorites() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {favorites.map((favorite) => {
-                const gig = favorite.gig;
-                if (!gig) return null;
+                const gigData = favorite.gigData;
+                const freelancerData = favorite.freelancerData;
+                
+                if (!gigData) return null;
 
                 return (
                   <div key={favorite.id} className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow border border-gray-100">
                     <div className="relative">
-                      <Link to={`/gig/${gig.id}`}>
+                      <Link to={`/gig/${favorite.gigId}`}>
                         <img 
-                          src={gig.images?.[0] || 'https://picsum.photos/400/300'} 
-                          alt={gig.title}
+                          src={gigData.images?.[0] || 'https://picsum.photos/400/300'} 
+                          alt={gigData.title}
                           className="w-full h-48 object-cover rounded-t-lg"
                         />
                       </Link>
                       <button
-                        onClick={() => handleRemoveFavorite(gig.id)}
+                        onClick={() => handleRemoveFavorite(favorite.gigId)}
                         className="absolute top-3 right-3 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center hover:bg-white shadow-sm"
                         title="Hapus dari favorit"
                       >
@@ -153,23 +197,18 @@ export default function Favorites() {
                     <div className="p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <img 
-                          src={gig.freelancer?.profilePhoto || 'https://picsum.photos/32/32'} 
-                          alt={gig.freelancer?.displayName}
+                          src={freelancerData?.profilePhoto || `https://picsum.photos/seed/${favorite.freelancerId}/32/32`} 
+                          alt={freelancerData?.displayName}
                           className="w-6 h-6 rounded-full"
                         />
                         <span className="text-sm text-gray-600 truncate">
-                          {gig.freelancer?.displayName || 'Freelancer'}
+                          {freelancerData?.displayName || 'Freelancer'}
                         </span>
-                        {gig.freelancer?.isTopRated && (
-                          <span className="text-xs bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded">
-                            Top Rated
-                          </span>
-                        )}
                       </div>
                       
-                      <Link to={`/gig/${gig.id}`}>
+                      <Link to={`/gig/${favorite.gigId}`}>
                         <h3 className="font-medium text-gray-900 line-clamp-2 hover:text-[#010042] hover:underline transition-colors">
-                          {gig.title}
+                          {gigData.title}
                         </h3>
                       </Link>
                       
@@ -178,22 +217,22 @@ export default function Favorites() {
                           <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
                         </svg>
                         <span className="text-sm font-medium text-gray-900">
-                          {gig.rating || 5.0}
+                          {gigData.rating || 5.0}
                         </span>
                         <span className="text-sm text-gray-500">
-                          ({gig.totalReviews || 0})
+                          ({gigData.totalReviews || 0})
                         </span>
                       </div>
                       
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-end justify-between">
                         <div>
                           <span className="text-sm text-gray-500">Mulai dari</span>
                           <div className="text-lg font-bold text-gray-900">
-                            {formatPrice(gig.packages?.basic?.price || gig.startingPrice || 100000)}
+                            {formatPrice(gigData.packages?.basic?.price || 100000)}
                           </div>
                         </div>
                         <div className="text-xs text-gray-500">
-                          Disimpan {new Date(favorite.createdAt?.seconds * 1000 || favorite.createdAt).toLocaleDateString('id-ID')}
+                          Disimpan {formatDate(favorite.createdAt)}
                         </div>
                       </div>
                     </div>

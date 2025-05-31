@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import orderService from '../services/orderService';
+import { formatPrice } from '../utils/helpers';
 
 export default function Transactions() {
   const { currentUser } = useAuth();
@@ -16,25 +17,52 @@ export default function Transactions() {
   }, [currentUser]);
 
   const loadOrders = async () => {
-    if (!currentUser) return;
+    console.log('🔍 [Transactions] loadOrders called with currentUser:', currentUser?.uid);
+    
+    if (!currentUser) {
+      console.log('❌ [Transactions] No currentUser, returning early');
+      return;
+    }
     
     try {
       setLoading(true);
+      console.log('📡 [Transactions] Fetching orders for user:', currentUser.uid);
+      
       const ordersWithDetails = await orderService.getOrdersWithDetails(currentUser.uid, 'client');
-      setOrders(ordersWithDetails);
+      
+      console.log('📥 [Transactions] Orders received:', {
+        userId: currentUser.uid,
+        count: ordersWithDetails?.length || 0,
+        orders: ordersWithDetails
+      });
+      
+      // Debug each order
+      if (ordersWithDetails && ordersWithDetails.length > 0) {
+        ordersWithDetails.forEach((order, index) => {
+          console.log(`📋 [Transactions] Order ${index + 1}:`, {
+            id: order.id,
+            orderNumber: order.orderNumber,
+            status: order.status,
+            clientId: order.clientId,
+            freelancerId: order.freelancerId,
+            gigId: order.gigId,
+            title: order.title,
+            price: order.price,
+            createdAt: order.createdAt,
+            gig: order.gig,
+            freelancer: order.freelancer
+          });
+        });
+      } else {
+        console.log('⚠️ [Transactions] No orders data received or empty array');
+      }
+      
+      setOrders(ordersWithDetails || []);
     } catch (error) {
-      console.error('Error loading orders:', error);
+      console.error('💥 [Transactions] Error loading orders:', error);
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-    }).format(price);
   };
 
   const formatDate = (date) => {
@@ -50,11 +78,13 @@ export default function Transactions() {
   const getStatusBadge = (status) => {
     const statusConfig = {
       pending: { label: 'Menunggu Konfirmasi', color: 'bg-yellow-100 text-yellow-800' },
+      active: { label: 'Sedang Dikerjakan', color: 'bg-blue-100 text-blue-800' },
       in_progress: { label: 'Sedang Dikerjakan', color: 'bg-blue-100 text-blue-800' },
-      in_review: { label: 'Dalam Review', color: 'bg-orange-100 text-orange-800' },
+      in_revision: { label: 'Dalam Revisi', color: 'bg-orange-100 text-orange-800' },
+      delivered: { label: 'Menunggu Review', color: 'bg-purple-100 text-purple-800' },
       completed: { label: 'Selesai', color: 'bg-green-100 text-green-800' },
       cancelled: { label: 'Dibatalkan', color: 'bg-red-100 text-red-800' },
-      dispute: { label: 'Dalam Sengketa', color: 'bg-purple-100 text-purple-800' }
+      rejected: { label: 'Ditolak', color: 'bg-red-100 text-red-800' }
     };
 
     const config = statusConfig[status] || { label: status, color: 'bg-gray-100 text-gray-800' };
@@ -67,7 +97,22 @@ export default function Transactions() {
   };
 
   const filteredOrders = orders.filter(order => {
-    const matchesTab = activeTab === 'all' || order.status === activeTab;
+    let matchesTab = false;
+    
+    if (activeTab === 'all') {
+      matchesTab = true;
+    } else if (activeTab === 'pending') {
+      matchesTab = order.status === 'pending';
+    } else if (activeTab === 'in_progress') {
+      matchesTab = ['active', 'in_progress', 'in_revision', 'delivered'].includes(order.status);
+    } else if (activeTab === 'completed') {
+      matchesTab = order.status === 'completed';
+    } else if (activeTab === 'cancelled') {
+      matchesTab = ['cancelled', 'rejected'].includes(order.status);
+    } else {
+      matchesTab = order.status === activeTab;
+    }
+    
     const matchesSearch = !searchQuery || 
       order.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.freelancer?.displayName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -86,9 +131,9 @@ export default function Transactions() {
   const statusCounts = {
     all: orders.length,
     pending: orders.filter(o => o.status === 'pending').length,
-    in_progress: orders.filter(o => o.status === 'in_progress').length,
+    in_progress: orders.filter(o => ['active', 'in_progress', 'in_revision', 'delivered'].includes(o.status)).length,
     completed: orders.filter(o => o.status === 'completed').length,
-    cancelled: orders.filter(o => o.status === 'cancelled').length
+    cancelled: orders.filter(o => ['cancelled', 'rejected'].includes(o.status)).length
   };
 
   const tabs = [
@@ -292,25 +337,31 @@ export default function Transactions() {
                           </div>
                           
                           <div className="flex flex-col gap-2">
+                            {/* Detail Button - goes to transaction detail */}
                             <Link
-                              to={`/messages/${order.freelancerId}?order=${order.id}`}
+                              to={`/dashboard/client/transactions/${order.id}`}
                               className="text-sm bg-[#010042] text-white px-4 py-2 rounded-lg hover:bg-[#0100a3] transition-colors text-center"
                             >
                               Lihat Detail
                             </Link>
                             
-                            {order.status === 'completed' && (
-                              <button className="text-sm border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors">
-                                Beli Lagi
-                              </button>
-                            )}
-                            
-                            {order.status === 'in_progress' && (
+                            {/* Chat Button - for ongoing orders */}
+                            {['pending', 'active', 'in_progress', 'in_revision', 'delivered'].includes(order.status) && (
                               <Link
-                                to={`/chat/${order.freelancerId}`}
+                                to={`/messages?freelancerId=${order.freelancerId}&orderId=${order.id}`}
                                 className="text-sm border border-[#010042] text-[#010042] px-4 py-2 rounded-lg hover:bg-[#010042] hover:text-white transition-colors text-center"
                               >
                                 Chat
+                              </Link>
+                            )}
+                            
+                            {/* Buy Again Button - for completed orders */}
+                            {order.status === 'completed' && (
+                              <Link
+                                to={`/gig/${order.gigId}`}
+                                className="text-sm border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors text-center"
+                              >
+                                Beli Lagi
                               </Link>
                             )}
                           </div>

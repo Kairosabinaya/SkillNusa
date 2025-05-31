@@ -77,7 +77,8 @@ export default function Home() {
               startingPrice: 195000,
               packages: { basic: { price: 195000 } },
               deliveryTime: "7 days",
-              location: "Pakistan"
+              location: "Pakistan",
+              createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24) // 1 day ago
             },
             {
               id: '2',
@@ -100,7 +101,8 @@ export default function Home() {
               startingPrice: 150000,
               packages: { basic: { price: 150000 } },
               deliveryTime: "3 days",
-              location: "Indonesia"
+              location: "Indonesia",
+              createdAt: new Date(Date.now() - 1000 * 60 * 60 * 12) // 12 hours ago (newest)
             },
             {
               id: '3',
@@ -122,7 +124,8 @@ export default function Home() {
               startingPrice: 850000,
               packages: { basic: { price: 850000 } },
               deliveryTime: "7 days",
-              location: "Indonesia"
+              location: "Indonesia",
+              createdAt: new Date(Date.now() - 1000 * 60 * 60 * 48) // 2 days ago
             },
             {
               id: '4',
@@ -144,7 +147,8 @@ export default function Home() {
               startingPrice: 5000000,
               packages: { basic: { price: 5000000 } },
               deliveryTime: "14 days",
-              location: "Indonesia"
+              location: "Indonesia",
+              createdAt: new Date(Date.now() - 1000 * 60 * 60 * 72) // 3 days ago
             },
             {
               id: '5',
@@ -166,7 +170,8 @@ export default function Home() {
               startingPrice: 450000,
               packages: { basic: { price: 450000 } },
               deliveryTime: "2 days",
-              location: "Indonesia"
+              location: "Indonesia",
+              createdAt: new Date(Date.now() - 1000 * 60 * 60 * 18) // 18 hours ago
             },
             {
               id: '6',
@@ -188,7 +193,8 @@ export default function Home() {
               startingPrice: 2000000,
               packages: { basic: { price: 2000000 } },
               deliveryTime: "10 days",
-              location: "Indonesia"
+              location: "Indonesia",
+              createdAt: new Date(Date.now() - 1000 * 60 * 60 * 96) // 4 days ago
             }
           ];
           setGigs(mockGigs);
@@ -204,8 +210,6 @@ export default function Home() {
 
     loadGigs();
   }, []);
-
-
 
   // Categories data
   const categories = [
@@ -223,8 +227,45 @@ export default function Home() {
     ? gigs 
     : gigs.filter(gig => gig.category === activeCategory);
 
+  // Sort gigs by newest first (createdAt in descending order)
+  const sortedGigs = filteredGigs.sort((a, b) => {
+    // Handle cases where createdAt might be a Firestore Timestamp or Date object
+    let aDate, bDate;
+    
+    if (a.createdAt?.toDate) {
+      // Firestore Timestamp
+      aDate = a.createdAt.toDate();
+    } else if (a.createdAt instanceof Date) {
+      // JavaScript Date
+      aDate = a.createdAt;
+    } else if (typeof a.createdAt === 'string') {
+      // String date
+      aDate = new Date(a.createdAt);
+    } else {
+      // Fallback to current time for gigs without date
+      aDate = new Date(0);
+    }
+    
+    if (b.createdAt?.toDate) {
+      // Firestore Timestamp
+      bDate = b.createdAt.toDate();
+    } else if (b.createdAt instanceof Date) {
+      // JavaScript Date
+      bDate = b.createdAt;
+    } else if (typeof b.createdAt === 'string') {
+      // String date
+      bDate = new Date(b.createdAt);
+    } else {
+      // Fallback to current time for gigs without date
+      bDate = new Date(0);
+    }
+    
+    // Sort in descending order (newest first)
+    return bDate.getTime() - aDate.getTime();
+  });
+
   // Take only 12 gigs for display
-  const displayedGigs = filteredGigs.slice(0, 12);
+  const displayedGigs = sortedGigs.slice(0, 12);
 
   // Gabungkan data user dari currentUser dan userProfile untuk mendapatkan gambaran lengkap
   // PENTING: userProfile harus didahulukan untuk memastikan field isFreelancer dari users collection digunakan

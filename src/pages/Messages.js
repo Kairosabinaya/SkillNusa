@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import chatService from '../services/chatService';
 
 export default function Messages() {
-  const { chatId } = useParams();
+  const { chatId: paramChatId } = useParams();
+  const [searchParams] = useSearchParams();
+  const chatId = paramChatId || searchParams.get('chatId');
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   
@@ -58,7 +60,7 @@ export default function Messages() {
   // Handle chat selection
   const handleChatSelect = (chat) => {
     setSelectedChat(chat);
-    navigate(`/messages/${chat.id}`);
+    navigate(`/messages?chatId=${chat.id}`);
     loadChatMessages(chat.id);
   };
 
@@ -156,7 +158,7 @@ export default function Messages() {
                     >
                       <div className="flex items-center space-x-3">
                         <img
-                          src={chat.otherParticipant?.profileImage || 'https://picsum.photos/seed/user/40/40'}
+                          src={chat.otherParticipant?.profilePhoto || 'https://picsum.photos/seed/user/40/40'}
                           alt={chat.otherParticipant?.displayName || 'User'}
                           className="w-10 h-10 rounded-full object-cover"
                         />
@@ -193,7 +195,7 @@ export default function Messages() {
                   <div className="p-4 border-b border-gray-200 bg-gray-50">
                     <div className="flex items-center space-x-3">
                       <img
-                        src={selectedChat.otherParticipant?.profileImage || 'https://picsum.photos/seed/user/40/40'}
+                        src={selectedChat.otherParticipant?.profilePhoto || 'https://picsum.photos/seed/user/40/40'}
                         alt={selectedChat.otherParticipant?.displayName || 'User'}
                         className="w-10 h-10 rounded-full object-cover"
                       />
@@ -229,7 +231,7 @@ export default function Messages() {
                                 : 'bg-gray-200 text-gray-900'
                             }`}
                           >
-                            <p>{message.content}</p>
+                            <p className="whitespace-pre-wrap">{message.content}</p>
                             <p className={`text-xs mt-1 ${
                               message.senderId === currentUser.uid ? 'text-blue-100' : 'text-gray-500'
                             }`}>

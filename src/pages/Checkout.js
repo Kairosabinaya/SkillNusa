@@ -2,14 +2,17 @@ import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import orderService from '../services/orderService';
+import cartService from '../services/cartService';
 
 export default function Checkout() {
   const { currentUser } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   
-  // Get order data from location state
+  // Get order data from location state (single order) or cart items
   const orderData = location.state?.orderData;
+  const cartItems = location.state?.cartItems || [];
+  const isCartCheckout = cartItems.length > 0;
   
   const [loading, setLoading] = useState(false);
   const [requirements, setRequirements] = useState('');
@@ -18,19 +21,36 @@ export default function Checkout() {
   const [success, setSuccess] = useState('');
 
   useEffect(() => {
-    // Redirect if no order data
-    if (!orderData) {
+    // Redirect if no order data and no cart items
+    if (!orderData && !isCartCheckout) {
       navigate('/browse');
       return;
     }
-  }, [orderData, navigate]);
+  }, [orderData, isCartCheckout, navigate]);
 
   const formatPrice = (price) => {
+    // Handle undefined, null, NaN, or non-numeric values
+    const numericPrice = parseFloat(price);
+    if (isNaN(numericPrice) || numericPrice < 0) {
+      return 'Rp 0';
+    }
+    
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
       currency: 'IDR',
       minimumFractionDigits: 0,
-    }).format(price);
+    }).format(numericPrice);
+  };
+
+  const calculateTotal = () => {
+    if (isCartCheckout) {
+      return cartItems.reduce((total, item) => {
+        const price = item.packageData?.price || 0;
+        const quantity = item.quantity || 1;
+        return total + (price * quantity);
+      }, 0);
+    }
+    return orderData?.price || 0;
   };
 
   const handleSubmitOrder = async (e) => {
@@ -50,25 +70,63 @@ export default function Checkout() {
       setLoading(true);
       setError('');
 
-      const order = await orderService.createOrder({
-        clientId: currentUser.uid,
-        freelancerId: orderData.freelancerId,
-        gigId: orderData.gigId,
-        packageType: orderData.packageType,
-        title: orderData.title,
-        description: orderData.description,
-        price: orderData.price,
-        deliveryTime: orderData.deliveryTime,
-        revisions: orderData.revisions,
-        requirements: requirements.trim(),
-        paymentStatus: 'pending'
-      });
+      if (isCartCheckout) {
+        // Create multiple orders from cart items
+        const orderPromises = cartItems.map(item => 
+          orderService.createOrder({
+            clientId: currentUser.uid,
+            freelancerId: item.freelancerId,
+            gigId: item.gigId,
+            packageType: item.packageType,
+            title: item.gigData?.title || 'Order',
+            description: item.packageData?.description || '',
+            price: (item.packageData?.price || 0) * (item.quantity || 1),
+            deliveryTime: parseInt(item.packageData?.deliveryTime) || 7,
+            revisions: item.packageData?.revisions || 3,
+            requirements: requirements.trim(),
+            paymentMethod,
+            paymentStatus: 'pending'
+          })
+        );
 
-      setSuccess('Pesanan berhasil dibuat! Anda akan diarahkan ke halaman transaksi.');
+        await Promise.all(orderPromises);
+
+        // Clear cart after successful orders
+        await cartService.clearCart(currentUser.uid);
+
+        setSuccess(`${cartItems.length} pesanan berhasil dibuat! Anda akan diarahkan ke halaman transaksi.`);
+      } else {
+        // Create single order - extract number from deliveryTime if it's a string
+        const deliveryDays = typeof orderData.deliveryTime === 'string' 
+          ? parseInt(orderData.deliveryTime.replace(/\D/g, '')) || 7
+          : orderData.deliveryTime || 7;
+
+        await orderService.createOrder({
+          clientId: currentUser.uid,
+          freelancerId: orderData.freelancerId,
+          gigId: orderData.gigId,
+          packageType: orderData.packageType,
+          title: orderData.title,
+          description: orderData.description,
+          price: orderData.price,
+          deliveryTime: deliveryDays,
+          revisions: orderData.revisions,
+          requirements: requirements.trim(),
+          paymentMethod,
+          paymentStatus: 'pending'
+        });
+
+        setSuccess('Pesanan berhasil dibuat! Anda akan diarahkan ke halaman transaksi.');
+      }
       
       // Redirect to transactions after 2 seconds
       setTimeout(() => {
         navigate('/transactions');
+        
+        // Refresh order count in client dashboard if function exists
+        if (window.refreshClientOrdersCount) {
+          window.refreshClientOrdersCount();
+        }
       }, 2000);
 
     } catch (error) {
@@ -79,9 +137,9 @@ export default function Checkout() {
     }
   };
 
-  if (!orderData) {
+  if (!orderData && !isCartCheckout) {
     return (
-      <div className="min-h-screen bg-gray-50 pt-16 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 pt-20 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Data pesanan tidak ditemukan</h2>
           <p className="text-gray-600 mb-6">Silakan pilih layanan terlebih dahulu</p>
@@ -96,8 +154,99 @@ export default function Checkout() {
     );
   }
 
+  const renderOrderSummary = () => {
+    if (isCartCheckout) {
+      return (
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            Ringkasan Pesanan ({cartItems.length} item)
+          </h3>
+          
+          {cartItems.map((item, index) => (
+            <div key={item.id} className="border-b border-gray-100 pb-4 last:border-b-0">
+              <div className="font-medium text-gray-900 line-clamp-2 mb-1">
+                {item.gigData?.title}
+              </div>
+              <div className="text-sm text-gray-500 mb-2">
+                Paket {item.packageType === 'basic' ? 'Dasar' : 
+                       item.packageType === 'standard' ? 'Standar' : 'Premium'} 
+                {item.quantity > 1 && ` x ${item.quantity}`}
+              </div>
+              <div className="flex items-center gap-2 mb-2">
+                <img 
+                  src={item.freelancerData?.profilePhoto || `https://picsum.photos/seed/${item.freelancerId}/32/32`} 
+                  alt={item.freelancerData?.displayName}
+                  className="w-6 h-6 rounded-full"
+                />
+                <span className="text-sm text-gray-600">
+                  {item.freelancerData?.displayName || 'Freelancer'}
+                </span>
+              </div>
+              <div className="text-right text-gray-900 font-medium">
+                {formatPrice((item.packageData?.price || 0) * (item.quantity || 1))}
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Ringkasan Pesanan</h3>
+        
+        {/* Single Gig Info */}
+        <div>
+          <div className="font-medium text-gray-900 line-clamp-2">
+            {orderData.title}
+          </div>
+          <div className="text-sm text-gray-500 mt-1">
+            Paket {orderData.packageType === 'basic' ? 'Dasar' : 
+                   orderData.packageType === 'standard' ? 'Standar' : 'Premium'}
+          </div>
+        </div>
+
+        {/* Freelancer */}
+        <div className="flex items-center gap-3 py-3 border-t border-gray-100">
+          <img 
+            src={orderData.freelancer?.profilePhoto || 'https://picsum.photos/40/40'} 
+            alt={orderData.freelancer?.displayName}
+            className="w-10 h-10 rounded-full"
+          />
+          <div>
+            <div className="font-medium text-gray-900">
+              {orderData.freelancer?.displayName || 'Freelancer'}
+            </div>
+            <div className="text-sm text-gray-500">Freelancer</div>
+          </div>
+        </div>
+
+        {/* Package Details */}
+        <div className="space-y-2 py-3 border-t border-gray-100">
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-600">Waktu Pengerjaan:</span>
+            <span className="text-gray-900">
+              {typeof orderData.deliveryTime === 'string' 
+                ? orderData.deliveryTime.includes('hari') 
+                  ? orderData.deliveryTime 
+                  : `${parseInt(orderData.deliveryTime) || 1} hari`
+                : `${orderData.deliveryTime || 1} hari`
+              }
+            </span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-600">Revisi:</span>
+            <span className="text-gray-900">
+              {orderData.revisions === 'Unlimited' ? 'Tidak Terbatas' : `${orderData.revisions}x`}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 pt-16">
+    <div className="min-h-screen bg-gray-50 pt-20">
       <div className="max-w-4xl mx-auto px-6 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Checkout</h1>
@@ -133,11 +282,17 @@ export default function Checkout() {
                     onChange={(e) => setRequirements(e.target.value)}
                     rows={6}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
-                    placeholder="Jelaskan secara detail apa yang Anda butuhkan, termasuk timeline, preferensi style, dan detail lainnya yang relevan..."
+                    placeholder={isCartCheckout ? 
+                      "Jelaskan kebutuhan untuk semua layanan yang dipesan. Setiap freelancer akan menerima pesan yang sama..." :
+                      "Jelaskan secara detail apa yang Anda butuhkan, termasuk timeline, preferensi style, dan detail lainnya yang relevan..."
+                    }
                     required
                   />
                   <p className="mt-1 text-sm text-gray-500">
-                    Berikan detail yang jelas untuk membantu freelancer memahami kebutuhan Anda
+                    {isCartCheckout ? 
+                      "Pesan ini akan dikirim ke semua freelancer yang terlibat" :
+                      "Berikan detail yang jelas untuk membantu freelancer memahami kebutuhan Anda"
+                    }
                   </p>
                 </div>
 
@@ -231,7 +386,7 @@ export default function Checkout() {
                       Memproses...
                     </div>
                   ) : (
-                    'Buat Pesanan'
+                    isCartCheckout ? `Buat ${cartItems.length} Pesanan` : 'Buat Pesanan'
                   )}
                 </button>
               </form>
@@ -241,76 +396,34 @@ export default function Checkout() {
           {/* Order Summary */}
           <div>
             <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 sticky top-24">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Ringkasan Pesanan</h3>
+              {renderOrderSummary()}
               
-              <div className="space-y-4">
-                {/* Gig Info */}
-                <div>
-                  <div className="font-medium text-gray-900 line-clamp-2">
-                    {orderData.title}
-                  </div>
-                  <div className="text-sm text-gray-500 mt-1">
-                    Paket {orderData.packageType === 'basic' ? 'Dasar' : 
-                           orderData.packageType === 'standard' ? 'Standar' : 'Premium'}
-                  </div>
+              {/* Price Breakdown */}
+              <div className="space-y-2 pt-4 border-t border-gray-100 mt-4">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Subtotal:</span>
+                  <span className="text-gray-900">{formatPrice(calculateTotal())}</span>
                 </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Biaya Layanan (5%):</span>
+                  <span className="text-gray-900">{formatPrice(calculateTotal() * 0.05)}</span>
+                </div>
+                <div className="flex justify-between text-lg font-semibold pt-2 border-t border-gray-200">
+                  <span className="text-gray-900">Total:</span>
+                  <span className="text-[#010042]">{formatPrice(calculateTotal() * 1.05)}</span>
+                </div>
+              </div>
 
-                {/* Freelancer */}
-                <div className="flex items-center gap-3 py-3 border-t border-gray-100">
-                  <img 
-                    src={orderData.freelancer?.profilePhoto || 'https://picsum.photos/40/40'} 
-                    alt={orderData.freelancer?.displayName}
-                    className="w-10 h-10 rounded-full"
-                  />
+              {/* Security Info */}
+              <div className="bg-blue-50 p-3 rounded-lg mt-4">
+                <div className="flex items-start gap-2">
+                  <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M10,17L6,13L7.41,11.59L10,14.17L16.59,7.58L18,9L10,17Z"/>
+                  </svg>
                   <div>
-                    <div className="font-medium text-gray-900">
-                      {orderData.freelancer?.displayName || 'Freelancer'}
-                    </div>
-                    <div className="text-sm text-gray-500">Freelancer</div>
-                  </div>
-                </div>
-
-                {/* Package Details */}
-                <div className="space-y-2 py-3 border-t border-gray-100">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Waktu Pengerjaan:</span>
-                    <span className="text-gray-900">{orderData.deliveryTime}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Revisi:</span>
-                    <span className="text-gray-900">
-                      {orderData.revisions === 'Unlimited' ? 'Tidak Terbatas' : `${orderData.revisions}x`}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Price Breakdown */}
-                <div className="space-y-2 pt-3 border-t border-gray-100">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Subtotal:</span>
-                    <span className="text-gray-900">{formatPrice(orderData.price)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Biaya Layanan:</span>
-                    <span className="text-gray-900">{formatPrice(orderData.price * 0.05)}</span>
-                  </div>
-                  <div className="flex justify-between text-lg font-semibold pt-2 border-t border-gray-200">
-                    <span className="text-gray-900">Total:</span>
-                    <span className="text-[#010042]">{formatPrice(orderData.price * 1.05)}</span>
-                  </div>
-                </div>
-
-                {/* Security Info */}
-                <div className="bg-blue-50 p-3 rounded-lg mt-4">
-                  <div className="flex items-start gap-2">
-                    <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M10,17L6,13L7.41,11.59L10,14.17L16.59,7.58L18,9L10,17Z"/>
-                    </svg>
-                    <div>
-                      <div className="text-sm font-medium text-blue-900">Pembayaran Aman</div>
-                      <div className="text-xs text-blue-700 mt-1">
-                        Dana Anda dilindungi hingga proyek selesai
-                      </div>
+                    <div className="text-sm font-medium text-blue-900">Pembayaran Aman</div>
+                    <div className="text-xs text-blue-700 mt-1">
+                      Dana Anda dilindungi hingga proyek selesai
                     </div>
                   </div>
                 </div>

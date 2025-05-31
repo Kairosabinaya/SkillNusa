@@ -53,13 +53,50 @@ export const getGigs = async (filters = {}, options = {}) => {
       constraints.push(where('category', '==', category));
     }
     
-    // Freelancer filter
+    // Freelancer filter - check both userId and freelancerId
     if (freelancerId) {
-      constraints.push(where('freelancerId', '==', freelancerId));
+      // We need to run two separate queries for freelancerId and userId
+      const gigsQuery1 = query(
+        collection(db, COLLECTIONS.GIGS),
+        where('isActive', '==', true),
+        where('freelancerId', '==', freelancerId),
+        ...(category ? [where('category', '==', category)] : []),
+        firestoreLimit(limit)
+      );
+      
+      const gigsQuery2 = query(
+        collection(db, COLLECTIONS.GIGS),
+        where('isActive', '==', true),
+        where('userId', '==', freelancerId),
+        ...(category ? [where('category', '==', category)] : []),
+        firestoreLimit(limit)
+      );
+      
+      const [snapshot1, snapshot2] = await Promise.all([
+        getDocs(gigsQuery1),
+        getDocs(gigsQuery2)
+      ]);
+      
+      // Combine results and remove duplicates
+      const gigsMap = new Map();
+      
+      snapshot1.docs.forEach(doc => {
+        gigsMap.set(doc.id, { id: doc.id, ...doc.data() });
+      });
+      
+      snapshot2.docs.forEach(doc => {
+        if (!gigsMap.has(doc.id)) {
+          gigsMap.set(doc.id, { id: doc.id, ...doc.data() });
+        }
+      });
+      
+      let gigs = Array.from(gigsMap.values());
+      
+      // Apply client-side filters and add freelancer data
+      gigs = await applyFiltersAndSort(gigs, filters, options, freelancerId);
+      
+      return gigs;
     }
-    
-    // Note: Removed complex price and rating filters that require composite indexes
-    // These will be handled client-side
     
     // Add limit without orderBy to avoid index requirements
     constraints.push(firestoreLimit(limit));
@@ -79,98 +116,8 @@ export const getGigs = async (filters = {}, options = {}) => {
     
     console.log('📄 Gig IDs:', gigs.map(g => g.id));
     
-    // Client-side filtering for complex filters
-    if (search) {
-      const searchTerm = search.toLowerCase();
-      gigs = gigs.filter(gig => 
-        gig.title.toLowerCase().includes(searchTerm) ||
-        gig.description.toLowerCase().includes(searchTerm) ||
-        gig.tags.some(tag => tag.toLowerCase().includes(searchTerm))
-      );
-      console.log(`📊 After search filter: ${gigs.length}`);
-    }
-    
-    // Client-side price filtering
-    if (priceMin) {
-      gigs = gigs.filter(gig => gig.packages?.basic?.price >= priceMin);
-      console.log(`📊 After priceMin filter: ${gigs.length}`);
-    }
-    if (priceMax) {
-      gigs = gigs.filter(gig => gig.packages?.basic?.price <= priceMax);
-      console.log(`📊 After priceMax filter: ${gigs.length}`);
-    }
-    
-    // Client-side rating filtering
-    if (rating) {
-      gigs = gigs.filter(gig => gig.rating >= rating);
-      console.log(`📊 After rating filter: ${gigs.length}`);
-    }
-    
-    console.log('👥 Adding freelancer data to gigs...');
-    
-    if (location) {
-      // Need to fetch freelancer data for location
-      const gigsWithLocation = await Promise.all(
-        gigs.map(async (gig) => {
-          const freelancer = await getFreelancerData(gig.freelancerId);
-          return {
-            ...gig,
-            freelancer: {
-              ...freelancer,
-              location: freelancer.location || 'Unknown'
-            }
-          };
-        })
-      );
-      
-      gigs = gigsWithLocation.filter(gig => 
-        gig.freelancer.location?.toLowerCase().includes(location.toLowerCase())
-      );
-      console.log(`📊 After location filter: ${gigs.length}`);
-    } else {
-      // Add freelancer data to each gig
-      gigs = await Promise.all(
-        gigs.map(async (gig) => {
-          const freelancer = await getFreelancerData(gig.freelancerId);
-          return {
-            ...gig,
-            freelancer
-          };
-        })
-      );
-    }
-    
-    console.log('📊 After adding freelancer data:', gigs.length);
-    
-    // Client-side sorting
-    gigs.sort((a, b) => {
-      let aValue, bValue;
-      
-      switch (sortBy) {
-        case 'rating':
-          aValue = a.rating || 0;
-          bValue = b.rating || 0;
-          break;
-        case 'price':
-          aValue = a.packages?.basic?.price || 0;
-          bValue = b.packages?.basic?.price || 0;
-          break;
-        case 'createdAt':
-        default:
-          // Handle both Date objects and Firestore Timestamps
-          aValue = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
-          bValue = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
-          break;
-      }
-      
-      if (sortOrder === 'desc') {
-        return bValue > aValue ? 1 : bValue < aValue ? -1 : 0;
-      } else {
-        return aValue > bValue ? 1 : aValue < bValue ? -1 : 0;
-      }
-    });
-    
-    console.log('✅ gigService.getGigs completed, returning', gigs.length, 'gigs');
+    // Apply client-side filters and add freelancer data
+    gigs = await applyFiltersAndSort(gigs, filters, options);
     
     return gigs;
   } catch (error) {
@@ -180,17 +127,201 @@ export const getGigs = async (filters = {}, options = {}) => {
 };
 
 /**
+ * Helper function to apply filters and sorting
+ */
+const applyFiltersAndSort = async (gigs, filters, options, skipFreelancerFetch = null) => {
+  const { 
+    priceMin, 
+    priceMax, 
+    rating,
+    location,
+    search
+  } = filters;
+  
+  const {
+    sortBy = 'createdAt',
+    sortOrder = 'desc'
+  } = options;
+  
+  // Client-side filtering for complex filters
+  if (search) {
+    const searchTerm = search.toLowerCase();
+    gigs = gigs.filter(gig => 
+      gig.title.toLowerCase().includes(searchTerm) ||
+      gig.description.toLowerCase().includes(searchTerm) ||
+      gig.tags.some(tag => tag.toLowerCase().includes(searchTerm))
+    );
+    console.log(`📊 After search filter: ${gigs.length}`);
+  }
+  
+  // Client-side price filtering
+  if (priceMin) {
+    gigs = gigs.filter(gig => gig.packages?.basic?.price >= priceMin);
+    console.log(`📊 After priceMin filter: ${gigs.length}`);
+  }
+  if (priceMax) {
+    gigs = gigs.filter(gig => gig.packages?.basic?.price <= priceMax);
+    console.log(`📊 After priceMax filter: ${gigs.length}`);
+  }
+  
+  // Client-side rating filtering
+  if (rating) {
+    gigs = gigs.filter(gig => gig.rating >= rating);
+    console.log(`📊 After rating filter: ${gigs.length}`);
+  }
+  
+  console.log('👥 Adding freelancer data to gigs...');
+  
+  if (location) {
+    // Need to fetch freelancer data for location
+    const gigsWithLocation = await Promise.all(
+      gigs.map(async (gig) => {
+        const freelancerId = gig.freelancerId || gig.userId;
+        const freelancer = await getFreelancerData(freelancerId);
+        return {
+          ...gig,
+          freelancer: {
+            ...freelancer,
+            location: freelancer.location || 'Unknown'
+          }
+        };
+      })
+    );
+    
+    gigs = gigsWithLocation.filter(gig => 
+      gig.freelancer.location?.toLowerCase().includes(location.toLowerCase())
+    );
+    console.log(`📊 After location filter: ${gigs.length}`);
+  } else {
+    // Add freelancer data to each gig
+    gigs = await Promise.all(
+      gigs.map(async (gig) => {
+        const freelancerId = gig.freelancerId || gig.userId;
+        const freelancer = await getFreelancerData(freelancerId);
+        return {
+          ...gig,
+          freelancer
+        };
+      })
+    );
+  }
+  
+  console.log('📊 After adding freelancer data:', gigs.length);
+  
+  // Client-side sorting
+  gigs.sort((a, b) => {
+    let aValue, bValue;
+    
+    switch (sortBy) {
+      case 'rating':
+        aValue = a.rating || 0;
+        bValue = b.rating || 0;
+        break;
+      case 'price':
+        aValue = a.packages?.basic?.price || 0;
+        bValue = b.packages?.basic?.price || 0;
+        break;
+      case 'createdAt':
+      default:
+        // Handle both Date objects and Firestore Timestamps
+        aValue = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+        bValue = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+        break;
+    }
+    
+    if (sortOrder === 'desc') {
+      return bValue > aValue ? 1 : bValue < aValue ? -1 : 0;
+    } else {
+      return aValue > bValue ? 1 : aValue < bValue ? -1 : 0;
+    }
+  });
+  
+  console.log('✅ Filter and sort completed, returning', gigs.length, 'gigs');
+  
+  return gigs;
+};
+
+/**
  * Get featured gigs for homepage
  */
 export const getFeaturedGigs = async (limit = 12) => {
   try {
-    return await getGigs({}, {
-      sortBy: 'rating',
-      sortOrder: 'desc',
-      limit
+    console.log('🔍 getFeaturedGigs called with limit:', limit);
+    
+    // Get active gigs with a higher limit to filter from
+    const gigsQuery = query(
+      collection(db, COLLECTIONS.GIGS),
+      where('isActive', '==', true),
+      firestoreLimit(Math.min(limit * 2, 50)) // Get more to filter from
+    );
+    
+    const gigsSnapshot = await getDocs(gigsQuery);
+    console.log(`📊 Found ${gigsSnapshot.size} gigs from Firestore`);
+    
+    let gigs = gigsSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    
+    // Add freelancer data to each gig
+    gigs = await Promise.all(
+      gigs.map(async (gig) => {
+        // Handle both userId and freelancerId fields
+        const freelancerId = gig.freelancerId || gig.userId;
+        const freelancer = await getFreelancerData(freelancerId);
+        return {
+          ...gig,
+          freelancer,
+          // Ensure we have the required fields for display
+          rating: gig.rating || 0,
+          totalReviews: gig.totalReviews || 0,
+          images: gig.images || [],
+          packages: gig.packages || {}
+        };
+      })
+    );
+    
+    // Sort by newest first (createdAt in descending order)
+    gigs.sort((a, b) => {
+      // Handle cases where createdAt might be a Firestore Timestamp or Date object
+      let aDate, bDate;
+      
+      if (a.createdAt?.toDate) {
+        // Firestore Timestamp
+        aDate = a.createdAt.toDate();
+      } else if (a.createdAt instanceof Date) {
+        // JavaScript Date
+        aDate = a.createdAt;
+      } else if (typeof a.createdAt === 'string') {
+        // String date
+        aDate = new Date(a.createdAt);
+      } else {
+        // Fallback to epoch time for gigs without date
+        aDate = new Date(0);
+      }
+      
+      if (b.createdAt?.toDate) {
+        // Firestore Timestamp
+        bDate = b.createdAt.toDate();
+      } else if (b.createdAt instanceof Date) {
+        // JavaScript Date
+        bDate = b.createdAt;
+      } else if (typeof b.createdAt === 'string') {
+        // String date
+        bDate = new Date(b.createdAt);
+      } else {
+        // Fallback to epoch time for gigs without date
+        bDate = new Date(0);
+      }
+      
+      // Sort in descending order (newest first)
+      return bDate.getTime() - aDate.getTime();
     });
+    
+    // Return only the requested number
+    return gigs.slice(0, limit);
   } catch (error) {
-    console.error('Error getting featured gigs:', error);
+    console.error('❌ Error getting featured gigs:', error);
     return [];
   }
 };
@@ -241,6 +372,11 @@ const getFreelancerData = async (freelancerId) => {
     const freelancerDoc = await getDoc(doc(db, COLLECTIONS.FREELANCER_PROFILES, freelancerId));
     const freelancerData = freelancerDoc.exists() ? freelancerDoc.data() : {};
     
+    // Debug logging for education and certification data
+    console.log('🎓 Education data from freelancerProfiles:', freelancerData.education);
+    console.log('📜 Certification data from freelancerProfiles:', freelancerData.certifications);
+    console.log('👤 Full freelancer profile data:', freelancerData);
+    
     return {
       id: freelancerId,
       name: userData.displayName || userData.username || 'Unknown',
@@ -268,8 +404,20 @@ const getFreelancerData = async (freelancerId) => {
       name: 'Unknown Freelancer',
       displayName: 'Unknown Freelancer',
       avatar: null,
+      profilePhoto: null,
+      bio: '',
+      location: 'Unknown',
       isVerified: false,
-      isTopRated: false
+      isTopRated: false,
+      tier: 'bronze',
+      rating: 0,
+      totalReviews: 0,
+      completedProjects: 0,
+      skills: [],
+      hourlyRate: 0,
+      experienceLevel: 'beginner',
+      education: [],
+      certifications: []
     };
   }
 };

@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import cartService from '../services/cartService';
 
 export default function Cart() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [cartItems, setCartItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   // Redirect if not logged in
   useEffect(() => {
@@ -14,36 +17,155 @@ export default function Cart() {
     }
   }, [currentUser, navigate]);
 
-  // For now, we'll use sessionStorage to store cart items
+  // Subscribe to real-time cart updates
   useEffect(() => {
-    const savedCart = sessionStorage.getItem('cart');
-    if (savedCart) {
-      setCartItems(JSON.parse(savedCart));
+    console.log('🔍 [Cart] useEffect triggered with currentUser:', currentUser?.uid);
+    
+    if (!currentUser) {
+      console.log('❌ [Cart] No currentUser, setting empty cart');
+      setCartItems([]);
+      setLoading(false);
+      return;
     }
-  }, []);
 
-  const removeFromCart = (index) => {
-    const newCart = cartItems.filter((_, i) => i !== index);
-    setCartItems(newCart);
-    sessionStorage.setItem('cart', JSON.stringify(newCart));
+    console.log('📡 [Cart] Setting up real-time subscription for user:', currentUser.uid);
+
+    // Subscribe to real-time cart updates
+    const unsubscribe = cartService.subscribeToCartItems(currentUser.uid, (cartData) => {
+      console.log('📥 [Cart] Real-time cart update received:', {
+        userId: currentUser.uid,
+        count: cartData?.length || 0,
+        cartItems: cartData
+      });
+      
+      // Debug each cart item
+      if (cartData && cartData.length > 0) {
+        cartData.forEach((item, index) => {
+          console.log(`🛒 [Cart] Item ${index + 1}:`, {
+            id: item.id,
+            gigId: item.gigId,
+            userId: item.userId,
+            packageType: item.packageType,
+            quantity: item.quantity,
+            gigData: item.gigData,
+            packageData: item.packageData,
+            freelancerData: item.freelancerData,
+            createdAt: item.createdAt
+          });
+        });
+      } else {
+        console.log('⚠️ [Cart] No cart data received or empty array');
+      }
+      
+      setCartItems(cartData || []);
+      setLoading(false);
+      setError('');
+    });
+
+    // Cleanup subscription on unmount
+    return () => {
+      console.log('🧹 [Cart] Cleaning up subscription');
+      if (unsubscribe) unsubscribe();
+    };
+  }, [currentUser]);
+
+  const removeFromCart = async (cartItemId) => {
+    try {
+      await cartService.removeFromCart(currentUser.uid, cartItemId);
+      // No need to manually update state - real-time subscription will handle it
+    } catch (error) {
+      console.error('Error removing from cart:', error);
+      setError('Gagal menghapus item dari keranjang');
+      // Clear error after 3 seconds
+      setTimeout(() => setError(''), 3000);
+    }
+  };
+
+  const updateQuantity = async (cartItemId, quantity) => {
+    try {
+      await cartService.updateCartItemQuantity(currentUser.uid, cartItemId, quantity);
+      // No need to manually update state - real-time subscription will handle it
+    } catch (error) {
+      console.error('Error updating quantity:', error);
+      setError('Gagal mengupdate kuantitas');
+      setTimeout(() => setError(''), 3000);
+    }
   };
 
   const getTotalPrice = () => {
-    return cartItems.reduce((total, item) => total + item.price, 0);
+    return cartItems.reduce((total, item) => {
+      const price = item.packageData?.price || 0;
+      const quantity = item.quantity || 1;
+      return total + (price * quantity);
+    }, 0);
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0
+    }).format(amount);
   };
 
   if (!currentUser) {
     return null; // Will redirect
   }
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 pt-20">
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-300 rounded w-1/4 mb-6"></div>
+            <div className="grid lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2 space-y-4">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="bg-white rounded-lg p-6 border border-gray-200">
+                    <div className="flex items-start gap-4">
+                      <div className="w-20 h-16 bg-gray-300 rounded"></div>
+                      <div className="flex-1">
+                        <div className="h-4 bg-gray-300 rounded mb-2"></div>
+                        <div className="h-3 bg-gray-300 rounded w-3/4 mb-2"></div>
+                        <div className="h-3 bg-gray-300 rounded w-1/2"></div>
+                      </div>
+                      <div className="w-20 h-6 bg-gray-300 rounded"></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="lg:col-span-1">
+                <div className="bg-white rounded-lg p-6 border border-gray-200">
+                  <div className="h-6 bg-gray-300 rounded mb-4"></div>
+                  <div className="space-y-3 mb-6">
+                    <div className="h-4 bg-gray-300 rounded"></div>
+                    <div className="h-4 bg-gray-300 rounded"></div>
+                  </div>
+                  <div className="h-12 bg-gray-300 rounded"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 ">
+    <div className="min-h-screen bg-gray-50 pt-20">
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Keranjang Belanja</h1>
           <p className="text-gray-600 mt-2">Kelola item yang akan dibeli</p>
         </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+            {error}
+          </div>
+        )}
 
         {cartItems.length === 0 ? (
           /* Empty Cart */
@@ -69,26 +191,60 @@ export default function Cart() {
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Cart Items */}
             <div className="lg:col-span-2 space-y-4">
-              {cartItems.map((item, index) => (
-                <div key={index} className="bg-white rounded-lg p-6 border border-gray-200">
+              {cartItems.map((item) => (
+                <div key={item.id} className="bg-white rounded-lg p-6 border border-gray-200">
                   <div className="flex items-start gap-4">
-                    <img 
-                      src={item.image || 'https://picsum.photos/100/80'} 
-                      alt={item.title}
-                      className="w-20 h-16 object-cover rounded"
-                    />
+                    <Link to={`/gig/${item.gigId}`}>
+                      <img 
+                        src={item.gigData?.images?.[0] || 'https://picsum.photos/100/80'} 
+                        alt={item.gigData?.title}
+                        className="w-20 h-16 object-cover rounded hover:opacity-75 transition-opacity"
+                      />
+                    </Link>
                     <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900 mb-1">{item.title}</h3>
-                      <p className="text-sm text-gray-600 mb-2">{item.freelancerName}</p>
-                      <p className="text-sm text-gray-500">{item.packageType} - {item.deliveryTime}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-lg font-bold text-gray-900">
-                        Rp {item.price?.toLocaleString('id-ID')}
+                      <Link to={`/gig/${item.gigId}`}>
+                        <h3 className="font-semibold text-gray-900 mb-1 hover:text-[#010042] transition-colors">
+                          {item.gigData?.title}
+                        </h3>
+                      </Link>
+                      <Link to={`/freelancer/${item.freelancerId}`}>
+                        <p className="text-sm text-gray-600 mb-2 hover:text-[#010042] transition-colors">
+                          {item.freelancerData?.displayName || 'Freelancer'}
+                        </p>
+                      </Link>
+                      <p className="text-sm text-gray-500 mb-2">
+                        {item.packageData?.name} - {item.packageData?.deliveryTime} hari
                       </p>
+                      <p className="text-xs text-gray-400 line-clamp-2">
+                        {item.packageData?.description}
+                      </p>
+                    </div>
+                    <div className="text-right flex flex-col items-end">
+                      <p className="text-lg font-bold text-gray-900 mb-2">
+                        {formatCurrency(item.packageData?.price || 0)}
+                      </p>
+                      
+                      {/* Quantity Controls */}
+                      <div className="flex items-center gap-2 mb-2">
+                        <button 
+                          onClick={() => updateQuantity(item.id, Math.max(1, (item.quantity || 1) - 1))}
+                          className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 transition-colors"
+                          disabled={item.quantity <= 1}
+                        >
+                          -
+                        </button>
+                        <span className="w-8 text-center">{item.quantity || 1}</span>
+                        <button 
+                          onClick={() => updateQuantity(item.id, (item.quantity || 1) + 1)}
+                          className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 transition-colors"
+                        >
+                          +
+                        </button>
+                      </div>
+                      
                       <button 
-                        onClick={() => removeFromCart(index)}
-                        className="text-red-500 hover:text-red-700 text-sm mt-2"
+                        onClick={() => removeFromCart(item.id)}
+                        className="text-red-500 hover:text-red-700 text-sm transition-colors"
                       >
                         Hapus
                       </button>
@@ -106,17 +262,17 @@ export default function Cart() {
                 <div className="space-y-3 mb-6">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Subtotal</span>
-                    <span className="font-medium">Rp {getTotalPrice().toLocaleString('id-ID')}</span>
+                    <span className="font-medium">{formatCurrency(getTotalPrice())}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Biaya Layanan</span>
-                    <span className="font-medium">Rp 5.000</span>
+                    <span className="font-medium">{formatCurrency(5000)}</span>
                   </div>
                   <div className="border-t pt-3">
                     <div className="flex justify-between">
                       <span className="text-lg font-semibold">Total</span>
                       <span className="text-lg font-bold text-[#010042]">
-                        Rp {(getTotalPrice() + 5000).toLocaleString('id-ID')}
+                        {formatCurrency(getTotalPrice() + 5000)}
                       </span>
                     </div>
                   </div>

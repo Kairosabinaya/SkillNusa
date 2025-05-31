@@ -23,13 +23,10 @@ import {
   DocumentDuplicateIcon,
   ChartBarIcon,
   StarIcon,
-  ClockIcon,
   CurrencyDollarIcon,
   PhotoIcon,
   XMarkIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-  PauseCircleIcon
+  XCircleIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
 
@@ -39,13 +36,10 @@ export default function FreelancerGigs() {
   const [filteredGigs, setFilteredGigs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
   const [selectedGig, setSelectedGig] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [stats, setStats] = useState({
     totalGigs: 0,
-    activeGigs: 0,
-    pausedGigs: 0,
     totalViews: 0,
     totalOrders: 0,
     averageRating: 0
@@ -57,79 +51,117 @@ export default function FreelancerGigs() {
 
   useEffect(() => {
     filterGigs();
-  }, [searchQuery, filterStatus, gigs]);
+  }, [searchQuery, gigs]);
 
   const fetchGigs = async () => {
     if (!currentUser) return;
 
     setLoading(true);
     try {
-      const gigsQuery = query(
+      // Primary query using freelancerId (this is how gigs are saved)
+      const gigsQueryPrimary = query(
         collection(db, 'gigs'),
-        where('userId', '==', currentUser.uid),
-        orderBy('createdAt', 'desc')
+        where('freelancerId', '==', currentUser.uid)
       );
 
-      const snapshot = await getDocs(gigsQuery);
+      // Fallback query using userId for backward compatibility
+      const gigsQueryFallback = query(
+        collection(db, 'gigs'),
+        where('userId', '==', currentUser.uid)
+      );
+
+      const [primarySnapshot, fallbackSnapshot] = await Promise.all([
+        getDocs(gigsQueryPrimary),
+        getDocs(gigsQueryFallback)
+      ]);
+
       const gigsData = [];
       let totalViews = 0;
       let totalOrders = 0;
       let totalRating = 0;
       let reviewCount = 0;
 
-      for (const doc of snapshot.docs) {
-        const gigData = { id: doc.id, ...doc.data() };
-        
-        // Fetch orders for this gig
-        const ordersQuery = query(
-          collection(db, 'orders'),
-          where('gigId', '==', doc.id)
-        );
-        const ordersSnapshot = await getDocs(ordersQuery);
-        gigData.orderCount = ordersSnapshot.size;
-        totalOrders += ordersSnapshot.size;
+      // Process both snapshots and avoid duplicates
+      const processedIds = new Set();
 
-        // Fetch reviews for this gig
-        const reviewsQuery = query(
-          collection(db, 'reviews'),
-          where('gigId', '==', doc.id)
-        );
-        const reviewsSnapshot = await getDocs(reviewsQuery);
-        
-        let gigRating = 0;
-        let gigReviewCount = 0;
-        reviewsSnapshot.forEach(reviewDoc => {
-          const review = reviewDoc.data();
-          gigRating += review.rating || 0;
-          gigReviewCount++;
-        });
-        
-        gigData.rating = gigReviewCount > 0 ? gigRating / gigReviewCount : 0;
-        gigData.reviewCount = gigReviewCount;
-        
-        totalRating += gigRating;
-        reviewCount += gigReviewCount;
-        totalViews += gigData.views || 0;
-        
-        gigsData.push(gigData);
-      }
+      const processSnapshot = async (snapshot) => {
+        for (const doc of snapshot.docs) {
+          if (processedIds.has(doc.id)) continue; // Skip duplicates
+          processedIds.add(doc.id);
+
+          const gigData = { id: doc.id, ...doc.data() };
+          
+          // Fetch orders for this gig
+          try {
+            const ordersQuery = query(
+              collection(db, 'orders'),
+              where('gigId', '==', doc.id)
+            );
+            const ordersSnapshot = await getDocs(ordersQuery);
+            gigData.orderCount = ordersSnapshot.size;
+            totalOrders += ordersSnapshot.size;
+          } catch (orderError) {
+            console.error('Error fetching orders for gig:', orderError);
+            gigData.orderCount = 0;
+          }
+
+          // Fetch reviews for this gig
+          try {
+            const reviewsQuery = query(
+              collection(db, 'reviews'),
+              where('gigId', '==', doc.id)
+            );
+            const reviewsSnapshot = await getDocs(reviewsQuery);
+            
+            let gigRating = 0;
+            let gigReviewCount = 0;
+            reviewsSnapshot.forEach(reviewDoc => {
+              const review = reviewDoc.data();
+              gigRating += review.rating || 0;
+              gigReviewCount++;
+            });
+            
+            gigData.rating = gigReviewCount > 0 ? gigRating / gigReviewCount : 0;
+            gigData.reviewCount = gigReviewCount;
+            
+            totalRating += gigRating;
+            reviewCount += gigReviewCount;
+          } catch (reviewError) {
+            console.error('Error fetching reviews for gig:', reviewError);
+            gigData.rating = 0;
+            gigData.reviewCount = 0;
+          }
+          
+          totalViews += gigData.views || 0;
+          gigsData.push(gigData);
+        }
+      };
+
+      // Process primary results first (freelancerId)
+      await processSnapshot(primarySnapshot);
+      // Then process fallback results (userId) to catch any missing gigs
+      await processSnapshot(fallbackSnapshot);
+      
+      // Client-side sorting by createdAt (newest first)
+      gigsData.sort((a, b) => {
+        const aDate = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+        const bDate = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+        return bDate - aDate; // Descending order (newest first)
+      });
 
       setGigs(gigsData);
       setFilteredGigs(gigsData);
 
       // Calculate stats
-      const activeGigs = gigsData.filter(gig => gig.status === 'active').length;
-      const pausedGigs = gigsData.filter(gig => gig.status === 'paused').length;
       const averageRating = reviewCount > 0 ? totalRating / reviewCount : 0;
 
       setStats({
         totalGigs: gigsData.length,
-        activeGigs,
-        pausedGigs,
         totalViews,
         totalOrders,
         averageRating
       });
+      
     } catch (error) {
       console.error('Error fetching gigs:', error);
     } finally {
@@ -139,11 +171,6 @@ export default function FreelancerGigs() {
 
   const filterGigs = () => {
     let filtered = [...gigs];
-
-    // Filter by status
-    if (filterStatus !== 'all') {
-      filtered = filtered.filter(gig => gig.status === filterStatus);
-    }
 
     // Filter by search query
     if (searchQuery) {
@@ -155,26 +182,6 @@ export default function FreelancerGigs() {
     }
 
     setFilteredGigs(filtered);
-  };
-
-  const toggleGigStatus = async (gigId, currentStatus) => {
-    const newStatus = currentStatus === 'active' ? 'paused' : 'active';
-    
-    try {
-      await updateDoc(doc(db, 'gigs', gigId), {
-        status: newStatus,
-        updatedAt: new Date()
-      });
-
-      // Update local state
-      setGigs(prevGigs => 
-        prevGigs.map(gig => 
-          gig.id === gigId ? { ...gig, status: newStatus } : gig
-        )
-      );
-    } catch (error) {
-      console.error('Error updating gig status:', error);
-    }
   };
 
   const deleteGig = async () => {
@@ -245,7 +252,7 @@ export default function FreelancerGigs() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8"
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8"
       >
         <div className="bg-white p-4 rounded-lg shadow">
           <div className="flex items-center justify-between mb-2">
@@ -253,22 +260,6 @@ export default function FreelancerGigs() {
             <DocumentDuplicateIcon className="h-5 w-5 text-gray-400" />
           </div>
           <p className="text-2xl font-bold text-gray-900">{stats.totalGigs}</p>
-        </div>
-
-        <div className="bg-white p-4 rounded-lg shadow">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-gray-600">Gigs Aktif</p>
-            <CheckCircleIcon className="h-5 w-5 text-green-500" />
-          </div>
-          <p className="text-2xl font-bold text-gray-900">{stats.activeGigs}</p>
-        </div>
-
-        <div className="bg-white p-4 rounded-lg shadow">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-gray-600">Gigs Paused</p>
-            <PauseCircleIcon className="h-5 w-5 text-yellow-500" />
-          </div>
-          <p className="text-2xl font-bold text-gray-900">{stats.pausedGigs}</p>
         </div>
 
         <div className="bg-white p-4 rounded-lg shadow">
@@ -315,16 +306,6 @@ export default function FreelancerGigs() {
             />
           </div>
           <div className="flex gap-2">
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042]"
-            >
-              <option value="all">Semua Status</option>
-              <option value="active">Aktif</option>
-              <option value="paused">Paused</option>
-              <option value="draft">Draft</option>
-            </select>
             <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
               <FunnelIcon className="h-5 w-5 text-gray-600" />
               <span>Filter</span>
@@ -395,21 +376,6 @@ export default function FreelancerGigs() {
                           </div>
                         </div>
                       </div>
-                      
-                      {/* Status Badge */}
-                      <div className="flex items-center gap-2">
-                        <span className={`px-3 py-1 text-xs font-medium rounded-full ${
-                          gig.status === 'active' 
-                            ? 'bg-green-100 text-green-800' 
-                            : gig.status === 'paused'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {gig.status === 'active' && 'Aktif'}
-                          {gig.status === 'paused' && 'Paused'}
-                          {gig.status === 'draft' && 'Draft'}
-                        </span>
-                      </div>
                     </div>
 
                     {/* Action Buttons */}
@@ -428,26 +394,6 @@ export default function FreelancerGigs() {
                         <PencilIcon className="h-4 w-4" />
                         <span>Edit</span>
                       </Link>
-                      <button 
-                        onClick={() => toggleGigStatus(gig.id, gig.status)}
-                        className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
-                      >
-                        {gig.status === 'active' ? (
-                          <>
-                            <PauseCircleIcon className="h-4 w-4" />
-                            <span>Pause</span>
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircleIcon className="h-4 w-4" />
-                            <span>Aktifkan</span>
-                          </>
-                        )}
-                      </button>
-                      <button className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">
-                        <DocumentDuplicateIcon className="h-4 w-4" />
-                        <span>Duplikat</span>
-                      </button>
                       <button 
                         onClick={() => {
                           setSelectedGig(gig);
@@ -468,16 +414,12 @@ export default function FreelancerGigs() {
           <div className="bg-white rounded-lg shadow p-12 text-center">
             <DocumentDuplicateIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {searchQuery || filterStatus !== 'all' 
-                ? 'Tidak ada gig yang sesuai filter' 
-                : 'Belum ada gig'}
+              {searchQuery ? 'Tidak ada gig yang sesuai filter' : 'Belum ada gig'}
             </h3>
             <p className="text-gray-500 mb-4">
-              {searchQuery || filterStatus !== 'all'
-                ? 'Coba ubah filter pencarian Anda'
-                : 'Mulai buat gig pertama Anda untuk menawarkan jasa'}
+              {searchQuery ? 'Coba ubah filter pencarian Anda' : 'Mulai buat gig pertama Anda untuk menawarkan jasa'}
             </p>
-            {!searchQuery && filterStatus === 'all' && (
+            {!searchQuery && (
               <Link 
                 to="/dashboard/freelancer/gigs/create"
                 className="inline-flex items-center gap-2 px-4 py-2 bg-[#010042] text-white rounded-lg hover:bg-blue-700"

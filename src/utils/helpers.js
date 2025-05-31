@@ -48,16 +48,27 @@ export const isValidEmail = (email) => {
 /**
  * Create a formatted price string
  * @param {number} amount - The amount to format
- * @param {string} currency - Currency code (default: USD)
+ * @param {string} currency - Currency code (default: IDR)
  * @returns {string} Formatted price string
  */
-export const formatPrice = (amount, currency = 'USD') => {
-  try {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency
-    }).format(amount);
-  } catch (error) {
-    return '';
+export const formatPrice = (amount, currency = 'IDR') => {
+  // Handle undefined, null, NaN, or non-numeric values
+  const numericAmount = parseFloat(amount);
+  if (isNaN(numericAmount) || numericAmount < 0) {
+    return currency === 'IDR' ? 'Rp 0' : '$0';
   }
+  
+  if (currency === 'IDR') {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0,
+    }).format(numericAmount);
+  }
+  
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+  }).format(numericAmount);
 }; 
