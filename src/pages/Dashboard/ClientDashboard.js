@@ -423,18 +423,24 @@ export default function ClientDashboard() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       ),
-      bgColor: 'bg-blue-100',
+      bgColor: 'bg-blue-50',
+      borderColor: 'border-blue-100',
+      hoverBg: 'hover:bg-blue-100',
+      iconBg: 'bg-blue-100',
       link: '/dashboard/client/transactions'
     },
     {
       title: 'Favorit',
       value: statsLoading ? '-' : stats.totalFavorites,
       icon: (
-        <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
         </svg>
       ),
-      bgColor: 'bg-green-100',
+      bgColor: 'bg-red-50',
+      borderColor: 'border-red-100',
+      hoverBg: 'hover:bg-red-100',
+      iconBg: 'bg-red-100',
       link: '/dashboard/client/favorites'
     },
     {
@@ -445,7 +451,10 @@ export default function ClientDashboard() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
         </svg>
       ),
-      bgColor: 'bg-purple-100',
+      bgColor: 'bg-purple-50',
+      borderColor: 'border-purple-100',
+      hoverBg: 'hover:bg-purple-100',
+      iconBg: 'bg-purple-100',
       link: '/dashboard/client/messages'
     },
     {
@@ -456,7 +465,10 @@ export default function ClientDashboard() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l-1 7a2 2 0 01-2 2H8a2 2 0 01-2-2L5 9z" />
         </svg>
       ),
-      bgColor: 'bg-orange-100',
+      bgColor: 'bg-orange-50',
+      borderColor: 'border-orange-100',
+      hoverBg: 'hover:bg-orange-100',
+      iconBg: 'bg-orange-100',
       link: '/dashboard/client/cart'
     }
   ];
@@ -487,12 +499,12 @@ export default function ClientDashboard() {
             variants={itemVariants}
             whileHover={{ scale: 1.02, y: -2 }}
             whileTap={{ scale: 0.98 }}
-            className="bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-gray-100 p-6 cursor-pointer hover:shadow-md transition-all duration-200"
+            className={`${stat.bgColor} backdrop-blur-sm rounded-xl shadow-sm border ${stat.borderColor} p-6 cursor-pointer ${stat.hoverBg} transition-all duration-200`}
             onClick={() => window.location.href = stat.link}
           >
             <div className="flex items-center">
               <motion.div 
-                className={`p-3 rounded-full ${stat.bgColor}`}
+                className={`p-3 rounded-full ${stat.iconBg}`}
                 whileHover={{ rotate: 5 }}
                 transition={{ type: "spring", stiffness: 400 }}
               >
@@ -520,26 +532,25 @@ export default function ClientDashboard() {
 
       {/* Profile Section */}
       <motion.div 
-        className="bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-gray-100 p-8 mb-8"
+        className="bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8"
         variants={itemVariants}
       >
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold text-gray-900">Profil Saya</h2>
+        {/* Custom Profile Header */}
+        <div className="px-6 py-4 bg-gradient-to-r from-[#010042] to-[#0100a3] text-white flex justify-between items-center">
+          <h2 className="text-xl font-bold">Profil Saya</h2>
           <motion.button
             onClick={toggleEditMode}
-            className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-              isEditing 
-                ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' 
-                : 'bg-[#010042] text-white hover:bg-[#010042]/90'
+            className={`inline-flex items-center px-4 py-2 border border-white text-sm font-medium rounded-md shadow-sm text-white bg-transparent hover:bg-white hover:text-[#010042] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white transition-all duration-200 ${
+              isEditing ? 'opacity-70 pointer-events-none' : ''
             }`}
-            whileHover={{ scale: 1.02 }}
+            whileHover={{ scale: 1.04 }}
             whileTap={{ scale: 0.98 }}
           >
             {isEditing ? 'Batal' : 'Edit Profil'}
           </motion.button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 p-6">
           {/* Profile Photo Section */}
           <motion.div 
             className="lg:col-span-1 flex items-center justify-center"
@@ -629,12 +640,12 @@ export default function ClientDashboard() {
                 {/* Phone */}
                 <div className="flex items-start space-x-3">
                   <div className="flex-shrink-0">
-                    <svg className="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="h-6 w-6 text-[#010042]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                     </svg>
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-500">PHONE</p>
+                    <p className="text-sm font-medium text-[#010042]">PHONE</p>
                     {isEditing ? (
                       <input
                         type="tel"
@@ -653,13 +664,13 @@ export default function ClientDashboard() {
                 {/* Location */}
                 <div className="flex items-start space-x-3">
                   <div className="flex-shrink-0">
-                    <svg className="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="h-6 w-6 text-[#010042]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-500">LOCATION</p>
+                    <p className="text-sm font-medium text-[#010042]">LOCATION</p>
                     {isEditing ? (
                       <select
                         name="location"
@@ -690,12 +701,12 @@ export default function ClientDashboard() {
                 {/* Gender */}
                 <div className="flex items-start space-x-3">
                   <div className="flex-shrink-0">
-                    <svg className="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="h-6 w-6 text-[#010042]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-500">GENDER</p>
+                    <p className="text-sm font-medium text-[#010042]">GENDER</p>
                     {isEditing ? (
                       <select
                         name="gender"
@@ -726,12 +737,12 @@ export default function ClientDashboard() {
                 {/* Birth Date */}
                 <div className="flex items-start space-x-3">
                   <div className="flex-shrink-0">
-                    <svg className="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="h-6 w-6 text-[#010042]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-500">BIRTH DATE</p>
+                    <p className="text-sm font-medium text-[#010042]">BIRTH DATE</p>
                     {isEditing ? (
                       <input
                         type="date"
@@ -753,10 +764,10 @@ export default function ClientDashboard() {
               {/* About Section */}
               <div className="bg-gray-50 rounded-lg p-6">
                 <div className="flex items-center space-x-2 mb-4">
-                  <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-5 w-5 text-[#010042]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
-                  <h3 className="text-lg font-medium text-gray-900">About</h3>
+                  <h3 className="text-lg font-medium text-[#010042]">About</h3>
                 </div>
                 {isEditing ? (
                   <textarea

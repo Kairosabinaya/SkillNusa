@@ -25,7 +25,8 @@ import {
   BanknotesIcon,
   PlusIcon,
   CalendarIcon,
-  DocumentTextIcon
+  DocumentTextIcon,
+  InformationCircleIcon
 } from '@heroicons/react/24/outline';
 
 export default function FreelancerWallet() {
@@ -320,7 +321,7 @@ export default function FreelancerWallet() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
@@ -397,48 +398,59 @@ export default function FreelancerWallet() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-white rounded-lg shadow p-6"
+          className="bg-white rounded-lg shadow-sm p-6"
         >
           <h2 className="text-lg font-semibold text-gray-900 mb-6">
             Aksi Cepat
           </h2>
-          <div className="space-y-4">
+          
+          {/* Quick Action Button */}
+          <div className="/5 rounded-lg p-4 mb-6">
             <button 
               onClick={() => setShowWithdrawModal(true)}
               disabled={wallet.availableForWithdraw < 50000}
-              className="w-full flex items-center justify-center gap-2 bg-[#010042] text-white py-3 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 bg-[#4A72FF] text-white py-3 px-4 rounded-lg hover:bg-[#3355CC] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <ArrowUpIcon className="h-5 w-5" />
               Tarik Dana
             </button>
-            
-            <div className="text-center">
-              <p className="text-sm text-gray-600 mb-2">
-                Minimum penarikan: {formatCurrency(50000)}
-              </p>
-              <p className="text-xs text-gray-500">
-                Dana akan diproses dalam 1-3 hari kerja
-              </p>
-            </div>
           </div>
 
           {/* Withdrawal Info */}
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <h3 className="text-sm font-medium text-gray-900 mb-3">
-              Informasi Penarikan
-            </h3>
-            <div className="space-y-2 text-sm text-gray-600">
-              <div className="flex justify-between">
-                <span>Fee platform:</span>
-                <span>15%</span>
+          <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+                <span className="text-sm font-medium text-gray-700">Informasi Penarikan</span>
               </div>
-              <div className="flex justify-between">
-                <span>Waktu hold:</span>
-                <span>7 hari</span>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Minimum penarikan:</span>
+                  <span className="text-sm font-medium text-gray-900">Rp 50,000</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Fee platform:</span>
+                  <span className="text-sm font-medium text-gray-900">15%</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Waktu hold:</span>
+                  <span className="text-sm font-medium text-gray-900">7 hari</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Limit harian:</span>
+                  <span className="text-sm font-medium text-gray-900">Rp 10jt</span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span>Limit harian:</span>
-                <span>{formatCurrency(10000000)}</span>
+            </div>
+
+            <div className="pt-4 border-t border-gray-100">
+              <div className="flex items-start gap-2 bg-blue-50 p-3 rounded-lg">
+                <InformationCircleIcon className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-gray-500">
+                  Dana akan diproses dalam 1-3 hari kerja setelah permintaan penarikan
+                </p>
               </div>
             </div>
           </div>

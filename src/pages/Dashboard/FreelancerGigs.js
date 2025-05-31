@@ -254,7 +254,7 @@ export default function FreelancerGigs() {
         transition={{ delay: 0.1 }}
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8"
       >
-        <div className="bg-white p-4 rounded-lg shadow">
+        <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-4 rounded-lg shadow">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm text-gray-600">Total Gigs</p>
             <DocumentDuplicateIcon className="h-5 w-5 text-gray-400" />
@@ -262,7 +262,7 @@ export default function FreelancerGigs() {
           <p className="text-2xl font-bold text-gray-900">{stats.totalGigs}</p>
         </div>
 
-        <div className="bg-white p-4 rounded-lg shadow">
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg shadow">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm text-gray-600">Total Views</p>
             <EyeIcon className="h-5 w-5 text-blue-500" />
@@ -270,7 +270,7 @@ export default function FreelancerGigs() {
           <p className="text-2xl font-bold text-gray-900">{formatNumber(stats.totalViews)}</p>
         </div>
 
-        <div className="bg-white p-4 rounded-lg shadow">
+        <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-lg shadow">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm text-gray-600">Total Orders</p>
             <ChartBarIcon className="h-5 w-5 text-purple-500" />
@@ -278,7 +278,7 @@ export default function FreelancerGigs() {
           <p className="text-2xl font-bold text-gray-900">{stats.totalOrders}</p>
         </div>
 
-        <div className="bg-white p-4 rounded-lg shadow">
+        <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 p-4 rounded-lg shadow">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm text-gray-600">Avg. Rating</p>
             <StarIcon className="h-5 w-5 text-yellow-500" />

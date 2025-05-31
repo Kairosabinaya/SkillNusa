@@ -454,51 +454,75 @@ export default function FreelancerAnalytics() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="bg-white rounded-lg shadow p-6"
+          className="bg-white rounded-lg shadow-lg p-6 relative overflow-hidden"
         >
-          <h2 className="text-lg font-semibold text-gray-900 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-8 relative">
             Metrik Performa
           </h2>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <ClockIcon className="h-5 w-5 text-gray-400 mr-2" />
-                <span className="text-sm text-gray-600">Waktu Respon</span>
+          <div className="grid grid-cols-2 gap-6 relative">
+            <motion.div 
+              whileHover={{ scale: 1.02 }}
+              transition={{ type: "spring", stiffness: 300 }}
+              className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-gray-300 transition-colors"
+            >
+              <div className="flex flex-col items-center space-y-2">
+                <div className="p-3 bg-[#010042]/10 rounded-full transform transition-transform group-hover:scale-110">
+                  <ClockIcon className="h-6 w-6 text-[#010042]" />
+                </div>
+                <span className="text-sm text-gray-600">Response Time</span>
+                <span className="text-xl font-bold text-gray-900">
+                  {analytics.performance.responseTime}h
+                </span>
               </div>
-              <span className="text-sm font-medium">
-                {analytics.performance.responseTime}h
-              </span>
-            </div>
+            </motion.div>
             
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <CalendarIcon className="h-5 w-5 text-gray-400 mr-2" />
+            <motion.div 
+              whileHover={{ scale: 1.02 }}
+              transition={{ type: "spring", stiffness: 300 }}
+              className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-gray-300 transition-colors"
+            >
+              <div className="flex flex-col items-center space-y-2">
+                <div className="p-3 bg-[#010042]/10 rounded-full transform transition-transform group-hover:scale-110">
+                  <CalendarIcon className="h-6 w-6 text-[#010042]" />
+                </div>
                 <span className="text-sm text-gray-600">Delivery Time</span>
+                <span className="text-xl font-bold text-gray-900">
+                  {analytics.performance.deliveryTime.toFixed(1)} hari
+                </span>
               </div>
-              <span className="text-sm font-medium">
-                {analytics.performance.deliveryTime.toFixed(1)} hari
-              </span>
-            </div>
+            </motion.div>
             
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <ChartBarIcon className="h-5 w-5 text-gray-400 mr-2" />
+            <motion.div 
+              whileHover={{ scale: 1.02 }}
+              transition={{ type: "spring", stiffness: 300 }}
+              className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-gray-300 transition-colors"
+            >
+              <div className="flex flex-col items-center space-y-2">
+                <div className="p-3 bg-[#010042]/10 rounded-full transform transition-transform group-hover:scale-110">
+                  <ChartBarIcon className="h-6 w-6 text-[#010042]" />
+                </div>
                 <span className="text-sm text-gray-600">Conversion Rate</span>
+                <span className="text-xl font-bold text-gray-900">
+                  {analytics.orders.conversionRate.toFixed(1)}%
+                </span>
               </div>
-              <span className="text-sm font-medium">
-                {analytics.orders.conversionRate.toFixed(1)}%
-              </span>
-            </div>
+            </motion.div>
             
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <UserGroupIcon className="h-5 w-5 text-gray-400 mr-2" />
+            <motion.div 
+              whileHover={{ scale: 1.02 }}
+              transition={{ type: "spring", stiffness: 300 }}
+              className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-gray-300 transition-colors"
+            >
+              <div className="flex flex-col items-center space-y-2">
+                <div className="p-3 bg-[#010042]/10 rounded-full transform transition-transform group-hover:scale-110">
+                  <UserGroupIcon className="h-6 w-6 text-[#010042]" />
+                </div>
                 <span className="text-sm text-gray-600">Revision Rate</span>
+                <span className="text-xl font-bold text-gray-900">
+                  {analytics.performance.revisionRate.toFixed(1)}%
+                </span>
               </div>
-              <span className="text-sm font-medium">
-                {analytics.performance.revisionRate.toFixed(1)}%
-              </span>
-            </div>
+            </motion.div>
           </div>
         </motion.div>
 

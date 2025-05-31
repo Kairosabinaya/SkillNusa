@@ -244,20 +244,20 @@ export default function FreelancerGuides() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4"
+        className="fixed left-[250px] right-0 top-0 bottom-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4"
         onClick={onClose}
       >
         <motion.div 
           initial={{ scale: 0.9 }}
           animate={{ scale: 1 }}
           exit={{ scale: 0.9 }}
-          className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden"
+          className="bg-white rounded-lg w-[90%] max-w-3xl max-h-[90vh] overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="relative">
             <button 
               onClick={onClose}
-              className="absolute top-4 right-4 z-10 p-2 bg-white rounded-full shadow-lg hover:bg-gray-100"
+              className="absolute top-4 right-4 z-10 p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors"
             >
               <XMarkIcon className="h-6 w-6 text-gray-600" />
             </button>
@@ -278,6 +278,9 @@ export default function FreelancerGuides() {
               <div className="flex items-center gap-4 text-sm text-gray-600 mb-4">
                 <span>{formatViews(video.views)} tayangan</span>
                 <span>{formatDate(video.publishedAt)}</span>
+                <span className="bg-[#010042] text-white text-xs px-2 py-1 rounded-full">
+                  {video.category}
+                </span>
               </div>
               <p className="text-gray-700">{video.description}</p>
               
@@ -399,6 +402,11 @@ export default function FreelancerGuides() {
             onClick={() => setSelectedVideo(video)}
           >
             <div className="relative aspect-video bg-gray-100 rounded-t-lg overflow-hidden">
+              <div className="absolute top-2 left-2 z-10">
+                <span className="bg-[#010042] text-white text-xs px-2 py-1 rounded-full">
+                  {video.category}
+                </span>
+              </div>
               <img 
                 src={video.thumbnail} 
                 alt={video.title}

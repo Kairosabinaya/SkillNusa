@@ -660,7 +660,7 @@ export default function FreelancerOrders() {
         transition={{ delay: 0.1 }}
         className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8"
       >
-        <div className="bg-white p-4 rounded-lg shadow">
+        <div className="bg-gray-50 p-4 rounded-lg shadow">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm text-gray-600">Total Pesanan</p>
             <DocumentTextIcon className="h-5 w-5 text-gray-400" />
@@ -668,7 +668,7 @@ export default function FreelancerOrders() {
           <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
         </div>
 
-        <div className="bg-white p-4 rounded-lg shadow">
+        <div className="bg-yellow-50 p-4 rounded-lg shadow">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm text-gray-600">Menunggu</p>
             <ClockIcon className="h-5 w-5 text-yellow-500" />
@@ -676,7 +676,7 @@ export default function FreelancerOrders() {
           <p className="text-2xl font-bold text-gray-900">{stats.pending}</p>
         </div>
 
-        <div className="bg-white p-4 rounded-lg shadow">
+        <div className="bg-blue-50 p-4 rounded-lg shadow">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm text-gray-600">Aktif</p>
             <CheckCircleIcon className="h-5 w-5 text-blue-500" />
@@ -684,7 +684,7 @@ export default function FreelancerOrders() {
           <p className="text-2xl font-bold text-gray-900">{stats.active}</p>
         </div>
 
-        <div className="bg-white p-4 rounded-lg shadow">
+        <div className="bg-green-50 p-4 rounded-lg shadow">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm text-gray-600">Selesai</p>
             <CheckCircleIcon className="h-5 w-5 text-green-500" />
@@ -692,7 +692,7 @@ export default function FreelancerOrders() {
           <p className="text-2xl font-bold text-gray-900">{stats.completed}</p>
         </div>
 
-        <div className="bg-white p-4 rounded-lg shadow">
+        <div className="bg-red-50 p-4 rounded-lg shadow">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm text-gray-600">Dibatalkan</p>
             <XCircleIcon className="h-5 w-5 text-red-500" />

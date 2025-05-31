@@ -349,55 +349,57 @@ export default function Browse() {
           {/* Main Content */}
           <div className="flex-1">
             {/* Results Header */}
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-semibold text-gray-900">
-                  {searchQuery ? `Hasil pencarian untuk "${searchQuery}"` : 
-                   filters.category ? `Gigs dalam ${filters.category}` : 'Semua Gigs'}
-                </h2>
-                <p className="text-gray-600 text-sm">
-                  Menampilkan {startIndex + 1}-{Math.min(endIndex, totalGigs)} dari {totalGigs} gigs
-                  {totalPages > 1 && ` (Halaman ${currentPage} dari ${totalPages})`}
-                </p>
-              </div>
-
-              <div className="flex items-center gap-4">
-                {/* View Mode Toggle */}
-                <div className="flex border border-gray-300 rounded">
-                  <button
-                    onClick={() => setViewMode('grid')}
-                    className={`px-3 py-2 ${viewMode === 'grid' ? 'bg-gray-100' : ''}`}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={() => setViewMode('list')}
-                    className={`px-3 py-2 ${viewMode === 'list' ? 'bg-gray-100' : ''}`}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                    </svg>
-                  </button>
+            <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    {searchQuery ? `Hasil pencarian untuk "${searchQuery}"` : 
+                     filters.category ? `Gigs dalam ${filters.category}` : 'Semua Gigs'}
+                  </h2>
+                  <p className="text-gray-600 text-sm">
+                    Menampilkan {startIndex + 1}-{Math.min(endIndex, totalGigs)} dari {totalGigs} gigs
+                    {totalPages > 1 && ` (Halaman ${currentPage} dari ${totalPages})`}
+                  </p>
                 </div>
 
-                {/* Sort Dropdown */}
-                <div className="relative">
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    className="appearance-none bg-white border border-gray-300 rounded px-4 py-2 pr-8 focus:outline-none focus:ring-1 focus:ring-[#010042]"
-                  >
-                    <option value="relevance">Paling Relevan</option>
-                    <option value="newest">Terbaru</option>
-                    <option value="rating">Rating Tertinggi</option>
-                    <option value="reviews">Paling Banyak Review</option>
-                    <option value="price-low">Harga Terendah</option>
-                    <option value="price-high">Harga Tertinggi</option>
-                  </select>
-                  <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                    
+                <div className="flex items-center gap-4">
+                  {/* View Mode Toggle */}
+                  <div className="flex border border-gray-300 rounded">
+                    <button
+                      onClick={() => setViewMode('grid')}
+                      className={`px-3 py-2 ${viewMode === 'grid' ? 'bg-gray-100' : 'hover:bg-gray-50'}`}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => setViewMode('list')}
+                      className={`px-3 py-2 ${viewMode === 'list' ? 'bg-gray-100' : 'hover:bg-gray-50'}`}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  {/* Sort Dropdown */}
+                  <div className="relative">
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value)}
+                      className="appearance-none bg-white border border-gray-300 rounded px-4 py-2 pr-8 focus:outline-none focus:ring-1 focus:ring-[#010042]"
+                    >
+                      <option value="relevance">Paling Relevan</option>
+                      <option value="newest">Terbaru</option>
+                      <option value="rating">Rating Tertinggi</option>
+                      <option value="reviews">Paling Banyak Review</option>
+                      <option value="price-low">Harga Terendah</option>
+                      <option value="price-high">Harga Tertinggi</option>
+                    </select>
+                    <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                      
+                    </div>
                   </div>
                 </div>
               </div>
