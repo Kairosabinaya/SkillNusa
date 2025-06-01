@@ -25,6 +25,8 @@ import {
   CloudArrowUpIcon,
   InformationCircleIcon
 } from '@heroicons/react/24/outline';
+import ErrorPopup from '../../components/common/ErrorPopup';
+import SuccessPopup from '../../components/common/SuccessPopup';
 
 const categories = [
   'Programming & Tech',
@@ -220,6 +222,8 @@ export default function CreateGig() {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const initialValues = {
     title: '',
@@ -324,21 +328,18 @@ export default function CreateGig() {
     const currentImages = Array.isArray(values.images) ? values.images : [];
     
     if (currentImages.length + files.length > 5) {
-      alert('Maksimal 5 gambar');
+      setError('Maksimal 5 gambar');
       return;
     }
 
     setUploadingImage(true);
     
     try {
-      // Upload files to Cloudinary
       const uploadedUrls = await uploadMultipleToCloudinary(files);
-      
-      // Add uploaded URLs to the images array
       setFieldValue('images', [...currentImages, ...uploadedUrls]);
     } catch (error) {
       console.error('Error uploading images:', error);
-      alert('Gagal upload gambar. Silakan coba lagi.');
+      setError('Gagal upload gambar. Silakan coba lagi.');
     } finally {
       setUploadingImage(false);
     }
@@ -355,13 +356,13 @@ export default function CreateGig() {
     try {
       // Validate required fields
       if (!values.title || !values.category || !values.subcategory || !values.description) {
-        alert('Please fill in all required fields');
+        setError('Mohon lengkapi semua field yang wajib diisi');
         setLoading(false);
         return;
       }
 
       if (!Array.isArray(values.images) || values.images.length === 0) {
-        alert('Please add at least one image for your gig');
+        setError('Mohon tambahkan minimal satu gambar untuk gig Anda');
         setLoading(false);
         return;
       }
@@ -420,17 +421,21 @@ export default function CreateGig() {
 
       if (isEditing) {
         await updateDoc(doc(db, 'gigs', gigId), gigData);
-        alert('Gig berhasil diupdate!');
+        setSuccess('Gig berhasil diupdate!');
+        setTimeout(() => {
+          navigate('/dashboard/freelancer/gigs');
+        }, 2000);
       } else {
         const docRef = await addDoc(collection(db, 'gigs'), gigData);
         console.log('Gig created with ID:', docRef.id);
-        alert('Gig berhasil dipublikasikan!');
+        setSuccess('Gig berhasil dipublikasikan!');
+        setTimeout(() => {
+          navigate('/dashboard/freelancer/gigs');
+        }, 2000);
       }
-
-      navigate('/dashboard/freelancer/gigs');
     } catch (error) {
       console.error('Error saving gig:', error);
-      alert(`Gagal menyimpan gig: ${error.message}`);
+      setError(`Gagal menyimpan gig: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -455,9 +460,8 @@ export default function CreateGig() {
       currentSchema.validateSync(values, { abortEarly: false });
       return true;
     } catch (error) {
-      // Show validation errors
       const errorMessages = error.inner.map(err => err.message).join(', ');
-      alert(`Please complete the following: ${errorMessages}`);
+      setError(`Mohon lengkapi: ${errorMessages}`);
       return false;
     }
   };
@@ -480,6 +484,18 @@ export default function CreateGig() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <ErrorPopup 
+        message={error} 
+        onClose={() => setError('')} 
+        duration={3000}
+      />
+      
+      <SuccessPopup 
+        message={success} 
+        onClose={() => setSuccess('')} 
+        duration={3000}
+      />
+
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">

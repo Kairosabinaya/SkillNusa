@@ -5,6 +5,8 @@ import { motion } from 'framer-motion';
 import LoadingSpinner from '../../components/UI/LoadingSpinner';
 import FreelancerCTA from '../../components/UI/FreelancerCTA';
 import DeleteAccountModal from '../../components/Profile/DeleteAccountModal';
+import ErrorPopup from '../../components/common/ErrorPopup';
+import SuccessPopup from '../../components/common/SuccessPopup';
 import { uploadProfilePhoto as uploadToCloudinary } from '../../services/cloudinaryService';
 import { getUserProfile, updateUserProfile } from '../../services/userProfileService';
 import { getIndonesianCities } from '../../services/profileService';
@@ -27,6 +29,8 @@ export default function ClientDashboard() {
   const [cities, setCities] = useState([]);
   const [loadingCities, setLoadingCities] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   
   // Dashboard stats state with real-time updates
   const [stats, setStats] = useState({
@@ -247,12 +251,12 @@ export default function ClientDashboard() {
     if (!file) return;
     
     if (!file.type.match('image.*')) {
-      alert('Mohon pilih file gambar (jpg, jpeg, png, etc.)');
+      setError('Mohon pilih file gambar (jpg, jpeg, png, etc.)');
       return;
     }
     
     if (file.size > 2 * 1024 * 1024) {
-      alert('Ukuran file maksimal 2MB');
+      setError('Ukuran file maksimal 2MB');
       return;
     }
     
@@ -271,7 +275,7 @@ export default function ClientDashboard() {
     const timeout = setTimeout(() => {
       if (uploadingPhoto) {
         setUploadingPhoto(false);
-        alert('Waktu upload foto habis. Silakan coba lagi.');
+        setError('Waktu upload foto habis. Silakan coba lagi.');
       }
     }, 15000);
     
@@ -284,7 +288,7 @@ export default function ClientDashboard() {
         publicId: uploadResult.publicId
       };
     } catch (error) {
-      alert('Gagal mengunggah foto: ' + error.message);
+      setError('Gagal mengunggah foto: ' + error.message);
       return null;
     } finally {
       clearTimeout(timeout);
@@ -326,7 +330,7 @@ export default function ClientDashboard() {
     const saveTimeout = setTimeout(() => {
       if (saving) {
         setSaving(false);
-        alert('Proses penyimpanan terlalu lama. Silakan coba lagi.');
+        setError('Proses penyimpanan terlalu lama. Silakan coba lagi.');
       }
     }, 20000);
     
@@ -371,19 +375,19 @@ export default function ClientDashboard() {
         setPhotoFile(null);
         setPhotoPreview(null);
         
-        alert('Profil berhasil diperbarui!');
+        setSuccess('Profil berhasil diperbarui!');
         
         // Reload halaman jika foto profil diupdate untuk memastikan semua komponen mendapat foto terbaru
         if (photoWasUpdated) {
           setTimeout(() => {
             window.location.reload();
-          }, 1000); // Delay 1 detik agar user bisa melihat pesan sukses
+          }, 1000);
         }
       } else {
-        alert('Gagal menyimpan perubahan profil. Silakan coba lagi.');
+        setError('Gagal menyimpan perubahan profil. Silakan coba lagi.');
       }
     } catch (error) {
-      alert('Gagal menyimpan perubahan profil: ' + (error.message || 'Unknown error'));
+      setError('Gagal menyimpan perubahan profil: ' + (error.message || 'Unknown error'));
     } finally {
       clearTimeout(saveTimeout);
       setSaving(false);
@@ -480,6 +484,18 @@ export default function ClientDashboard() {
       animate="visible"
       variants={containerVariants}
     >
+      <ErrorPopup 
+        message={error} 
+        onClose={() => setError('')} 
+        duration={3000}
+      />
+      
+      <SuccessPopup 
+        message={success} 
+        onClose={() => setSuccess('')} 
+        duration={3000}
+      />
+
       {/* Welcome Header */}
       <motion.div className="mb-8" variants={itemVariants}>
         <h1 className="text-3xl font-bold text-gray-900 mb-2">

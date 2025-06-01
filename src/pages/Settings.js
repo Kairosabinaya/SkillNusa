@@ -18,6 +18,8 @@ import {
   ArrowLeftIcon
 } from '@heroicons/react/24/outline';
 import { Link } from 'react-router-dom';
+import ErrorPopup from '../components/common/ErrorPopup';
+import SuccessPopup from '../components/common/SuccessPopup';
 
 export default function Settings() {
   const { currentUser, userProfile } = useAuth();
@@ -25,6 +27,8 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('security');
   const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   
   const [securityForm, setSecurityForm] = useState({
     currentPassword: '',
@@ -97,7 +101,7 @@ export default function Settings() {
 
   const handleSecuritySave = async () => {
     if (securityForm.newPassword !== securityForm.confirmPassword) {
-      alert('Password baru tidak cocok');
+      setError('Password baru tidak cocok');
       return;
     }
 
@@ -118,10 +122,10 @@ export default function Settings() {
         newEmail: ''
       });
 
-      alert('Pengaturan keamanan berhasil diperbarui');
+      setSuccess('Pengaturan keamanan berhasil diperbarui');
     } catch (error) {
       console.error('Error updating security:', error);
-      alert('Gagal memperbarui pengaturan keamanan');
+      setError('Gagal memperbarui pengaturan keamanan');
     } finally {
       setSaving(false);
     }
@@ -135,10 +139,10 @@ export default function Settings() {
         updatedAt: serverTimestamp()
       });
 
-      alert('Pengaturan notifikasi berhasil diperbarui');
+      setSuccess('Pengaturan notifikasi berhasil diperbarui');
     } catch (error) {
       console.error('Error updating notifications:', error);
-      alert('Gagal memperbarui pengaturan notifikasi');
+      setError('Gagal memperbarui pengaturan notifikasi');
     } finally {
       setSaving(false);
     }
@@ -152,10 +156,10 @@ export default function Settings() {
         updatedAt: serverTimestamp()
       });
 
-      alert('Pengaturan preferensi berhasil diperbarui');
+      setSuccess('Pengaturan preferensi berhasil diperbarui');
     } catch (error) {
       console.error('Error updating preferences:', error);
-      alert('Gagal memperbarui pengaturan preferensi');
+      setError('Gagal memperbarui pengaturan preferensi');
     } finally {
       setSaving(false);
     }
@@ -171,6 +175,19 @@ export default function Settings() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Add Error and Success Popups */}
+      <ErrorPopup 
+        message={error} 
+        onClose={() => setError('')} 
+        duration={3000}
+      />
+      
+      <SuccessPopup 
+        message={success} 
+        onClose={() => setSuccess('')} 
+        duration={3000}
+      />
+
       {/* Header */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}

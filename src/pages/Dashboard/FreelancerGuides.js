@@ -41,75 +41,75 @@ export default function FreelancerGuides() {
   const sampleVideos = [
     {
       id: '1',
-      title: 'Cara Membuat Gig Pertama yang Menarik',
-      description: 'Panduan lengkap membuat gig yang menarik perhatian client dan meningkatkan penjualan',
-      thumbnail: 'https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg',
-      videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
-      duration: '12:45',
+      title: 'Cara Membuat Gigs di Fiverr bagi Pemula 2025',
+      description: 'Cara membuat Gigs secara cepat dan mudah.',
+      thumbnail: 'https://img.youtube.com/vi/4NMJW_YRog8/0.jpg',
+      videoUrl: 'https://youtu.be/4NMJW_YRog8',
+      duration: '13:35',
       category: 'Membuat Gig',
       views: 1234,
       likes: 89,
-      publishedAt: new Date('2024-01-15')
+      publishedAt: new Date('2024-02-28')
     },
     {
       id: '2',
-      title: 'Tips Menentukan Harga Jasa yang Tepat',
-      description: 'Strategi pricing yang efektif untuk freelancer pemula hingga expert',
-      thumbnail: 'https://img.youtube.com/vi/jNQXAC9IVRw/maxresdefault.jpg',
-      videoUrl: 'https://www.youtube.com/embed/jNQXAC9IVRw',
-      duration: '15:30',
+      title: 'Rumus Untuk Menentukan Harga Jasa Freelance Kita',
+      description: 'Berbagi pengalaman profesional di dunia freelance, khususnya dalam menentukan strategi harga yang tepat',
+      thumbnail: 'https://img.youtube.com/vi/2q7G5NouvBo/maxresdefault.jpg',
+      videoUrl: 'https://www.youtube.com/embed/2q7G5NouvBo',
+      duration: '7:55',
       category: 'Pricing Strategy',
       views: 2341,
       likes: 156,
-      publishedAt: new Date('2024-01-10')
+      publishedAt: new Date('2021-03-09')
     },
     {
       id: '3',
       title: 'Komunikasi Efektif dengan Client',
       description: 'Cara berkomunikasi profesional untuk membangun hubungan jangka panjang',
-      thumbnail: 'https://img.youtube.com/vi/9bZkp7q19f0/maxresdefault.jpg',
-      videoUrl: 'https://www.youtube.com/embed/9bZkp7q19f0',
-      duration: '18:20',
+      thumbnail: 'https://img.youtube.com/vi/lCioIb6GLXY/maxresdefault.jpg',
+      videoUrl: 'https://www.youtube.com/embed/lCioIb6GLXY',
+      duration: '10:06',
       category: 'Komunikasi Client',
       views: 3456,
       likes: 234,
-      publishedAt: new Date('2024-01-05')
+      publishedAt: new Date('2023-10-11')
     },
     {
       id: '4',
-      title: 'Memulai Karir Freelancer di SkillNusa',
-      description: 'Panduan lengkap untuk pemula yang ingin memulai karir sebagai freelancer',
-      thumbnail: 'https://img.youtube.com/vi/M7lc1UVf-VE/maxresdefault.jpg',
-      videoUrl: 'https://www.youtube.com/embed/M7lc1UVf-VE',
-      duration: '25:15',
+      title: 'Tips Memulai Karir Sebagai Freelancer Pemula!',
+      description: 'Membagikan tips dan cara untuk memulai karir sebagai seorang freelancer pemula',
+      thumbnail: 'https://img.youtube.com/vi/4ao9ie7vneE/maxresdefault.jpg',
+      videoUrl: 'https://www.youtube.com/embed/4ao9ie7vneE',
+      duration: '5:49',
       category: 'Memulai',
       views: 5678,
       likes: 456,
-      publishedAt: new Date('2024-01-01')
+      publishedAt: new Date('2023-03-07')
     },
     {
       id: '5',
-      title: 'Membangun Portfolio yang Menarik',
-      description: 'Tips dan trik membuat portfolio yang membuat client tertarik',
-      thumbnail: 'https://img.youtube.com/vi/kJQP7kiw5Fk/maxresdefault.jpg',
-      videoUrl: 'https://www.youtube.com/embed/kJQP7kiw5Fk',
-      duration: '20:45',
+      title: 'Cara Membuat Portofolio Kerja Remote untuk Pemula',
+      description: 'Membahas langkah-langkah dalam menyusun portofolio profesional.',
+      thumbnail: 'https://img.youtube.com/vi/AP39tJnIQP8/maxresdefault.jpg',
+      videoUrl: 'https://www.youtube.com/embed/AP39tJnIQP8',
+      duration: '7:06',
       category: 'Portfolio',
       views: 4321,
       likes: 321,
-      publishedAt: new Date('2023-12-28')
+      publishedAt: new Date('2025-01-14')
     },
     {
       id: '6',
-      title: 'Marketing Diri Sebagai Freelancer',
+      title: 'Belajar Digital Marketing dari 0',
       description: 'Strategi pemasaran personal branding untuk meningkatkan visibility',
-      thumbnail: 'https://img.youtube.com/vi/eBGIQ7ZuuiU/maxresdefault.jpg',
-      videoUrl: 'https://www.youtube.com/embed/eBGIQ7ZuuiU',
-      duration: '16:30',
+      thumbnail: 'https://img.youtube.com/vi/aQbZdee5PXI/maxresdefault.jpg',
+      videoUrl: 'https://www.youtube.com/embed/aQbZdee5PXI',
+      duration: '9:24',
       category: 'Marketing',
       views: 2890,
       likes: 198,
-      publishedAt: new Date('2023-12-25')
+      publishedAt: new Date('2023-10-01')
     }
   ];
 

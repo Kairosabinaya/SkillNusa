@@ -3,6 +3,34 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import chatService from '../services/chatService';
 
+// Constants for SkillBot
+const SKILLBOT_ID = 'skillbot';
+const SKILLBOT_DATA = {
+  id: SKILLBOT_ID,
+  otherParticipant: {
+    displayName: 'SkillBot AI',
+    profilePhoto: '/images/robot.png',
+  },
+  lastMessage: 'Hai! Saya SkillBot, asisten AI yang akan membantu Anda menemukan freelancer yang tepat.',
+  lastMessageTime: new Date(),
+  unreadCount: {},
+};
+
+const SKILLBOT_WELCOME_MESSAGES = [
+  {
+    id: 'welcome-1',
+    content: 'Hai! Saya SkillBot, asisten AI yang akan membantu Anda menemukan freelancer yang tepat untuk proyek Anda.',
+    senderId: SKILLBOT_ID,
+    createdAt: new Date(Date.now() - 1000),
+  },
+  {
+    id: 'welcome-2',
+    content: 'Ceritakan tentang proyek yang Anda butuhkan, dan saya akan membantu merekomendasikan freelancer terbaik berdasarkan kebutuhan Anda.',
+    senderId: SKILLBOT_ID,
+    createdAt: new Date(),
+  }
+];
+
 export default function Messages() {
   const { chatId: paramChatId } = useParams();
   const [searchParams] = useSearchParams();
@@ -24,14 +52,21 @@ export default function Messages() {
     const loadChats = async () => {
       try {
         const userChats = await chatService.getUserChats(currentUser.uid);
-        setChats(userChats);
+        // Add SkillBot to the chats list
+        const allChats = [SKILLBOT_DATA, ...userChats];
+        setChats(allChats);
         
         // If chatId is provided, select that chat
         if (chatId) {
-          const chat = userChats.find(c => c.id === chatId);
-          if (chat) {
-            setSelectedChat(chat);
-            loadChatMessages(chatId);
+          if (chatId === SKILLBOT_ID) {
+            setSelectedChat(SKILLBOT_DATA);
+            setMessages(SKILLBOT_WELCOME_MESSAGES);
+          } else {
+            const chat = userChats.find(c => c.id === chatId);
+            if (chat) {
+              setSelectedChat(chat);
+              loadChatMessages(chatId);
+            }
           }
         }
       } catch (error) {
@@ -46,6 +81,11 @@ export default function Messages() {
 
   // Load messages for selected chat
   const loadChatMessages = async (chatId) => {
+    if (chatId === SKILLBOT_ID) {
+      setMessages(SKILLBOT_WELCOME_MESSAGES);
+      return;
+    }
+
     try {
       const chatMessages = await chatService.getChatMessages(chatId);
       setMessages(chatMessages);
@@ -71,15 +111,35 @@ export default function Messages() {
 
     setSending(true);
     try {
-      await chatService.sendMessage(
-        selectedChat.id,
-        currentUser.uid,
-        newMessage.trim()
-      );
+      if (selectedChat.id === SKILLBOT_ID) {
+        // Handle SkillBot chat
+        setTimeout(() => {
+          const userMessage = {
+            id: `user-${Date.now()}`,
+            content: newMessage.trim(),
+            senderId: currentUser.uid,
+            createdAt: new Date(),
+          };
+          
+          const botResponse = {
+            id: `bot-${Date.now()}`,
+            content: "Terima kasih atas pertanyaannya! Saya sedang menganalisis kebutuhan proyek Anda dan akan merekomendasikan freelancer yang paling sesuai. Mohon tunggu sebentar...",
+            senderId: SKILLBOT_ID,
+            createdAt: new Date(Date.now() + 1000),
+          };
+          
+          setMessages(prev => [...prev, userMessage, botResponse]);
+        }, 500);
+      } else {
+        await chatService.sendMessage(
+          selectedChat.id,
+          currentUser.uid,
+          newMessage.trim()
+        );
+        loadChatMessages(selectedChat.id);
+      }
       
       setNewMessage('');
-      // Reload messages
-      loadChatMessages(selectedChat.id);
     } catch (error) {
       console.error('Error sending message:', error);
     } finally {
@@ -203,9 +263,7 @@ export default function Messages() {
                         <h3 className="font-medium text-gray-900">
                           {selectedChat.otherParticipant?.displayName || 'Unknown User'}
                         </h3>
-                        <p className="text-sm text-gray-500">
-                          {selectedChat.otherParticipant?.isOnline ? 'Online' : 'Offline'}
-                        </p>
+                        
                       </div>
                     </div>
                   </div>

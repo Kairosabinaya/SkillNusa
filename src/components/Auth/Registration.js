@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useRegistration } from '../../context/RegistrationContext';
 import BasicAccountInfo from './steps/BasicAccountInfo';
@@ -6,7 +6,8 @@ import ProfileDetails from './steps/ProfileDetails';
 import RoleSpecificInfo from './steps/RoleSpecificInfo';
 import TermsVerification from './steps/TermsVerification';
 import ProgressIndicator from '../common/ProgressIndicator';
-import { Alert } from '../common/Alert';
+import ErrorPopup from '../common/ErrorPopup';
+import SuccessPopup from '../common/SuccessPopup';
 import { ROUTES } from '../../routes';
 
 const Registration = () => {
@@ -14,7 +15,9 @@ const Registration = () => {
     currentStep,
     loading,
     error,
-    success
+    success,
+    setError,
+    setSuccess
   } = useRegistration();
 
   const renderStep = () => {
@@ -34,6 +37,18 @@ const Registration = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col py-12 sm:px-6 lg:px-8">
+      <ErrorPopup 
+        message={error} 
+        onClose={() => setError('')} 
+        duration={3000}
+      />
+      
+      <SuccessPopup 
+        message={success} 
+        onClose={() => setSuccess('')} 
+        duration={3000}
+      />
+
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <Link to={ROUTES.HOME} className="flex justify-center mb-6">
           <span className="text-2xl font-bold cursor-pointer bg-gradient-to-r from-[#010042] to-[#0100a3] bg-clip-text text-transparent" style={{letterSpacing: "0.5px"}}>
@@ -58,22 +73,6 @@ const Registration = () => {
             totalSteps={4}
             className="mb-8"
           />
-
-          {error && (
-            <Alert 
-              type="error" 
-              message={error} 
-              className="mb-4"
-            />
-          )}
-
-          {success && (
-            <Alert 
-              type="success" 
-              message={success} 
-              className="mb-4"
-            />
-          )}
 
           {loading ? (
             <div className="flex justify-center">

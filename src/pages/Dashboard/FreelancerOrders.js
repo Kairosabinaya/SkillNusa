@@ -27,6 +27,8 @@ import {
   CalendarIcon,
   UserIcon
 } from '@heroicons/react/24/outline';
+import ErrorPopup from '../../components/common/ErrorPopup';
+import SuccessPopup from '../../components/common/SuccessPopup';
 
 export default function FreelancerOrders() {
   const { orderId } = useParams();
@@ -39,6 +41,8 @@ export default function FreelancerOrders() {
   const [deliveryMessage, setDeliveryMessage] = useState('');
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
@@ -150,7 +154,7 @@ export default function FreelancerOrders() {
       if (order) {
         // Send notification to client (not buyer)
         await addDoc(collection(db, 'notifications'), {
-          userId: order.clientId, // Use clientId instead of buyerId
+          userId: order.clientId,
           type: 'order_update',
           message: `Status pesanan ${orderId.slice(-8)} diubah menjadi ${getStatusText(newStatus)}`,
           orderId: orderId,
@@ -180,16 +184,16 @@ export default function FreelancerOrders() {
       // Refresh orders to get updated data
       fetchOrders();
       
-      console.log('✅ [FreelancerOrders] Order status updated successfully');
+      setSuccess('Status pesanan berhasil diupdate');
     } catch (error) {
       console.error('💥 [FreelancerOrders] Error updating order status:', error);
-      alert('Gagal mengupdate status pesanan. Silakan coba lagi.');
+      setError('Gagal mengupdate status pesanan. Silakan coba lagi.');
     }
   };
 
   const deliverOrder = async () => {
     if (!deliveryMessage.trim()) {
-      alert('Pesan delivery harus diisi');
+      setError('Pesan delivery harus diisi');
       return;
     }
 
@@ -234,10 +238,10 @@ export default function FreelancerOrders() {
       // Refresh data
       fetchOrders();
       
-      alert('Hasil pekerjaan berhasil dikirim!');
+      setSuccess('Hasil pekerjaan berhasil dikirim!');
     } catch (error) {
       console.error('Error delivering order:', error);
-      alert('Gagal mengirim hasil pekerjaan. Silakan coba lagi.');
+      setError('Gagal mengirim hasil pekerjaan. Silakan coba lagi.');
     } finally {
       setIsUploading(false);
     }
@@ -248,7 +252,7 @@ export default function FreelancerOrders() {
     const validFiles = files.filter(file => {
       // Check file size (max 10MB)
       if (file.size > 10 * 1024 * 1024) {
-        alert(`File ${file.name} terlalu besar. Maksimal 10MB.`);
+        setError(`File ${file.name} terlalu besar. Maksimal 10MB.`);
         return false;
       }
       
@@ -261,7 +265,7 @@ export default function FreelancerOrders() {
       ];
       
       if (!allowedTypes.includes(file.type)) {
-        alert(`File ${file.name} tidak didukung.`);
+        setError(`File ${file.name} tidak didukung.`);
         return false;
       }
       
@@ -639,6 +643,18 @@ export default function FreelancerOrders() {
   // Orders list view
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <ErrorPopup 
+        message={error} 
+        onClose={() => setError('')} 
+        duration={3000}
+      />
+      
+      <SuccessPopup 
+        message={success} 
+        onClose={() => setSuccess('')} 
+        duration={3000}
+      />
+
       {/* Header */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}

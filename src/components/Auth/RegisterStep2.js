@@ -2,11 +2,13 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Field, ErrorMessage } from 'formik';
 import { getIndonesianCities } from '../../services/profileService';
 import { USER_ROLES } from '../../utils/constants';
+import ErrorPopup from '../common/ErrorPopup';
 
 export default function RegisterStep2({ formikProps }) {
   const { values, errors, touched, setFieldValue } = formikProps;
   const [cities, setCities] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const fileInputRef = useRef(null);
   
   // Fetch cities for dropdown
@@ -64,13 +66,13 @@ export default function RegisterStep2({ formikProps }) {
     
     // Check file type
     if (!file.type.match('image.*')) {
-      alert('Mohon pilih file gambar (jpg, jpeg, png, etc.)');
+      setError('Mohon pilih file gambar (jpg, jpeg, png, etc.)');
       return;
     }
     
     // Check file size (max 2MB)
     if (file.size > 2 * 1024 * 1024) {
-      alert('Ukuran file maksimal 2MB');
+      setError('Ukuran file maksimal 2MB');
       return;
     }
     
@@ -87,6 +89,12 @@ export default function RegisterStep2({ formikProps }) {
   
   return (
     <div className="space-y-5">
+      <ErrorPopup 
+        message={error} 
+        onClose={() => setError('')} 
+        duration={3000}
+      />
+      
       <h3 className="text-lg font-medium text-gray-900">Detail Profil</h3>
       
       {/* Profile Photo Upload */}

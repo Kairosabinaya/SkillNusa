@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
+import ErrorPopup from '../../components/common/ErrorPopup';
+import SuccessPopup from '../../components/common/SuccessPopup';
 import { 
   collection, 
   query, 
@@ -34,6 +36,8 @@ export default function FreelancerWallet() {
   const [loading, setLoading] = useState(true);
   const [withdrawing, setWithdrawing] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [wallet, setWallet] = useState({
     balance: 0,
     pendingBalance: 0,
@@ -210,11 +214,14 @@ export default function FreelancerWallet() {
 
   const handleWithdraw = async (e) => {
     e.preventDefault();
-    if (!withdrawForm.amount || !withdrawForm.method) return;
+    if (!withdrawForm.amount || !withdrawForm.method) {
+      setError('Jumlah penarikan dan metode harus diisi');
+      return;
+    }
 
     const amount = parseFloat(withdrawForm.amount);
     if (amount > wallet.availableForWithdraw || amount < 50000) {
-      alert('Jumlah penarikan tidak valid');
+      setError('Jumlah penarikan tidak valid');
       return;
     }
 
@@ -257,10 +264,10 @@ export default function FreelancerWallet() {
       fetchWalletData();
       fetchTransactions();
       
-      alert('Permintaan penarikan berhasil diajukan');
+      setSuccess('Permintaan penarikan berhasil diajukan');
     } catch (error) {
       console.error('Error submitting withdrawal:', error);
-      alert('Gagal mengajukan penarikan');
+      setError('Gagal mengajukan penarikan');
     } finally {
       setWithdrawing(false);
     }
@@ -322,6 +329,18 @@ export default function FreelancerWallet() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <ErrorPopup 
+        message={error} 
+        onClose={() => setError('')} 
+        duration={3000}
+      />
+      
+      <SuccessPopup 
+        message={success} 
+        onClose={() => setSuccess('')} 
+        duration={3000}
+      />
+
       {/* Header */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}

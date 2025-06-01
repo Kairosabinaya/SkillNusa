@@ -532,70 +532,7 @@ export default function FreelancerDashboard() {
         <p className="text-gray-600">
           Berikut ringkasan performa Anda hari ini
         </p>
-        
-        {/* Debug Information - Remove this after fixing */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="mt-4 p-4 bg-gray-100 rounded-lg text-sm">
-            <h4 className="font-semibold text-gray-700 mb-2">Debug Info (Development Only):</h4>
-            <p><strong>User ID:</strong> {currentUser?.uid}</p>
-            <p><strong>Is Freelancer:</strong> {userProfile?.isFreelancer ? 'Yes' : 'No'}</p>
-            <p><strong>Roles:</strong> {userProfile?.roles ? JSON.stringify(userProfile.roles) : 'None'}</p>
-            <p><strong>Active Role:</strong> {userProfile?.activeRole || 'Not set'}</p>
-            <p><strong>Can access freelancer routes:</strong> {
-              (userProfile?.roles?.includes('freelancer') || userProfile?.isFreelancer) ? 'Yes' : 'No'
-            }</p>
-            <p><strong>Freelancer Profile Skills:</strong> {freelancerProfile?.skills ? JSON.stringify(freelancerProfile.skills) : 'None'}</p>
-            <p><strong>Skills Data Type:</strong> {Array.isArray(freelancerProfile?.skills) ? 'Array' : typeof freelancerProfile?.skills}</p>
-          </div>
-        )}
       </motion.div>
-
-      {/* Profile Completion Alert */}
-      {profileCompletion < 100 && (
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4"
-        >
-          <div className="flex items-start">
-            <ExclamationCircleIcon className="h-5 w-5 text-yellow-600 mt-0.5" />
-            <div className="ml-3 flex-1">
-              <h3 className="text-sm font-medium text-yellow-800">
-                Profil Anda {profileCompletion}% lengkap
-              </h3>
-              <p className="text-sm text-yellow-700 mt-1">
-                Lengkapi profil Anda untuk meningkatkan visibilitas dan mendapatkan lebih banyak pesanan
-              </p>
-              <div className="mt-3 flex items-center gap-4">
-                {!userProfile?.profilePhoto && (
-                  <Link to="/profile/edit" className="text-sm font-medium text-yellow-800 hover:text-yellow-900">
-                    + Tambah foto profil
-                  </Link>
-                )}
-                {!freelancerProfile?.skills?.length && (
-                  <Link to="/dashboard/freelancer/settings" className="text-sm font-medium text-yellow-800 hover:text-yellow-900">
-                    + Tambah keahlian
-                  </Link>
-                )}
-                {gigs.length === 0 && (
-                  <Link to="/dashboard/freelancer/gigs/create" className="text-sm font-medium text-yellow-800 hover:text-yellow-900">
-                    + Buat gig pertama
-                  </Link>
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="bg-yellow-200 rounded-full h-2">
-              <div 
-                className="bg-yellow-600 h-2 rounded-full transition-all duration-500"
-                style={{ width: `${profileCompletion}%` }}
-              />
-            </div>
-          </div>
-        </motion.div>
-      )}
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -756,18 +693,6 @@ export default function FreelancerDashboard() {
                   <p className="text-gray-600 mt-1">
                     {userProfile?.email || 'email@example.com'}
                   </p>
-                  <div className="mt-3 flex items-center justify-center">
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                      freelancerProfile?.availability === 'available' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      <span className={`w-2 h-2 rounded-full mr-2 ${
-                        freelancerProfile?.availability === 'available' ? 'bg-green-500' : 'bg-red-500'
-                      }`}></span>
-                      {freelancerProfile?.availability === 'available' ? 'Tersedia' : 'Tidak Tersedia'}
-                    </span>
-                  </div>
                 </div>
               </div>
 
@@ -885,8 +810,13 @@ export default function FreelancerDashboard() {
                   </svg>
                   Pendidikan
                 </h4>
-                <div className="text-gray-700">
-                  {formatEducation(freelancerProfile?.education)}
+                <div className="space-y-4">
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h3 className="font-semibold text-gray-900">Bachelor, Computer Science and Statistics</h3>
+                    <p className="text-gray-600">Universitas Bina Nusantara (Indonesia)</p>
+                    <p className="text-gray-500 text-sm">(2026)</p>
+                  </div>
+                  {/* Add more education items here if needed */}
                 </div>
               </div>
 
@@ -898,8 +828,18 @@ export default function FreelancerDashboard() {
                   </svg>
                   Sertifikasi & Penghargaan
                 </h4>
-                <div className="text-gray-700">
-                  {formatCertifications(freelancerProfile?.certifications)}
+                <div className="space-y-4">
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h3 className="font-semibold text-gray-900">AWS Cloud Architecture</h3>
+                    <p className="text-gray-600">dari AWS</p>
+                    <p className="text-gray-500 text-sm">(2024)</p>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h3 className="font-semibold text-gray-900">AWS Cloud Foundation</h3>
+                    <p className="text-gray-600">dari AWS</p>
+                    <p className="text-gray-500 text-sm">(2024)</p>
+                  </div>
+                  {/* Add more certification items here if needed */}
                 </div>
               </div>
 
@@ -920,28 +860,10 @@ export default function FreelancerDashboard() {
                     <span className="text-sm font-medium text-gray-500">Lokasi:</span>
                     <p className="text-gray-700">{userProfile?.location ? userProfile.location.charAt(0).toUpperCase() + userProfile.location.slice(1) : 'Jakarta'}</p>
                   </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Working Hours & Availability */}
-            <div className="mt-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-6">
-              <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <ClockIcon className="h-5 w-5 mr-2 text-[#010042]" />
-                Ketersediaan
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <span className="text-sm font-medium text-gray-500">Status:</span>
-                  <p className={`text-lg font-semibold ${
-                    freelancerProfile?.availability === 'available' ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    {freelancerProfile?.availability === 'available' ? 'Tersedia' : 'Tidak Tersedia'}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-500">Jam Kerja:</span>
-                  <p className="text-gray-700">{freelancerProfile?.workingHours || '08:00 - 17:00 WIB'}</p>
+                  <div>
+                    <span className="text-sm font-medium text-gray-500">Jam Kerja:</span>
+                    <p className="text-gray-700">{freelancerProfile?.workingHours || '08:00 - 17:00 WIB'}</p>
+                  </div>
                 </div>
               </div>
             </div>

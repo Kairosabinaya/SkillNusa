@@ -7,6 +7,8 @@ import firebaseService from '../services/firebaseService';
 import favoriteService from '../services/favoriteService';
 import cartService from '../services/cartService';
 import chatService from '../services/chatService';
+import ErrorPopup from '../components/common/ErrorPopup';
+import SuccessPopup from '../components/common/SuccessPopup';
 
 export default function GigDetail() {
   const { gigId } = useParams();
@@ -25,6 +27,8 @@ export default function GigDetail() {
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [cartLoading, setCartLoading] = useState(false);
   const [isInCart, setIsInCart] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   // Load gig data
   useEffect(() => {
@@ -110,8 +114,8 @@ export default function GigDetail() {
 
       setIsInCart(true);
       
-      // Show success message - you might want to use a toast notification here
-      alert('Item berhasil ditambahkan ke keranjang!');
+      // Replace alert with success state
+      setSuccess('Item berhasil ditambahkan ke keranjang!');
       
       // Refresh cart count in dashboard if available
       if (window.refreshClientOrdersCount) {
@@ -119,7 +123,8 @@ export default function GigDetail() {
       }
     } catch (error) {
       console.error('Error adding to cart:', error);
-      alert('Gagal menambahkan ke keranjang: ' + error.message);
+      // Replace alert with error state
+      setError('Gagal menambahkan ke keranjang: ' + error.message);
     } finally {
       setCartLoading(false);
     }
@@ -211,7 +216,8 @@ export default function GigDetail() {
       navigate(`/messages?chatId=${chat.id}`);
     } catch (error) {
       console.error('Error contacting freelancer:', error);
-      alert('Gagal memulai chat. Silakan coba lagi.');
+      // Replace alert with error state
+      setError('Gagal memulai chat. Silakan coba lagi.');
     }
   };
 
@@ -227,16 +233,16 @@ export default function GigDetail() {
       const result = await favoriteService.toggleFavorite(currentUser.uid, gig.id);
       setIsFavorited(result.isFavorited);
       
-      // Don't automatically navigate to favorites page - just show success message
+      // Replace alerts with success state
       if (result.isFavorited) {
-        // You could show a toast notification here instead of alert
-        alert('Ditambahkan ke favorit!');
+        setSuccess('Ditambahkan ke favorit!');
       } else {
-        alert('Dihapus dari favorit!');
+        setSuccess('Dihapus dari favorit!');
       }
     } catch (error) {
       console.error('Error toggling favorite:', error);
-      alert('Gagal memproses favorit. Silakan coba lagi.');
+      // Replace alert with error state
+      setError('Gagal memproses favorit. Silakan coba lagi.');
     } finally {
       setFavoriteLoading(false);
     }
@@ -282,6 +288,18 @@ export default function GigDetail() {
   return (
     <div className="min-h-screen bg-gray-50 pt-[40px]">
       <div className="max-w-7xl mx-auto px-6 py-4">
+        {/* Add Error and Success Popups */}
+        <ErrorPopup 
+          message={error} 
+          onClose={() => setError('')} 
+          duration={3000}
+        />
+        
+        <SuccessPopup 
+          message={success} 
+          onClose={() => setSuccess('')} 
+          duration={3000}
+        />
         
         {/* 1. Title */}
         <div className="mb-6">
