@@ -7,6 +7,9 @@ import ErrorBoundary from './components/common/ErrorBoundary';
 // Debug utilities (available in console as window.debugFirestore)
 import './utils/debugFirestore';
 
+// Admin utilities (available in console as window.adminUtils in development)
+import './utils/adminUtils';
+
 // Layouts
 import PublicLayout from './components/Layout/PublicLayout';
 import DashboardLayout from './components/Layout/DashboardLayout';
@@ -45,6 +48,13 @@ import ClientTransactions from './pages/Dashboard/ClientTransactions';
 import ClientCart from './pages/Dashboard/ClientCart';
 import ClientFavorites from './pages/Dashboard/ClientFavorites';
 import ClientMessages from './pages/Dashboard/ClientMessages';
+
+// Admin Dashboard Pages
+import AdminDashboard from './pages/Dashboard/AdminDashboard';
+import AdminUsers from './pages/Dashboard/AdminUsers';
+import AdminGigs from './pages/Dashboard/AdminGigs';
+import AdminOrders from './pages/Dashboard/AdminOrders';
+import AdminAnalytics from './pages/Dashboard/AdminAnalytics';
 
 // Test Pages
 import TestPopulate from './pages/TestPopulate';
@@ -288,7 +298,47 @@ function App() {
               } 
             />
             
-            {/* TODO: Add Admin Dashboard Routes */}
+            {/* Admin Dashboard Routes */}
+            <Route 
+              path="admin" 
+              element={
+                <RoleRoute allowedRoles="admin">
+                  <AdminDashboard />
+                </RoleRoute>
+              } 
+            />
+            <Route 
+              path="admin/users" 
+              element={
+                <RoleRoute allowedRoles="admin">
+                  <AdminUsers />
+                </RoleRoute>
+              } 
+            />
+            <Route 
+              path="admin/gigs" 
+              element={
+                <RoleRoute allowedRoles="admin">
+                  <AdminGigs />
+                </RoleRoute>
+              } 
+            />
+            <Route 
+              path="admin/orders" 
+              element={
+                <RoleRoute allowedRoles="admin">
+                  <AdminOrders />
+                </RoleRoute>
+              } 
+            />
+            <Route 
+              path="admin/analytics" 
+              element={
+                <RoleRoute allowedRoles="admin">
+                  <AdminAnalytics />
+                </RoleRoute>
+              } 
+            />
           </Route>
 
           {/* Settings Route - accessible by all authenticated users */}

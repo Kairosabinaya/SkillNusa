@@ -1,5 +1,4 @@
 import { 
-  createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
   sendPasswordResetEmail,
@@ -7,7 +6,7 @@ import {
   sendEmailVerification
 } from 'firebase/auth';
 import { auth } from '../firebase/config';
-import { userRepository, profileRepository } from '../repositories';
+import registrationService from './registrationService';
 import { User, Profile } from '../models';
 import { USER_ROLES } from '../utils/constants';
 
@@ -32,48 +31,20 @@ export default class AuthService {
    */
   async signup(email, password, username, role, bio = '', headline = '', skills = [], fullName = '', phoneNumber = '', gender = '', birthDate = '') {
     try {
-      // Create user in Firebase Auth
-      const result = await createUserWithEmailAndPassword(auth, email, password);
-      const { user } = result;
-      
-      // Create user model
-      const newUser = new User({
-        uid: user.uid,
-        email,
-        username,
-        displayName: username,
-        fullName: fullName || username,
-        phoneNumber: phoneNumber || '',
-        gender: gender || '',
-        birthDate: birthDate || '',
-        role,
-        profilePhoto: null,
-        bio: bio || '',
-        isActive: true,
-        emailVerified: user.emailVerified
-      });
-      
-      // Save user to Firestore
-      await userRepository.create(user.uid, newUser);
-      
-      // Create profile
-      const newProfile = new Profile({
-        userId: user.uid,
-        skills: skills || [],
-        headline: headline || '',
-        isOnline: false
-      });
-      
-      // Save profile
-      await profileRepository.create(user.uid, newProfile);
-      
-      // Update auth profile
-      await updateProfile(user, { displayName: username });
-      
-      // Send verification email
-      await sendEmailVerification(user);
-      
-      return user;
+      // Use the standardized registration service
+      return await registrationService.legacyRegister(
+        email, 
+        password, 
+        username, 
+        role, 
+        bio, 
+        headline, 
+        skills, 
+        fullName, 
+        phoneNumber, 
+        gender, 
+        birthDate
+      );
     } catch (error) {
       throw error;
     }

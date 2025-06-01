@@ -1,106 +1,63 @@
+/**
+ * Favorite Service - Handles user favorites/wishlist functionality
+ * Updated to use new database structure with proper references
+ */
+
 import { db } from '../firebase/config';
 import { 
   collection, 
   doc, 
   addDoc, 
-  deleteDoc, 
+  deleteDoc,
+  getDoc,
   getDocs, 
   query, 
   where, 
-  getDoc,
-  onSnapshot,
+  orderBy,
+  limit,
   serverTimestamp,
-  orderBy
+  onSnapshot
 } from 'firebase/firestore';
-import { Favorite } from '../models/Favorite';
+import { COLLECTIONS } from '../utils/constants';
 
 class FavoriteService {
   constructor() {
-    this.collectionName = 'favorites';
+    this.collectionName = COLLECTIONS.FAVORITES;
   }
 
-  // Add gig to favorites with enhanced data
+  // Add gig to favorites
   async addToFavorites(userId, gigId) {
     try {
-      // Check if already favorited
-      const existing = await this.isFavorited(userId, gigId);
-      if (existing) {
-        throw new Error('Gig is already in favorites');
+      // Check if already in favorites
+      const existingFavorite = await this.checkIfFavorite(userId, gigId);
+      if (existingFavorite) {
+        throw new Error('Gig already in favorites');
       }
 
-      // Get gig details for denormalization
-      const gigDoc = await getDoc(doc(db, 'gigs', gigId));
-      if (!gigDoc.exists()) {
-        throw new Error('Gig not found');
-      }
-
-      const gigData = gigDoc.data();
-      
-      // Get freelancer details
-      let freelancerData = null;
-      if (gigData.freelancerId) {
-        const freelancerDoc = await getDoc(doc(db, 'users', gigData.freelancerId));
-        if (freelancerDoc.exists()) {
-          freelancerData = {
-            id: freelancerDoc.id,
-            displayName: freelancerDoc.data().displayName,
-            profilePhoto: freelancerDoc.data().profilePhoto
-          };
-        }
-      }
-
-      const favorite = {
+      // Add to favorites with reference only (no embedded data)
+      const favoriteData = {
         userId,
         gigId,
-        // Denormalized data for quick access - handle undefined values
-        gigData: {
-          title: gigData.title || 'Untitled Gig',
-          images: gigData.images || [],
-          rating: gigData.rating || 0,
-          totalReviews: gigData.totalReviews || 0, // Default to 0 if undefined
-          packages: gigData.packages || {},
-          category: gigData.category || 'Other'
-        },
-        freelancerData: freelancerData || {
-          displayName: 'Freelancer',
-          profilePhoto: null
-        },
         createdAt: serverTimestamp()
       };
 
-      const docRef = await addDoc(collection(db, this.collectionName), favorite);
-      
-      // Return with generated ID
-      return { 
-        id: docRef.id, 
-        ...favorite,
-        createdAt: new Date() // Convert for immediate use
-      };
+      const docRef = await addDoc(collection(db, this.collectionName), favoriteData);
+      return { id: docRef.id, ...favoriteData };
     } catch (error) {
       console.error('Error adding to favorites:', error);
       throw error;
     }
   }
 
-  // Remove gig from favorites
+  // Remove from favorites
   async removeFromFavorites(userId, gigId) {
     try {
-      const q = query(
-        collection(db, this.collectionName),
-        where('userId', '==', userId),
-        where('gigId', '==', gigId)
-      );
-      
-      const querySnapshot = await getDocs(q);
-      
-      if (querySnapshot.empty) {
-        throw new Error('Favorite not found');
+      const favorite = await this.checkIfFavorite(userId, gigId);
+      if (!favorite) {
+        throw new Error('Gig not in favorites');
       }
 
-      // Delete the favorite document
-      const favoriteDoc = querySnapshot.docs[0];
-      await deleteDoc(doc(db, this.collectionName, favoriteDoc.id));
-      
+      await deleteDoc(doc(db, this.collectionName, favorite.id));
       return true;
     } catch (error) {
       console.error('Error removing from favorites:', error);
@@ -108,118 +65,107 @@ class FavoriteService {
     }
   }
 
-  // Check if gig is favorited by user
-  async isFavorited(userId, gigId) {
+  // Check if gig is in user's favorites
+  async checkIfFavorite(userId, gigId) {
     try {
       const q = query(
         collection(db, this.collectionName),
         where('userId', '==', userId),
         where('gigId', '==', gigId)
       );
-      
+
       const querySnapshot = await getDocs(q);
-      return !querySnapshot.empty;
+      if (!querySnapshot.empty) {
+        const doc = querySnapshot.docs[0];
+        return { id: doc.id, ...doc.data() };
+      }
+      
+      return null;
     } catch (error) {
       console.error('Error checking favorite status:', error);
-      return false;
+      return null;
     }
   }
 
-  // Get user's favorites with real-time updates
-  subscribeToUserFavorites(userId, callback) {
-    console.log('🔍 [FavoriteService] subscribeToUserFavorites called for userId:', userId);
-    
+  // Subscribe to user's favorites count with real-time updates
+  subscribeToFavoritesCount(userId, callback) {
     try {
       const q = query(
         collection(db, this.collectionName),
         where('userId', '==', userId)
       );
-      
-      console.log('📡 [FavoriteService] Setting up Firestore listener with query:', {
-        collection: this.collectionName,
-        userId,
-        query: 'userId == userId (sorted in JavaScript)'
-      });
-      
-      return onSnapshot(q, (snapshot) => {
-        console.log('📥 [FavoriteService] Firestore snapshot received:', {
-          size: snapshot.size,
-          empty: snapshot.empty,
-          docs: snapshot.docs.length
-        });
-        
-        const favorites = [];
-        
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          console.log('📄 [FavoriteService] Processing doc:', {
-            id: doc.id,
-            userId: data.userId,
-            gigId: data.gigId,
-            hasGigData: !!data.gigData,
-            hasFreelancerData: !!data.freelancerData,
-            createdAt: data.createdAt
-          });
-          
-          favorites.push({
-            id: doc.id,
-            ...data
-          });
-        });
 
-        // Sort by createdAt in JavaScript instead of Firestore
-        favorites.sort((a, b) => {
-          const aTime = a.createdAt?.toDate?.() || a.createdAt || new Date(0);
-          const bTime = b.createdAt?.toDate?.() || b.createdAt || new Date(0);
-          return bTime - aTime; // desc order
-        });
-        
-        console.log('✅ [FavoriteService] Processed favorites:', {
-          count: favorites.length,
-          favorites: favorites.map(f => ({
-            id: f.id,
-            gigId: f.gigId,
-            title: f.gigData?.title
-          }))
-        });
-        
-        callback(favorites);
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const count = querySnapshot.size;
+        callback(count);
       }, (error) => {
-        console.error('💥 [FavoriteService] Error in favorites subscription:', error);
-        callback([]);
+        console.error('Error in favorites count subscription:', error);
+        // Call callback with 0 on error to prevent app crash
+        callback(0);
       });
+
+      return unsubscribe;
     } catch (error) {
-      console.error('💥 [FavoriteService] Error subscribing to favorites:', error);
-      callback([]);
-      return () => {}; // Return empty unsubscribe function
+      console.error('Error setting up favorites count subscription:', error);
+      // Return a dummy unsubscribe function
+      return () => {};
     }
   }
 
-  // Get user's favorites (one-time fetch)
-  async getUserFavorites(userId) {
+  // Get user's favorite gigs with complete gig data
+  async getUserFavorites(userId, options = {}) {
     try {
+      const { limit: queryLimit = 20, orderBy: orderField = 'createdAt' } = options;
+
       const q = query(
         collection(db, this.collectionName),
-        where('userId', '==', userId)
+        where('userId', '==', userId),
+        orderBy(orderField, 'desc'),
+        limit(queryLimit)
       );
-      
+
       const querySnapshot = await getDocs(q);
       const favorites = [];
-      
-      querySnapshot.forEach((doc) => {
-        favorites.push({
-          id: doc.id,
-          ...doc.data()
-        });
-      });
 
-      // Sort by createdAt in JavaScript instead of Firestore
-      favorites.sort((a, b) => {
-        const aTime = a.createdAt?.toDate?.() || a.createdAt || new Date(0);
-        const bTime = b.createdAt?.toDate?.() || b.createdAt || new Date(0);
-        return bTime - aTime; // desc order
-      });
-      
+      // Get complete gig data for each favorite
+      for (const doc of querySnapshot.docs) {
+        const favoriteData = { id: doc.id, ...doc.data() };
+        
+        // Get gig data using reference
+        const gigDoc = await getDoc(doc(db, COLLECTIONS.GIGS, favoriteData.gigId));
+        if (gigDoc.exists()) {
+          const gigData = gigDoc.data();
+          
+          // Get freelancer data for the gig
+          const freelancerDoc = await getDoc(doc(db, COLLECTIONS.USERS, gigData.userId));
+          let freelancerData = null;
+          if (freelancerDoc.exists()) {
+            const userData = freelancerDoc.data();
+            
+            // Get freelancer profile for performance data
+            const freelancerProfileDoc = await getDoc(doc(db, COLLECTIONS.FREELANCER_PROFILES, gigData.userId));
+            const profileData = freelancerProfileDoc.exists() ? freelancerProfileDoc.data() : {};
+            
+            freelancerData = {
+              id: gigData.userId,
+              displayName: userData.displayName,
+              profilePhoto: userData.profilePhoto,
+              rating: profileData.rating || 0,
+              totalReviews: profileData.totalReviews || 0
+            };
+          }
+
+          favorites.push({
+            ...favoriteData,
+            gig: {
+              id: favoriteData.gigId,
+              ...gigData,
+              freelancer: freelancerData
+            }
+          });
+        }
+      }
+
       return favorites;
     } catch (error) {
       console.error('Error getting user favorites:', error);
@@ -227,143 +173,236 @@ class FavoriteService {
     }
   }
 
-  // Get user's favorites with fresh gig details (for cases where denormalized data might be stale)
-  async getUserFavoritesWithFreshGigs(userId) {
+  // Get favorite count for a gig
+  async getGigFavoriteCount(gigId) {
     try {
-      const favorites = await this.getUserFavorites(userId);
-      
-      if (favorites.length === 0) {
-        return [];
-      }
-      
-      // Get fresh gig details for each favorite
-      const favoritesWithFreshGigs = await Promise.all(
-        favorites.map(async (favorite) => {
-          try {
-            const gigDoc = await getDoc(doc(db, 'gigs', favorite.gigId));
-            
-            if (gigDoc.exists()) {
-              const gigData = gigDoc.data();
-              
-              // Get fresh freelancer details
-              let freelancerData = null;
-              if (gigData.freelancerId) {
-                const freelancerDoc = await getDoc(doc(db, 'users', gigData.freelancerId));
-                if (freelancerDoc.exists()) {
-                  freelancerData = {
-                    id: freelancerDoc.id,
-                    displayName: freelancerDoc.data().displayName,
-                    profilePhoto: freelancerDoc.data().profilePhoto,
-                    isTopRated: freelancerDoc.data().isTopRated || false,
-                    isVerified: freelancerDoc.data().isVerified || false
-                  };
-                }
-              }
-
-              return {
-                ...favorite,
-                gig: {
-                  id: gigDoc.id,
-                  ...gigData,
-                  freelancer: freelancerData || {
-                    displayName: 'Freelancer',
-                    profilePhoto: null,
-                    isTopRated: false,
-                    isVerified: false
-                  }
-                }
-              };
-            } else {
-              // Gig no longer exists, but keep the favorite with denormalized data
-              return {
-                ...favorite,
-                gig: {
-                  id: favorite.gigId,
-                  ...favorite.gigData,
-                  freelancer: favorite.freelancerData,
-                  isDeleted: true
-                }
-              };
-            }
-          } catch (error) {
-            console.error(`Error getting fresh gig ${favorite.gigId}:`, error);
-            // Fall back to denormalized data
-            return {
-              ...favorite,
-              gig: {
-                id: favorite.gigId,
-                ...favorite.gigData,
-                freelancer: favorite.freelancerData
-              }
-            };
-          }
-        })
+      const q = query(
+        collection(db, this.collectionName),
+        where('gigId', '==', gigId)
       );
-      
-      return favoritesWithFreshGigs;
+
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.size;
     } catch (error) {
-      console.error('Error getting favorites with fresh gigs:', error);
-      throw error;
+      console.error('Error getting gig favorite count:', error);
+      return 0;
+    }
+  }
+
+  // Get user's favorite gig IDs (for quick checking)
+  async getUserFavoriteGigIds(userId) {
+    try {
+      const q = query(
+        collection(db, this.collectionName),
+        where('userId', '==', userId)
+      );
+
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => doc.data().gigId);
+    } catch (error) {
+      console.error('Error getting user favorite gig IDs:', error);
+      return [];
     }
   }
 
   // Toggle favorite status
   async toggleFavorite(userId, gigId) {
     try {
-      const isFav = await this.isFavorited(userId, gigId);
+      const existingFavorite = await this.checkIfFavorite(userId, gigId);
       
-      let result;
-      if (isFav) {
+      if (existingFavorite) {
         await this.removeFromFavorites(userId, gigId);
-        result = { isFavorited: false, message: 'Dihapus dari favorit' };
+        return { isFavorite: false, action: 'removed' };
       } else {
         await this.addToFavorites(userId, gigId);
-        result = { isFavorited: true, message: 'Ditambahkan ke favorit' };
+        return { isFavorite: true, action: 'added' };
       }
-      
-      return result;
     } catch (error) {
       console.error('Error toggling favorite:', error);
       throw error;
     }
   }
 
-  // Get favorites count for user
-  async getFavoritesCount(userId) {
+  // Get popular gigs (most favorited)
+  async getPopularGigs(options = {}) {
     try {
-      const favorites = await this.getUserFavorites(userId);
-      return favorites.length;
+      const { limit: queryLimit = 10 } = options;
+
+      // Get all favorites
+      const favoritesQuery = query(collection(db, this.collectionName));
+      const favoritesSnapshot = await getDocs(favoritesQuery);
+      
+      // Count favorites per gig
+      const gigFavoriteCounts = {};
+      favoritesSnapshot.docs.forEach(docSnapshot => {
+        const data = docSnapshot.data();
+        gigFavoriteCounts[data.gigId] = (gigFavoriteCounts[data.gigId] || 0) + 1;
+      });
+
+      // Sort by favorite count and get top gigs
+      const sortedGigs = Object.entries(gigFavoriteCounts)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, queryLimit);
+
+      // Get complete gig data
+      const popularGigs = [];
+      for (const [gigId, favoriteCount] of sortedGigs) {
+        const gigDoc = await getDoc(doc(db, COLLECTIONS.GIGS, gigId));
+        if (gigDoc.exists()) {
+          const gigData = gigDoc.data();
+          
+          // Get freelancer data
+          const freelancerDoc = await getDoc(doc(db, COLLECTIONS.USERS, gigData.userId));
+          let freelancerData = null;
+          if (freelancerDoc.exists()) {
+            const userData = freelancerDoc.data();
+            const freelancerProfileDoc = await getDoc(doc(db, COLLECTIONS.FREELANCER_PROFILES, gigData.userId));
+            const profileData = freelancerProfileDoc.exists() ? freelancerProfileDoc.data() : {};
+            
+            freelancerData = {
+              id: gigData.userId,
+              displayName: userData.displayName,
+              profilePhoto: userData.profilePhoto,
+              rating: profileData.rating || 0,
+              totalReviews: profileData.totalReviews || 0
+            };
+          }
+
+          popularGigs.push({
+            id: gigId,
+            ...gigData,
+            favoriteCount,
+            freelancer: freelancerData
+          });
+        }
+      }
+
+      return popularGigs;
     } catch (error) {
-      console.error('Error getting favorites count:', error);
-      return 0;
+      console.error('Error getting popular gigs:', error);
+      return [];
     }
   }
 
-  // Real-time subscription to favorites count
-  subscribeToFavoritesCount(userId, callback) {
+  // Get user's favorite statistics
+  async getUserFavoriteStats(userId) {
     try {
+      const favorites = await this.getUserFavorites(userId);
+      
+      const stats = {
+        totalFavorites: favorites.length,
+        categoryCounts: {},
+        averagePrice: 0,
+        totalValue: 0
+      };
+
+      let totalPrice = 0;
+      favorites.forEach(favorite => {
+        const gig = favorite.gig;
+        
+        // Count by category
+        if (gig.category) {
+          stats.categoryCounts[gig.category] = (stats.categoryCounts[gig.category] || 0) + 1;
+        }
+        
+        // Calculate price statistics
+        const basicPrice = gig.packages?.basic?.price || 0;
+        totalPrice += basicPrice;
+      });
+
+      stats.totalValue = totalPrice;
+      stats.averagePrice = favorites.length > 0 ? totalPrice / favorites.length : 0;
+
+      return stats;
+    } catch (error) {
+      console.error('Error getting user favorite stats:', error);
+      return {
+        totalFavorites: 0,
+        categoryCounts: {},
+        averagePrice: 0,
+        totalValue: 0
+      };
+    }
+  }
+
+  // Subscribe to user's favorites with real-time updates (provides complete gig data)
+  subscribeToUserFavorites(userId, callback) {
+    try {
+      // Remove orderBy to avoid index requirements for now
       const q = query(
         collection(db, this.collectionName),
         where('userId', '==', userId)
       );
-      
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const count = snapshot.size;
-        console.log('Real-time favorites count update:', count);
-        callback(count);
+
+      const unsubscribe = onSnapshot(q, async (querySnapshot) => {
+        try {
+          const favorites = [];
+
+          // Get complete gig data for each favorite
+          for (const docSnapshot of querySnapshot.docs) {
+            const favoriteData = { id: docSnapshot.id, ...docSnapshot.data() };
+            
+            // Get gig data using reference
+            const gigDoc = await getDoc(doc(db, COLLECTIONS.GIGS, favoriteData.gigId));
+            if (gigDoc.exists()) {
+              const gigData = gigDoc.data();
+              
+              // Get freelancer data for the gig
+              const freelancerDoc = await getDoc(doc(db, COLLECTIONS.USERS, gigData.userId));
+              let freelancerData = null;
+              if (freelancerDoc.exists()) {
+                const userData = freelancerDoc.data();
+                
+                // Get freelancer profile for performance data
+                const freelancerProfileDoc = await getDoc(doc(db, COLLECTIONS.FREELANCER_PROFILES, gigData.userId));
+                const profileData = freelancerProfileDoc.exists() ? freelancerProfileDoc.data() : {};
+                
+                freelancerData = {
+                  id: gigData.userId,
+                  displayName: userData.displayName,
+                  profilePhoto: userData.profilePhoto,
+                  rating: profileData.rating || 0,
+                  totalReviews: profileData.totalReviews || 0
+                };
+              }
+
+              favorites.push({
+                ...favoriteData,
+                gig: {
+                  id: favoriteData.gigId,
+                  ...gigData,
+                  freelancer: freelancerData
+                }
+              });
+            }
+          }
+
+          // Sort favorites by createdAt in JavaScript instead of Firestore query
+          favorites.sort((a, b) => {
+            const aTime = a.createdAt?.seconds || 0;
+            const bTime = b.createdAt?.seconds || 0;
+            return bTime - aTime; // Descending order (newest first)
+          });
+
+          callback(favorites);
+        } catch (error) {
+          console.error('Error processing favorites snapshot:', error);
+          // Call callback with empty array on error to prevent app crash
+          callback([]);
+        }
       }, (error) => {
-        console.error('Error in favorites count subscription:', error);
-        callback(0);
+        console.error('Error in favorites subscription:', error);
+        // Call callback with empty array on error to prevent app crash
+        callback([]);
       });
-      
+
       return unsubscribe;
     } catch (error) {
-      console.error('Error setting up favorites count subscription:', error);
-      callback(0);
-      return null;
+      console.error('Error setting up favorites subscription:', error);
+      // Return a dummy unsubscribe function
+      return () => {};
     }
   }
 }
 
-const favoriteService = new FavoriteService();
-export default favoriteService;
+export default new FavoriteService();

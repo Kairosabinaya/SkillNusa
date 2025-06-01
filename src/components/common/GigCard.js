@@ -16,9 +16,10 @@ export default function GigCard({ gig, showFavoriteButton = true, className = ""
       if (currentUser && gig?.id) {
         try {
           console.log('Checking favorite status for gig:', gig.id, 'user:', currentUser.uid);
-          const favorited = await favoriteService.isFavorited(currentUser.uid, gig.id);
-          console.log('Favorite status:', favorited);
-          setIsFavorited(favorited);
+          const favoriteRecord = await favoriteService.checkIfFavorite(currentUser.uid, gig.id);
+          const isFav = !!favoriteRecord; // Convert to boolean
+          console.log('Favorite record:', favoriteRecord, 'isFavorited:', isFav);
+          setIsFavorited(isFav);
         } catch (error) {
           console.error('Error checking favorite status:', error);
           setIsFavorited(false); // Set to false on error
@@ -100,16 +101,16 @@ export default function GigCard({ gig, showFavoriteButton = true, className = ""
       <div className="p-4">
         {/* Freelancer Info */}
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
+          <Link to={`/freelancer/${gig.userId || gig.freelancerId}`} className="flex items-center gap-2 hover:text-[#010042] transition-colors">
             <img 
-              src={gig.freelancer?.profilePhoto || gig.freelancer?.profileImage || 'https://picsum.photos/32/32'} 
+              src={gig.freelancer?.profilePhoto || gig.freelancer?.profileImage || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=32&h=32&fit=crop&crop=face&auto=format'}
               alt={gig.freelancer?.displayName || gig.freelancer?.name || 'Freelancer'}
-              className="w-6 h-6 rounded-full"
+              className="w-6 h-6 rounded-full hover:ring-2 hover:ring-[#010042] transition-all"
             />
-            <span className="text-sm text-gray-600 truncate">
+            <span className="text-sm text-gray-600 truncate hover:text-[#010042] transition-colors">
               {gig.freelancer?.displayName || gig.freelancer?.name || 'Freelancer'}
             </span>
-          </div>
+          </Link>
           {(gig.freelancer?.isTopRated || gig.isTopRated) && (
             <div className="flex items-center gap-1 text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded">
               <svg className="w-4 h-4" viewBox="0 0 32 32" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -153,10 +154,10 @@ export default function GigCard({ gig, showFavoriteButton = true, className = ""
             <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
           </svg>
           <span className="text-sm font-medium text-gray-900">
-            {gig.rating || 5.0}
+            {gig.freelancer?.rating || 0}
           </span>
           <span className="text-sm text-gray-500">
-            ({gig.totalReviews || gig.reviewCount || 0})
+            ({gig.freelancer?.totalReviews || 0})
           </span>
         </div>
         

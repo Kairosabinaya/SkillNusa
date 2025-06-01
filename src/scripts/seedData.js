@@ -1,1587 +1,1114 @@
 /**
- * Database Seeding Script
+ * Seed Data Script - Creates sample data using new standardized database structure
  * 
- * Seeds the database with realistic data for:
- * - Users (freelancers and clients)
- * - Freelancer profiles
- * - Gigs with proper packages
- * - Reviews and ratings
+ * This script creates:
+ * 1. Users with proper role management
+ * 2. Client and Freelancer profiles (separate collections)
+ * 3. Gigs with standardized structure
+ * 4. Orders with proper status tracking
+ * 5. Reviews with single source of truth for ratings
+ * 6. Chats and messages with proper references
+ * 7. Favorites with reference-only structure
  */
 
-import { 
-  collection, 
-  doc, 
-  setDoc, 
-  serverTimestamp 
-} from 'firebase/firestore';
-import { db } from '../firebase/config.js';
+import { initializeApp } from 'firebase/app';
+import { getFirestore, collection, doc, setDoc, addDoc, serverTimestamp, getDocs, query, where, updateDoc, deleteDoc } from 'firebase/firestore';
 import { COLLECTIONS } from '../utils/constants.js';
 
-// Sample freelancer data - expanded to 10 freelancers
-const freelancers = [
+// Firebase config (using environment variables or fallback)
+const firebaseConfig = {
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "AIzaSyBU5CpKkJfN-pGuQ8qxV3AG-Uj9LVeyCdM",
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || "skillnusa-fd614.firebaseapp.com",
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || "skillnusa-fd614",
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET || "skillnusa-fd614.firebasestorage.app",
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID || "706734048752",
+  appId: process.env.REACT_APP_FIREBASE_APP_ID || "1:706734048752:web:219c57edb47247ca92c935",
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// Sample data arrays
+const sampleUsers = [
   {
-    uid: 'freelancer_001',
-    email: 'ahmad.designer@example.com',
-    username: 'ahmad_designer',
-    displayName: 'Ahmad Fauzi',
+    id: 'user_client_1',
+    email: 'client1@example.com',
+    username: 'client_andi',
+    displayName: 'Andi Pratama',
     phoneNumber: '+6281234567890',
-    gender: 'Male',
-    location: 'jakarta',
-    bio: 'UI/UX Designer berpengalaman 5+ tahun dalam membuat desain yang user-friendly dan modern. Spesialisasi dalam mobile app design dan web interface. Telah menangani 200+ project untuk startup dan perusahaan besar.',
-    profilePhoto: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&crop=face',
-    isFreelancer: true,
-    roles: ['freelancer'],
+    profilePhoto: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face&auto=format',
     emailVerified: true,
+    roles: ['client'],
+    activeRole: 'client',
+    isFreelancer: false,
     isActive: true,
-    skills: ['UI/UX Design', 'Figma', 'Adobe XD', 'Prototype', 'User Research'],
-    experienceLevel: 'expert',
-    hourlyRate: 150000,
-    availability: 'full-time',
-    portfolioLinks: ['https://dribbble.com/ahmad-designer', 'https://behance.net/ahmaddesigner'],
-    rating: 4.9,
-    totalReviews: 89,
-    completedProjects: 156,
-    tier: 'gold',
-    education: [
-      {
-        degree: 'S1 Desain Komunikasi Visual',
-        institution: 'Institut Teknologi Bandung',
-        year: '2015-2019'
-      }
-    ],
-    certifications: [
-      {
-        name: 'Google UX Design Certificate',
-        issuer: 'Google',
-        year: '2021'
-      }
-    ]
+    isOnline: false
   },
   {
-    uid: 'freelancer_002',
-    email: 'sari.developer@example.com',
-    username: 'sari_dev',
+    id: 'user_client_2',
+    email: 'client2@example.com',
+    username: 'client_sari',
     displayName: 'Sari Dewi',
     phoneNumber: '+6281234567891',
-    gender: 'Female',
-    location: 'bandung',
-    bio: 'Full-stack developer dengan keahlian React, Node.js, dan database management. Passionate about creating scalable web applications dan RESTful APIs. Always updated dengan teknologi terbaru.',
-    profilePhoto: 'https://images.unsplash.com/photo-1494790108755-2616c47b2ee8?w=400&h=400&fit=crop&crop=face',
-    isFreelancer: true,
-    roles: ['freelancer'],
+    profilePhoto: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=400&h=400&fit=crop&crop=face&auto=format',
     emailVerified: true,
+    roles: ['client'],
+    activeRole: 'client',
+    isFreelancer: false,
     isActive: true,
-    skills: ['React', 'Node.js', 'MongoDB', 'Express.js', 'JavaScript', 'TypeScript', 'REST API'],
-    experienceLevel: 'expert',
-    hourlyRate: 200000,
-    availability: 'part-time',
-    portfolioLinks: ['https://github.com/sari-dev', 'https://saridev.portfolio.com'],
-    rating: 4.8,
-    totalReviews: 67,
-    completedProjects: 98,
-    tier: 'platinum',
+    isOnline: true
+  },
+  {
+    id: 'user_freelancer_1',
+    email: 'freelancer1@example.com',
+    username: 'freelancer_budi',
+    displayName: 'Budi Santoso',
+    phoneNumber: '+6281234567892',
+    profilePhoto: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face&auto=format',
+    emailVerified: true,
+    roles: ['client', 'freelancer'],
+    activeRole: 'freelancer',
+    isFreelancer: true,
+    isActive: true,
+    isOnline: true
+  },
+  {
+    id: 'user_freelancer_2',
+    email: 'freelancer2@example.com',
+    username: 'freelancer_maya',
+    displayName: 'Maya Sari',
+    phoneNumber: '+6281234567893',
+    profilePhoto: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face&auto=format',
+    emailVerified: true,
+    roles: ['client', 'freelancer'],
+    activeRole: 'freelancer',
+    isFreelancer: true,
+    isActive: true,
+    isOnline: false
+  },
+  {
+    id: 'user_freelancer_3',
+    email: 'freelancer3@example.com',
+    username: 'freelancer_rudi',
+    displayName: 'Rudi Hermawan',
+    phoneNumber: '+6281234567894',
+    profilePhoto: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=face&auto=format',
+    emailVerified: true,
+    roles: ['client', 'freelancer'],
+    activeRole: 'freelancer',
+    isFreelancer: true,
+    isActive: true,
+    isOnline: true
+  }
+];
+
+const sampleClientProfiles = [
+  {
+    id: 'user_client_1',
+    userId: 'user_client_1',
+    gender: 'Male',
+    dateOfBirth: '1990-05-15',
+    location: 'Jakarta',
+    bio: 'Entrepreneur yang membutuhkan jasa desain dan development untuk startup saya.',
+    companyName: 'PT Teknologi Maju',
+    industry: 'Technology',
+    marketingEmails: false
+  },
+  {
+    id: 'user_client_2',
+    userId: 'user_client_2',
+    gender: 'Female',
+    dateOfBirth: '1988-12-03',
+    location: 'Surabaya',
+    bio: 'Marketing manager yang sering membutuhkan konten kreatif.',
+    companyName: 'CV Kreatif Media',
+    industry: 'Marketing',
+    marketingEmails: true
+  }
+];
+
+const sampleFreelancerProfiles = [
+  {
+    id: 'user_freelancer_1',
+    userId: 'user_freelancer_1',
+    gender: 'Male',
+    dateOfBirth: '1992-08-20',
+    location: 'Bandung',
+    bio: 'Full-stack developer dengan pengalaman 5+ tahun dalam web development.',
+    skills: [
+      { skill: 'JavaScript', experienceLevel: 'Ahli' },
+      { skill: 'React', experienceLevel: 'Ahli' },
+      { skill: 'Node.js', experienceLevel: 'Menengah' },
+      { skill: 'Python', experienceLevel: 'Menengah' }
+    ],
     education: [
       {
         degree: 'S1 Teknik Informatika',
-        institution: 'Universitas Gadjah Mada',
-        year: '2016-2020'
+        university: 'Institut Teknologi Bandung',
+        fieldOfStudy: 'Computer Science',
+        graduationYear: '2015',
+        country: 'Indonesia'
       }
     ],
     certifications: [
       {
         name: 'AWS Certified Developer',
-        issuer: 'Amazon Web Services',
+        issuedBy: 'Amazon Web Services',
         year: '2022'
-      }
-    ]
-  },
-  {
-    uid: 'freelancer_003',
-    email: 'budi.writer@example.com',
-    username: 'budi_writer',
-    displayName: 'Budi Santoso',
-    phoneNumber: '+6281234567892',
-    gender: 'Male',
-    location: 'surabaya',
-    bio: 'Content writer dan copywriter profesional dengan pengalaman menulis untuk berbagai industri. Spesialisasi dalam SEO content, product description, dan marketing copy yang engaging.',
-    profilePhoto: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop&crop=face',
-    isFreelancer: true,
-    roles: ['freelancer'],
-    emailVerified: true,
-    isActive: true,
-    skills: ['Content Writing', 'Copywriting', 'SEO', 'Blog Writing', 'Product Description'],
-    experienceLevel: 'intermediate',
-    hourlyRate: 75000,
-    availability: 'full-time',
-    portfolioLinks: ['https://budiwriter.medium.com'],
-    rating: 4.7,
-    totalReviews: 45,
-    completedProjects: 78,
-    tier: 'silver',
-    education: [
-      {
-        degree: 'S1 Sastra Indonesia',
-        institution: 'Universitas Airlangga',
-        year: '2017-2021'
       }
     ],
-    certifications: [
-      {
-        name: 'Google Digital Marketing Certificate',
-        issuer: 'Google',
-        year: '2022'
-      }
-    ]
+    experienceLevel: 'expert',
+    hourlyRate: 150000,
+    availability: 'full-time',
+    workingHours: '09:00 - 17:00 WIB',
+    languages: ['id', 'en'],
+    portfolioLinks: [
+      'https://github.com/budisantoso',
+      'https://budisantoso.dev'
+    ],
+    website: 'https://budisantoso.dev',
+    rating: 0,
+    totalReviews: 0,
+    totalOrders: 8,
+    completedProjects: 8
   },
   {
-    uid: 'freelancer_004',
-    email: 'lisa.graphic@example.com',
-    username: 'lisa_graphic',
-    displayName: 'Lisa Handayani',
-    phoneNumber: '+6281234567893',
+    id: 'user_freelancer_2',
+    userId: 'user_freelancer_2',
     gender: 'Female',
-    location: 'jakarta',
-    bio: 'Graphic designer dengan keahlian dalam logo design, branding, dan print design. Berpengalaman 4+ tahun membantu brand menciptakan identitas visual yang kuat dan memorable.',
-    profilePhoto: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=400&fit=crop&crop=face',
-    isFreelancer: true,
-    roles: ['freelancer'],
-    emailVerified: true,
-    isActive: true,
-    skills: ['Logo Design', 'Branding', 'Adobe Illustrator', 'Print Design', 'Brand Identity'],
-    experienceLevel: 'intermediate',
-    hourlyRate: 120000,
-    availability: 'full-time',
-    portfolioLinks: ['https://behance.net/lisahandayani', 'https://dribbble.com/lisa-graphic'],
-    rating: 4.8,
-    totalReviews: 34,
-    completedProjects: 67,
-    tier: 'gold',
+    dateOfBirth: '1995-03-10',
+    location: 'Yogyakarta',
+    bio: 'UI/UX Designer yang passionate dalam menciptakan pengalaman pengguna yang luar biasa.',
+    skills: [
+      { skill: 'UI/UX Design', experienceLevel: 'Ahli' },
+      { skill: 'Figma', experienceLevel: 'Ahli' },
+      { skill: 'Adobe XD', experienceLevel: 'Menengah' },
+      { skill: 'Prototyping', experienceLevel: 'Ahli' }
+    ],
     education: [
       {
         degree: 'S1 Desain Komunikasi Visual',
-        institution: 'Universitas Trisakti',
-        year: '2018-2022'
+        university: 'Institut Seni Budaya Indonesia',
+        fieldOfStudy: 'Visual Communication Design',
+        graduationYear: '2017',
+        country: 'Indonesia'
       }
     ],
     certifications: [
       {
-        name: 'Adobe Certified Expert',
-        issuer: 'Adobe',
-        year: '2023'
-      }
-    ]
-  },
-  {
-    uid: 'freelancer_005',
-    email: 'andi.mobile@example.com',
-    username: 'andi_mobile',
-    displayName: 'Andi Pratama',
-    phoneNumber: '+6281234567894',
-    gender: 'Male',
-    location: 'yogyakarta',
-    bio: 'Mobile app developer spesialisasi Flutter dan React Native. Telah mengembangkan 50+ aplikasi mobile untuk startup dan enterprise. Expert dalam performance optimization dan user experience.',
-    profilePhoto: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=400&fit=crop&crop=face',
-    isFreelancer: true,
-    roles: ['freelancer'],
-    emailVerified: true,
-    isActive: true,
-    skills: ['Flutter', 'React Native', 'Mobile App Development', 'iOS', 'Android'],
-    experienceLevel: 'expert',
-    hourlyRate: 180000,
-    availability: 'part-time',
-    portfolioLinks: ['https://github.com/andi-mobile', 'https://play.google.com/store/apps/developer?id=AndiPratama'],
-    rating: 4.9,
-    totalReviews: 28,
-    completedProjects: 52,
-    tier: 'platinum',
-    education: [
-      {
-        degree: 'S1 Teknik Informatika',
-        institution: 'Universitas Gadjah Mada',
-        year: '2015-2019'
-      }
-    ],
-    certifications: [
-      {
-        name: 'Flutter Developer Certificate',
-        issuer: 'Google',
+        name: 'Google UX Design Certificate',
+        issuedBy: 'Google',
         year: '2021'
       }
-    ]
-  },
-  {
-    uid: 'freelancer_006',
-    email: 'maya.digital@example.com',
-    username: 'maya_digital',
-    displayName: 'Maya Sari',
-    phoneNumber: '+6281234567895',
-    gender: 'Female',
-    location: 'denpasar',
-    bio: 'Digital marketing specialist dengan fokus pada SEO, social media marketing, dan Google Ads. Telah membantu 100+ bisnis meningkatkan online presence dan sales conversion.',
-    profilePhoto: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop&crop=face',
-    isFreelancer: true,
-    roles: ['freelancer'],
-    emailVerified: true,
-    isActive: true,
-    skills: ['SEO', 'Google Ads', 'Social Media Marketing', 'Content Marketing', 'Analytics'],
-    experienceLevel: 'expert',
-    hourlyRate: 140000,
-    availability: 'full-time',
-    portfolioLinks: ['https://mayasari.digital', 'https://linkedin.com/in/maya-sari-digital'],
-    rating: 4.7,
-    totalReviews: 56,
-    completedProjects: 89,
-    tier: 'gold',
-    education: [
-      {
-        degree: 'S1 Manajemen Pemasaran',
-        institution: 'Universitas Indonesia',
-        year: '2016-2020'
-      }
     ],
-    certifications: [
-      {
-        name: 'Google Ads Certified',
-        issuer: 'Google',
-        year: '2022'
-      }
-    ]
+    experienceLevel: 'expert',
+    hourlyRate: 120000,
+    availability: 'part-time',
+    workingHours: '19:00 - 23:00 WIB',
+    languages: ['id', 'en'],
+    portfolioLinks: [
+      'https://dribbble.com/mayasari',
+      'https://behance.net/mayasari'
+    ],
+    website: 'https://mayasari.design',
+    rating: 0,
+    totalReviews: 0,
+    totalOrders: 6,
+    completedProjects: 6
   },
   {
-    uid: 'freelancer_007',
-    email: 'davi.video@example.com',
-    username: 'davi_video',
-    displayName: 'David Kurniawan',
-    phoneNumber: '+6281234567896',
+    id: 'user_freelancer_3',
+    userId: 'user_freelancer_3',
     gender: 'Male',
-    location: 'medan',
-    bio: 'Video editor dan motion graphics designer dengan pengalaman 6+ tahun. Spesialisasi dalam promotional videos, explainer animations, dan social media content. Creative storyteller yang passionate.',
-    profilePhoto: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=400&h=400&fit=crop&crop=face',
-    isFreelancer: true,
-    roles: ['freelancer'],
-    emailVerified: true,
-    isActive: true,
-    skills: ['Video Editing', 'Motion Graphics', 'After Effects', 'Premiere Pro', 'Animation'],
-    experienceLevel: 'expert',
-    hourlyRate: 160000,
-    availability: 'full-time',
-    portfolioLinks: ['https://vimeo.com/davidkurniawan', 'https://youtube.com/c/DavidVideoCreator'],
-    rating: 4.8,
-    totalReviews: 42,
-    completedProjects: 73,
-    tier: 'gold',
+    dateOfBirth: '1993-11-25',
+    location: 'Medan',
+    bio: 'Content writer dan digital marketer dengan spesialisasi SEO.',
+    skills: [
+      { skill: 'Content Writing', experienceLevel: 'Ahli' },
+      { skill: 'SEO', experienceLevel: 'Menengah' },
+      { skill: 'Digital Marketing', experienceLevel: 'Menengah' },
+      { skill: 'Social Media Management', experienceLevel: 'Ahli' }
+    ],
     education: [
       {
-        degree: 'S1 Broadcasting',
-        institution: 'Institut Seni Budaya Indonesia',
-        year: '2014-2018'
+        degree: 'S1 Ilmu Komunikasi',
+        university: 'Universitas Sumatera Utara',
+        fieldOfStudy: 'Communication Studies',
+        graduationYear: '2016',
+        country: 'Indonesia'
       }
     ],
     certifications: [
       {
-        name: 'Adobe After Effects Certified',
-        issuer: 'Adobe',
+        name: 'Google Analytics Certified',
+        issuedBy: 'Google',
         year: '2020'
       }
-    ]
-  },
-  {
-    uid: 'freelancer_008',
-    email: 'nina.data@example.com',
-    username: 'nina_data',
-    displayName: 'Nina Fitria',
-    phoneNumber: '+6281234567897',
-    gender: 'Female',
-    location: 'jakarta',
-    bio: 'Data scientist dan analyst dengan keahlian Python, R, dan machine learning. Membantu bisnis mengambil keputusan berdasarkan data dengan visualization dan predictive modeling.',
-    profilePhoto: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&h=400&fit=crop&crop=face',
-    isFreelancer: true,
-    roles: ['freelancer'],
-    emailVerified: true,
-    isActive: true,
-    skills: ['Python', 'Data Analysis', 'Machine Learning', 'SQL', 'Tableau'],
-    experienceLevel: 'expert',
-    hourlyRate: 220000,
-    availability: 'part-time',
-    portfolioLinks: ['https://github.com/nina-data', 'https://kaggle.com/ninafitria'],
-    rating: 4.9,
-    totalReviews: 19,
-    completedProjects: 35,
-    tier: 'platinum',
-    education: [
-      {
-        degree: 'S2 Data Science',
-        institution: 'Institut Teknologi Bandung',
-        year: '2019-2021'
-      }
     ],
-    certifications: [
-      {
-        name: 'TensorFlow Developer Certificate',
-        issuer: 'Google',
-        year: '2022'
-      }
-    ]
-  },
-  {
-    uid: 'freelancer_009',
-    email: 'riko.voice@example.com',
-    username: 'riko_voice',
-    displayName: 'Riko Permana',
-    phoneNumber: '+6281234567898',
-    gender: 'Male',
-    location: 'bandung',
-    bio: 'Voice over artist dan audio engineer dengan suara yang versatile. Berpengalaman dalam commercial voice overs, audiobook narration, dan podcast production. Professional home studio setup.',
-    profilePhoto: 'https://images.unsplash.com/photo-1463453091185-61582044d556?w=400&h=400&fit=crop&crop=face',
-    isFreelancer: true,
-    roles: ['freelancer'],
-    emailVerified: true,
-    isActive: true,
-    skills: ['Voice Over', 'Audio Editing', 'Podcast Production', 'Sound Design', 'Audacity'],
     experienceLevel: 'intermediate',
-    hourlyRate: 100000,
+    hourlyRate: 75000,
     availability: 'full-time',
-    portfolioLinks: ['https://soundcloud.com/riko-voice', 'https://anchor.fm/riko-permana'],
-    rating: 4.6,
-    totalReviews: 31,
-    completedProjects: 48,
-    tier: 'silver',
-    education: [
-      {
-        degree: 'S1 Musik',
-        institution: 'Institut Seni Budaya Indonesia',
-        year: '2017-2021'
-      }
+    workingHours: '08:00 - 16:00 WIB',
+    languages: ['id', 'en'],
+    portfolioLinks: [
+      'https://medium.com/@rudihermawan',
+      'https://rudihermawan.com'
     ],
-    certifications: [
-      {
-        name: 'Pro Tools Certified User',
-        issuer: 'Avid',
-        year: '2022'
-      }
-    ]
-  },
-  {
-    uid: 'freelancer_010',
-    email: 'tina.business@example.com',
-    username: 'tina_business',
-    displayName: 'Tina Maharani',
-    phoneNumber: '+6281234567899',
-    gender: 'Female',
-    location: 'surabaya',
-    bio: 'Business consultant dan virtual assistant dengan pengalaman 8+ tahun. Membantu startup dan SME dalam business planning, market research, dan administrative tasks. MBA background.',
-    profilePhoto: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=400&h=400&fit=crop&crop=face',
-    isFreelancer: true,
-    roles: ['freelancer'],
-    emailVerified: true,
-    isActive: true,
-    skills: ['Business Planning', 'Market Research', 'Virtual Assistant', 'Project Management', 'Excel'],
-    experienceLevel: 'expert',
-    hourlyRate: 130000,
-    availability: 'part-time',
-    portfolioLinks: ['https://linkedin.com/in/tina-maharani', 'https://tinamaharani.business'],
-    rating: 4.8,
-    totalReviews: 47,
-    completedProjects: 82,
-    tier: 'gold',
-    education: [
-      {
-        degree: 'S2 MBA',
-        institution: 'Universitas Indonesia',
-        year: '2018-2020'
-      }
-    ],
-    certifications: [
-      {
-        name: 'Project Management Professional (PMP)',
-        issuer: 'PMI',
-        year: '2021'
-      }
-    ]
+    website: 'https://rudihermawan.com',
+    rating: 0,
+    totalReviews: 0,
+    totalOrders: 4,
+    completedProjects: 4
   }
 ];
 
-// Sample client data - expanded to 5 clients
-const clients = [
+const sampleGigs = [
   {
-    uid: 'client_001',
-    email: 'startup@techco.com',
-    username: 'techco_startup',
-    displayName: 'TechCo Startup',
-    phoneNumber: '+6281234567893',
-    location: 'jakarta',
-    bio: 'Startup teknologi yang fokus pada solusi digital untuk UMKM Indonesia.',
-    profilePhoto: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=400&h=400&fit=crop',
-    isFreelancer: false,
-    roles: ['client'],
-    emailVerified: true,
-    isActive: true,
-    companyName: 'TechCo Indonesia',
-    industry: 'Technology'
-  },
-  {
-    uid: 'client_002',
-    email: 'marketing@fashionbrand.com',
-    username: 'fashion_brand',
-    displayName: 'Fashion Brand Co',
-    phoneNumber: '+6281234567894',
-    location: 'bandung',
-    bio: 'Brand fashion lokal yang ingin go digital dan meningkatkan online presence.',
-    profilePhoto: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&h=400&fit=crop',
-    isFreelancer: false,
-    roles: ['client'],
-    emailVerified: true,
-    isActive: true,
-    companyName: 'Fashion Brand Indonesia',
-    industry: 'Fashion & Retail'
-  },
-  {
-    uid: 'client_003',
-    email: 'info@restaurantchain.com',
-    username: 'restaurant_chain',
-    displayName: 'Restaurant Chain',
-    phoneNumber: '+6281234567895',
-    location: 'jakarta',
-    bio: 'Chain restoran yang ingin digitalisasi sistem dan meningkatkan customer experience.',
-    profilePhoto: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&h=400&fit=crop',
-    isFreelancer: false,
-    roles: ['client'],
-    emailVerified: true,
-    isActive: true,
-    companyName: 'Nusantara Restaurant Chain',
-    industry: 'Food & Beverage'
-  },
-  {
-    uid: 'client_004',
-    email: 'admin@educationplatform.com',
-    username: 'edu_platform',
-    displayName: 'Education Platform',
-    phoneNumber: '+6281234567896',
-    location: 'yogyakarta',
-    bio: 'Platform edukasi online yang mengembangkan sistem pembelajaran digital.',
-    profilePhoto: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=400&h=400&fit=crop',
-    isFreelancer: false,
-    roles: ['client'],
-    emailVerified: true,
-    isActive: true,
-    companyName: 'EduTech Indonesia',
-    industry: 'Education'
-  },
-  {
-    uid: 'client_005',
-    email: 'contact@healthcareapp.com',
-    username: 'healthcare_app',
-    displayName: 'Healthcare App',
-    phoneNumber: '+6281234567897',
-    location: 'surabaya',
-    bio: 'Startup healthcare yang mengembangkan aplikasi telemedicine untuk Indonesia.',
-    profilePhoto: 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=400&h=400&fit=crop',
-    isFreelancer: false,
-    roles: ['client'],
-    emailVerified: true,
-    isActive: true,
-    companyName: 'HealthTech Solutions',
-    industry: 'Healthcare'
-  }
-];
-
-// Sample gigs data - expanded to 20 gigs across different categories
-const gigs = [
-  // 1. UI/UX Design
-  {
-    id: 'gig_001',
-    freelancerId: 'freelancer_001',
-    title: 'Desain UI/UX untuk Mobile App Modern dan User-Friendly',
-    description: 'Saya akan membuat desain UI/UX yang stunning dan user-friendly untuk aplikasi mobile Anda. Dengan pengalaman 5+ tahun di bidang design, saya telah membantu 200+ client menciptakan aplikasi yang tidak hanya cantik tapi juga mudah digunakan.',
-    category: 'Design & Creative',
-    subcategory: 'UI/UX Design',
-    tags: ['ui', 'ux', 'mobile app', 'figma', 'prototype'],
-    images: [
-      'https://images.unsplash.com/photo-1551650975-87deedd944c3?w=800&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1558655146-9f40138edfeb?w=800&h=600&fit=crop'
-    ],
-    packages: {
-      basic: { name: 'UI Design Only', description: 'Desain interface untuk 5 screens utama', price: 750000, deliveryTime: 5, revisions: 2, features: ['5 screens UI design', 'Basic style guide', 'Source file (Figma)', 'PNG exports'] },
-      standard: { name: 'UI/UX Complete', description: 'Paket lengkap UI/UX untuk aplikasi Anda', price: 1500000, deliveryTime: 10, revisions: 3, features: ['10 screens UI design', 'UX research & wireframe', 'Interactive prototype', 'Complete style guide'] },
-      premium: { name: 'Full App Design', description: 'Desain lengkap dengan semua features', price: 2500000, deliveryTime: 14, revisions: 5, features: ['Unlimited screens', 'Complete UX research', 'Advanced prototype', 'Design system'] }
-    },
-    isActive: true,
-    createdAt: new Date('2024-01-15'),
-    updatedAt: new Date('2024-01-15'),
-    rating: 4.9,
-    totalOrders: 89,
-    inQueue: 3
-  },
-  // 2. Web Development
-  {
-    id: 'gig_002',
-    freelancerId: 'freelancer_002',
-    title: 'Pengembangan Website Full-Stack dengan React & Node.js',
-    description: 'Saya akan membangun website full-stack yang powerful dan scalable menggunakan teknologi terdepan. Dengan pengalaman sebagai full-stack developer, saya siap mewujudkan ide digital Anda menjadi kenyataan.',
+    userId: 'user_freelancer_1',
+    title: 'Pembuatan Website E-commerce Modern dengan React',
+    description: 'Saya akan membuat website e-commerce yang modern dan responsif menggunakan React.js, Node.js, dan database MongoDB. Website akan dilengkapi dengan fitur keranjang belanja, payment gateway, dan admin panel.',
     category: 'Programming & Tech',
-    subcategory: 'Web Development',
-    tags: ['react', 'nodejs', 'fullstack', 'mongodb', 'api'],
+    subcategory: 'Website Development',
+    tags: ['react', 'nodejs', 'ecommerce', 'mongodb', 'responsive'],
     images: [
-      'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=800&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&h=600&fit=crop'
+      'https://images.unsplash.com/photo-1563013544-824ae1b704d3?w=800&h=600&fit=crop',
+      'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&h=600&fit=crop'
     ],
     packages: {
-      basic: { name: 'Landing Page', description: 'Website landing page responsive', price: 1000000, deliveryTime: 7, revisions: 2, features: ['Responsive landing page', 'Contact form', 'Basic SEO', 'Mobile optimized'] },
-      standard: { name: 'Business Website', description: 'Website lengkap untuk bisnis', price: 2500000, deliveryTime: 14, revisions: 3, features: ['Multi-page website', 'Admin panel', 'Database integration', 'SEO optimized'] },
-      premium: { name: 'Full Web App', description: 'Aplikasi web full-featured', price: 5000000, deliveryTime: 21, revisions: 5, features: ['Complete web application', 'User authentication', 'Admin dashboard', 'API development'] }
+      basic: {
+        name: 'Landing Page',
+        description: 'Landing page sederhana dengan 5 halaman',
+        price: 2500000,
+        deliveryTime: 7,
+        revisions: 2,
+        features: ['Responsive Design', 'Contact Form', 'SEO Basic']
+      },
+      standard: {
+        name: 'E-commerce Basic',
+        description: 'Website e-commerce dengan fitur dasar',
+        price: 5000000,
+        deliveryTime: 14,
+        revisions: 3,
+        features: ['Product Catalog', 'Shopping Cart', 'Payment Gateway', 'Admin Panel']
+      },
+      premium: {
+        name: 'E-commerce Advanced',
+        description: 'Website e-commerce lengkap dengan fitur advanced',
+        price: 8500000,
+        deliveryTime: 21,
+        revisions: 5,
+        features: ['Multi-vendor', 'Inventory Management', 'Analytics Dashboard', 'Mobile App']
+      }
     },
+    totalOrders: 8,
+    inQueue: 2,
     isActive: true,
-    createdAt: new Date('2024-01-10'),
-    updatedAt: new Date('2024-01-10'),
-    rating: 4.8,
-    totalOrders: 67,
-    inQueue: 2
+    status: 'active'
   },
-  // 3. Content Writing
   {
-    id: 'gig_003',
-    freelancerId: 'freelancer_003',
-    title: 'Content Writing SEO-Friendly untuk Website dan Blog',
-    description: 'Saya akan membuat konten berkualitas tinggi yang tidak hanya engaging untuk pembaca tapi juga SEO-friendly untuk meningkatkan ranking di Google.',
+    userId: 'user_freelancer_2',
+    title: 'Desain UI/UX untuk Aplikasi Mobile',
+    description: 'Saya akan mendesain antarmuka pengguna yang menarik dan user-friendly untuk aplikasi mobile Anda. Termasuk wireframe, mockup, dan prototype interaktif.',
+    category: 'Graphics & Design',
+    subcategory: 'UI/UX Design',
+    tags: ['ui', 'ux', 'mobile', 'figma', 'prototype'],
+    images: [
+      'https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?w=800&h=600&fit=crop',
+      'https://images.unsplash.com/photo-1559028006-448665bd7c7f?w=800&h=600&fit=crop'
+    ],
+    packages: {
+      basic: {
+        name: 'Wireframe',
+        description: 'Wireframe untuk 5 screen utama',
+        price: 1500000,
+        deliveryTime: 5,
+        revisions: 2,
+        features: ['User Flow', 'Wireframe', 'Basic Prototype']
+      },
+      standard: {
+        name: 'UI Design',
+        description: 'Desain UI lengkap untuk aplikasi',
+        price: 3000000,
+        deliveryTime: 10,
+        revisions: 3,
+        features: ['High-fidelity Mockup', 'Design System', 'Interactive Prototype']
+      },
+      premium: {
+        name: 'Complete UX/UI',
+        description: 'Paket lengkap UX research dan UI design',
+        price: 5500000,
+        deliveryTime: 15,
+        revisions: 4,
+        features: ['User Research', 'Complete UI Kit', 'Usability Testing', 'Developer Handoff']
+      }
+    },
+    totalOrders: 5,
+    inQueue: 1,
+    isActive: true,
+    status: 'active'
+  },
+  {
+    userId: 'user_freelancer_3',
+    title: 'Penulisan Artikel SEO dan Content Marketing',
+    description: 'Saya akan menulis artikel berkualitas tinggi yang SEO-friendly untuk website atau blog Anda. Artikel akan dioptimasi untuk meningkatkan ranking di search engine.',
     category: 'Writing & Translation',
     subcategory: 'Content Writing',
-    tags: ['seo', 'content writing', 'blog', 'copywriting', 'article'],
+    tags: ['seo', 'content', 'article', 'blog', 'marketing'],
     images: [
-      'https://images.unsplash.com/photo-1455390582262-044cdead277a?w=800&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=800&h=600&fit=crop'
+      'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=800&h=600&fit=crop',
+      'https://images.unsplash.com/photo-1542435503-956c469947f6?w=800&h=600&fit=crop'
     ],
     packages: {
-      basic: { name: 'Blog Article', description: '1 artikel blog SEO-optimized', price: 200000, deliveryTime: 3, revisions: 2, features: ['1 artikel (800-1000 kata)', 'SEO keyword research', 'Meta description', 'Plagiarism check'] },
-      standard: { name: 'Content Package', description: 'Paket konten untuk website', price: 750000, deliveryTime: 7, revisions: 3, features: ['5 artikel blog (800+ kata)', 'SEO optimization', 'Meta descriptions', 'Content calendar'] },
-      premium: { name: 'Complete Content', description: 'Paket lengkap content strategy', price: 1500000, deliveryTime: 14, revisions: 5, features: ['10 artikel blog (1000+ kata)', 'Complete SEO audit', 'Content strategy', 'Performance tracking'] }
+      basic: {
+        name: '1 Artikel',
+        description: 'Satu artikel SEO 1000 kata',
+        price: 300000,
+        deliveryTime: 3,
+        revisions: 2,
+        features: ['Keyword Research', 'SEO Optimized', 'Plagiarism Free']
+      },
+      standard: {
+        name: '5 Artikel',
+        description: 'Lima artikel SEO dengan tema terkait',
+        price: 1200000,
+        deliveryTime: 7,
+        revisions: 2,
+        features: ['Content Strategy', 'Internal Linking', 'Meta Description']
+      },
+      premium: {
+        name: '10 Artikel + Strategy',
+        description: 'Paket lengkap content marketing',
+        price: 2200000,
+        deliveryTime: 14,
+        revisions: 3,
+        features: ['Content Calendar', 'Social Media Posts', 'Performance Report']
+      }
     },
+    totalOrders: 3,
+    inQueue: 0,
     isActive: true,
-    createdAt: new Date('2024-01-08'),
-    updatedAt: new Date('2024-01-08'),
-    rating: 4.7,
-    totalOrders: 45,
-    inQueue: 1
-  },
-  // 4. Logo Design
-  {
-    id: 'gig_004',
-    freelancerId: 'freelancer_004',
-    title: 'Desain Logo Profesional dan Brand Identity',
-    description: 'Saya akan membuat logo yang memorable dan brand identity yang kuat untuk bisnis Anda. Setiap desain dibuat dengan riset mendalam tentang target market dan kompetitor.',
-    category: 'Design & Creative',
-    subcategory: 'Logo Design',
-    tags: ['logo', 'branding', 'identity', 'illustrator', 'vector'],
-    images: [
-      'https://images.unsplash.com/photo-1626785774573-4b799315345d?w=800&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1611224923853-80b023f02d71?w=800&h=600&fit=crop'
-    ],
-    packages: {
-      basic: { name: 'Logo Only', description: 'Desain logo simple dan clean', price: 300000, deliveryTime: 3, revisions: 3, features: ['1 logo concept', 'Vector files (AI, EPS)', 'PNG/JPG exports', 'Basic color variations'] },
-      standard: { name: 'Logo + Identity', description: 'Logo dengan brand guidelines', price: 750000, deliveryTime: 5, revisions: 5, features: ['3 logo concepts', 'Brand guidelines', 'Color palette', 'Typography guide', 'Business card design'] },
-      premium: { name: 'Complete Branding', description: 'Paket branding lengkap', price: 1500000, deliveryTime: 10, revisions: 7, features: ['5 logo concepts', 'Complete brand identity', 'Stationery design', 'Social media kit', '6 months support'] }
-    },
-    isActive: true,
-    createdAt: new Date('2024-01-12'),
-    updatedAt: new Date('2024-01-12'),
-    rating: 4.8,
-    totalOrders: 34,
-    inQueue: 2
-  },
-  // 5. Mobile App Development
-  {
-    id: 'gig_005',
-    freelancerId: 'freelancer_005',
-    title: 'Pengembangan Aplikasi Mobile iOS & Android dengan Flutter',
-    description: 'Saya akan mengembangkan aplikasi mobile cross-platform yang berkualitas tinggi menggunakan Flutter. Dari konsep hingga deployment di App Store dan Play Store.',
-    category: 'Programming & Tech',
-    subcategory: 'Mobile Development',
-    tags: ['flutter', 'mobile app', 'ios', 'android', 'cross-platform'],
-    images: [
-      'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=800&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1551650975-87deedd944c3?w=800&h=600&fit=crop'
-    ],
-    packages: {
-      basic: { name: 'Simple App', description: 'Aplikasi mobile sederhana', price: 3000000, deliveryTime: 14, revisions: 2, features: ['5-7 screens', 'Basic functionality', 'Local database', 'Source code'] },
-      standard: { name: 'Business App', description: 'Aplikasi untuk bisnis', price: 7000000, deliveryTime: 21, revisions: 3, features: ['10-15 screens', 'API integration', 'Push notifications', 'Admin panel', 'App store deployment'] },
-      premium: { name: 'Enterprise App', description: 'Aplikasi enterprise level', price: 15000000, deliveryTime: 30, revisions: 5, features: ['Unlimited screens', 'Advanced features', 'Real-time sync', 'Analytics', 'Maintenance 3 months'] }
-    },
-    isActive: true,
-    createdAt: new Date('2024-01-05'),
-    updatedAt: new Date('2024-01-05'),
-    rating: 4.9,
-    totalOrders: 28,
-    inQueue: 4
-  },
-  // 6. Digital Marketing
-  {
-    id: 'gig_006',
-    freelancerId: 'freelancer_006',
-    title: 'SEO Optimization & Digital Marketing Strategy',
-    description: 'Saya akan meningkatkan ranking website Anda di Google dan mengembangkan strategi digital marketing yang comprehensive untuk meningkatkan traffic dan conversion.',
-    category: 'Digital Marketing',
-    subcategory: 'SEO',
-    tags: ['seo', 'digital marketing', 'google ads', 'analytics', 'strategy'],
-    images: [
-      'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&h=600&fit=crop'
-    ],
-    packages: {
-      basic: { name: 'SEO Audit', description: 'Audit dan optimasi dasar', price: 500000, deliveryTime: 5, revisions: 2, features: ['Website SEO audit', 'Keyword research', 'On-page optimization', 'SEO report'] },
-      standard: { name: 'SEO + Content', description: 'SEO dengan content marketing', price: 1500000, deliveryTime: 14, revisions: 3, features: ['Complete SEO setup', 'Content strategy', 'Google Analytics setup', 'Monthly reporting'] },
-      premium: { name: 'Full Marketing', description: 'Complete digital marketing', price: 3000000, deliveryTime: 30, revisions: 5, features: ['SEO optimization', 'Google Ads campaign', 'Social media strategy', 'Email marketing', 'Ongoing support'] }
-    },
-    isActive: true,
-    createdAt: new Date('2024-01-07'),
-    updatedAt: new Date('2024-01-07'),
-    rating: 4.7,
-    totalOrders: 56,
-    inQueue: 3
-  },
-  // 7. Video Editing
-  {
-    id: 'gig_007',
-    freelancerId: 'freelancer_007',
-    title: 'Video Editing Profesional & Motion Graphics',
-    description: 'Saya akan mengedit video Anda dengan kualitas profesional dan menambahkan motion graphics yang menarik. Spesialisasi dalam promotional videos dan explainer animations.',
-    category: 'Video & Animation',
-    subcategory: 'Video Editing',
-    tags: ['video editing', 'motion graphics', 'after effects', 'premiere', 'animation'],
-    images: [
-      'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=800&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1522869635100-9f4c5e86aa37?w=800&h=600&fit=crop'
-    ],
-    packages: {
-      basic: { name: 'Basic Editing', description: 'Edit video sederhana', price: 400000, deliveryTime: 3, revisions: 2, features: ['Basic cuts and transitions', 'Color correction', 'Audio sync', 'HD export'] },
-      standard: { name: 'Professional Edit', description: 'Edit video profesional', price: 1000000, deliveryTime: 7, revisions: 3, features: ['Advanced editing', 'Motion graphics', 'Sound design', 'Multiple formats'] },
-      premium: { name: 'Complete Production', description: 'Produksi video lengkap', price: 2500000, deliveryTime: 14, revisions: 5, features: ['Script writing', 'Advanced animation', 'Professional voice over', 'Multiple versions', 'Commercial rights'] }
-    },
-    isActive: true,
-    createdAt: new Date('2024-01-09'),
-    updatedAt: new Date('2024-01-09'),
-    rating: 4.8,
-    totalOrders: 42,
-    inQueue: 2
-  },
-  // 8. Data Science
-  {
-    id: 'gig_008',
-    freelancerId: 'freelancer_008',
-    title: 'Data Analysis & Machine Learning Solutions',
-    description: 'Saya akan menganalisis data Anda dan membangun model machine learning untuk memberikan insights yang actionable dan prediksi yang akurat untuk bisnis Anda.',
-    category: 'Programming & Tech',
-    subcategory: 'Data Science',
-    tags: ['python', 'data analysis', 'machine learning', 'visualization', 'ai'],
-    images: [
-      'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?w=800&h=600&fit=crop'
-    ],
-    packages: {
-      basic: { name: 'Data Analysis', description: 'Analisis data basic', price: 800000, deliveryTime: 5, revisions: 2, features: ['Data cleaning', 'Descriptive analysis', 'Basic visualization', 'Summary report'] },
-      standard: { name: 'Advanced Analytics', description: 'Analisis data mendalam', price: 2000000, deliveryTime: 10, revisions: 3, features: ['Advanced analysis', 'Interactive dashboard', 'Predictive modeling', 'Insights report'] },
-      premium: { name: 'ML Solution', description: 'Complete ML solution', price: 5000000, deliveryTime: 21, revisions: 5, features: ['Custom ML model', 'Model deployment', 'API integration', 'Training & documentation', 'Ongoing support'] }
-    },
-    isActive: true,
-    createdAt: new Date('2024-01-06'),
-    updatedAt: new Date('2024-01-06'),
-    rating: 4.9,
-    totalOrders: 19,
-    inQueue: 3
-  },
-  // 9. Voice Over
-  {
-    id: 'gig_009',
-    freelancerId: 'freelancer_009',
-    title: 'Voice Over Profesional untuk Video & Podcast',
-    description: 'Saya akan memberikan voice over berkualitas profesional dengan suara yang clear dan engaging. Cocok untuk commercial, explainer video, audiobook, dan podcast.',
-    category: 'Music & Audio',
-    subcategory: 'Voice Over',
-    tags: ['voice over', 'audio', 'narrator', 'commercial', 'podcast'],
-    images: [
-      'https://images.unsplash.com/photo-1478737270239-2f02b77fc618?w=800&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800&h=600&fit=crop'
-    ],
-    packages: {
-      basic: { name: 'Short Voice Over', description: 'Voice over untuk video pendek', price: 250000, deliveryTime: 2, revisions: 2, features: ['Up to 100 words', 'Professional recording', 'Basic editing', 'WAV/MP3 files'] },
-      standard: { name: 'Commercial VO', description: 'Voice over komersial', price: 600000, deliveryTime: 3, revisions: 3, features: ['Up to 300 words', 'Multiple takes', 'Music sync', 'Commercial license'] },
-      premium: { name: 'Complete Audio', description: 'Paket audio lengkap', price: 1200000, deliveryTime: 7, revisions: 5, features: ['Unlimited words', 'Script writing help', 'Background music', 'Multiple versions', 'Rush delivery'] }
-    },
-    isActive: true,
-    createdAt: new Date('2024-01-11'),
-    updatedAt: new Date('2024-01-11'),
-    rating: 4.6,
-    totalOrders: 31,
-    inQueue: 1
-  },
-  // 10. Business Consulting
-  {
-    id: 'gig_010',
-    freelancerId: 'freelancer_010',
-    title: 'Business Plan & Market Research Services',
-    description: 'Saya akan membantu Anda membuat business plan yang comprehensive dan melakukan market research untuk mendukung strategi bisnis Anda.',
-    category: 'Business',
-    subcategory: 'Business Plans',
-    tags: ['business plan', 'market research', 'strategy', 'consulting', 'analysis'],
-    images: [
-      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800&h=600&fit=crop'
-    ],
-    packages: {
-      basic: { name: 'Business Plan', description: 'Business plan basic', price: 1000000, deliveryTime: 7, revisions: 3, features: ['Executive summary', 'Market analysis', 'Financial projections', 'Basic strategy'] },
-      standard: { name: 'Complete Plan', description: 'Business plan lengkap', price: 2500000, deliveryTime: 14, revisions: 5, features: ['Comprehensive plan', 'Market research', 'Competitor analysis', 'Go-to-market strategy'] },
-      premium: { name: 'Strategy Package', description: 'Complete business strategy', price: 5000000, deliveryTime: 21, revisions: 7, features: ['Full business plan', 'Market validation', 'Investor presentation', 'Implementation roadmap', 'Ongoing consultation'] }
-    },
-    isActive: true,
-    createdAt: new Date('2024-01-04'),
-    updatedAt: new Date('2024-01-04'),
-    rating: 4.8,
-    totalOrders: 47,
-    inQueue: 2
-  },
-  // 11. Graphic Design
-  {
-    id: 'gig_011',
-    freelancerId: 'freelancer_004',
-    title: 'Desain Grafis untuk Social Media & Marketing Materials',
-    description: 'Saya akan membuat desain grafis yang eye-catching untuk social media, flyer, banner, dan marketing materials lainnya yang akan meningkatkan brand awareness Anda.',
-    category: 'Design & Creative',
-    subcategory: 'Graphic Design',
-    tags: ['graphic design', 'social media', 'marketing', 'flyer', 'banner'],
-    images: [
-      'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=800&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=800&h=600&fit=crop'
-    ],
-    packages: {
-      basic: { name: 'Social Media Pack', description: '5 desain untuk social media', price: 200000, deliveryTime: 3, revisions: 2, features: ['5 social media posts', 'Instagram & Facebook ready', 'High resolution files', 'Basic revisions'] },
-      standard: { name: 'Marketing Kit', description: 'Paket marketing lengkap', price: 500000, deliveryTime: 5, revisions: 3, features: ['10 social media designs', 'Flyer design', 'Banner design', 'Brand consistency'] },
-      premium: { name: 'Complete Package', description: 'Paket desain comprehensive', price: 1000000, deliveryTime: 10, revisions: 5, features: ['20+ designs', 'Multiple formats', 'Print-ready files', 'Source files included', 'Templates provided'] }
-    },
-    isActive: true,
-    createdAt: new Date('2024-01-13'),
-    updatedAt: new Date('2024-01-13'),
-    rating: 4.7,
-    totalOrders: 52,
-    inQueue: 3
-  },
-  // 12. E-commerce Development
-  {
-    id: 'gig_012',
-    freelancerId: 'freelancer_002',
-    title: 'Pembuatan Toko Online E-commerce dengan Shopify/WordPress',
-    description: 'Saya akan membangun toko online yang profesional dan user-friendly menggunakan platform terbaik seperti Shopify atau WooCommerce untuk memaksimalkan penjualan online Anda.',
-    category: 'Programming & Tech',
-    subcategory: 'E-commerce Development',
-    tags: ['ecommerce', 'shopify', 'woocommerce', 'online store', 'payment'],
-    images: [
-      'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1563013544-824ae1b704d3?w=800&h=600&fit=crop'
-    ],
-    packages: {
-      basic: { name: 'Simple Store', description: 'Toko online sederhana', price: 1500000, deliveryTime: 7, revisions: 2, features: ['Up to 20 products', 'Payment gateway', 'Basic theme', 'Mobile responsive'] },
-      standard: { name: 'Professional Store', description: 'Toko online profesional', price: 3500000, deliveryTime: 14, revisions: 3, features: ['Unlimited products', 'Custom design', 'Inventory management', 'SEO optimization'] },
-      premium: { name: 'Enterprise Store', description: 'Toko online enterprise', price: 7500000, deliveryTime: 21, revisions: 5, features: ['Advanced features', 'Multi-vendor support', 'Analytics dashboard', 'Marketing tools', 'Training included'] }
-    },
-    isActive: true,
-    createdAt: new Date('2024-01-03'),
-    updatedAt: new Date('2024-01-03'),
-    rating: 4.8,
-    totalOrders: 41,
-    inQueue: 4
-  },
-  // 13. Translation Services
-  {
-    id: 'gig_013',
-    freelancerId: 'freelancer_003',
-    title: 'Layanan Terjemahan Bahasa Inggris-Indonesia Profesional',
-    description: 'Saya akan memberikan layanan terjemahan berkualitas tinggi dari Bahasa Inggris ke Indonesia atau sebaliknya dengan akurasi dan nuansa bahasa yang tepat.',
-    category: 'Writing & Translation',
-    subcategory: 'Translation',
-    tags: ['translation', 'english', 'indonesian', 'document', 'localization'],
-    images: [
-      'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=800&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800&h=600&fit=crop'
-    ],
-    packages: {
-      basic: { name: 'Document Translation', description: 'Terjemahan dokumen standar', price: 150000, deliveryTime: 2, revisions: 2, features: ['Up to 1000 words', 'Manual translation', 'Proofreading', 'Fast delivery'] },
-      standard: { name: 'Professional Translation', description: 'Terjemahan profesional', price: 400000, deliveryTime: 5, revisions: 3, features: ['Up to 3000 words', 'Native speaker check', 'Localization', 'Formatted delivery'] },
-      premium: { name: 'Certified Translation', description: 'Terjemahan tersertifikasi', price: 800000, deliveryTime: 7, revisions: 5, features: ['Unlimited words', 'Certified translator', 'Official documents', 'Notarized copy', 'Rush service'] }
-    },
-    isActive: true,
-    createdAt: new Date('2024-01-14'),
-    updatedAt: new Date('2024-01-14'),
-    rating: 4.6,
-    totalOrders: 38,
-    inQueue: 2
-  },
-  // 14. Social Media Management
-  {
-    id: 'gig_014',
-    freelancerId: 'freelancer_006',
-    title: 'Social Media Management & Content Creation',
-    description: 'Saya akan mengelola akun social media Anda dan membuat konten yang engaging untuk meningkatkan followers, engagement, dan brand awareness.',
-    category: 'Digital Marketing',
-    subcategory: 'Social Media Marketing',
-    tags: ['social media', 'content creation', 'instagram', 'facebook', 'engagement'],
-    images: [
-      'https://images.unsplash.com/photo-1611926653458-09294b3142bf?w=800&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=800&h=600&fit=crop'
-    ],
-    packages: {
-      basic: { name: 'Basic Management', description: 'Pengelolaan basic 1 platform', price: 800000, deliveryTime: 30, revisions: 2, features: ['1 platform (IG/FB)', '15 posts per month', 'Basic engagement', 'Monthly report'] },
-      standard: { name: 'Multi-Platform', description: 'Pengelolaan multi platform', price: 2000000, deliveryTime: 30, revisions: 3, features: ['2 platforms', '30 posts per month', 'Stories management', 'Hashtag strategy'] },
-      premium: { name: 'Complete Package', description: 'Paket social media lengkap', price: 4000000, deliveryTime: 30, revisions: 5, features: ['All major platforms', 'Daily posting', 'Content creation', 'Ad campaign management', 'Analytics report'] }
-    },
-    isActive: true,
-    createdAt: new Date('2024-01-02'),
-    updatedAt: new Date('2024-01-02'),
-    rating: 4.7,
-    totalOrders: 63,
-    inQueue: 5
-  },
-  // 15. WordPress Development
-  {
-    id: 'gig_015',
-    freelancerId: 'freelancer_002',
-    title: 'Pembuatan Website WordPress Custom & Maintenance',
-    description: 'Saya akan membuat website WordPress yang custom, responsive, dan SEO-friendly sesuai kebutuhan bisnis Anda, plus maintenance berkala.',
-    category: 'Programming & Tech',
-    subcategory: 'WordPress',
-    tags: ['wordpress', 'custom theme', 'responsive', 'seo', 'maintenance'],
-    images: [
-      'https://images.unsplash.com/photo-1547658719-da2b51169166?w=800&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1432888622747-4eb9a8efeb07?w=800&h=600&fit=crop'
-    ],
-    packages: {
-      basic: { name: 'Basic WordPress', description: 'Website WordPress basic', price: 1200000, deliveryTime: 7, revisions: 2, features: ['Custom theme setup', 'Responsive design', 'Basic SEO', 'Contact forms'] },
-      standard: { name: 'Business WordPress', description: 'Website WordPress untuk bisnis', price: 2800000, deliveryTime: 14, revisions: 3, features: ['Custom theme development', 'E-commerce ready', 'Advanced SEO', 'Security setup'] },
-      premium: { name: 'Enterprise WordPress', description: 'WordPress enterprise level', price: 5500000, deliveryTime: 21, revisions: 5, features: ['Fully custom development', 'Performance optimization', 'Security hardening', 'Maintenance 6 months', 'Training included'] }
-    },
-    isActive: true,
-    createdAt: new Date('2024-01-01'),
-    updatedAt: new Date('2024-01-01'),
-    rating: 4.8,
-    totalOrders: 54,
-    inQueue: 3
-  },
-  // 16. Animation & Motion Graphics
-  {
-    id: 'gig_016',
-    freelancerId: 'freelancer_007',
-    title: 'Animasi 2D & Motion Graphics untuk Explainer Video',
-    description: 'Saya akan membuat animasi 2D yang menarik dan motion graphics untuk explainer video, commercial, atau presentasi yang akan menjelaskan produk/layanan Anda dengan cara yang engaging.',
-    category: 'Video & Animation',
-    subcategory: '2D Animation',
-    tags: ['2d animation', 'motion graphics', 'explainer video', 'character animation', 'commercial'],
-    images: [
-      'https://images.unsplash.com/photo-1551650975-87deedd944c3?w=800&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=800&h=600&fit=crop'
-    ],
-    packages: {
-      basic: { name: 'Simple Animation', description: 'Animasi sederhana 30 detik', price: 1000000, deliveryTime: 7, revisions: 2, features: ['30 second animation', 'Basic characters', 'Simple motion', 'HD export'] },
-      standard: { name: 'Explainer Video', description: 'Video explainer 60 detik', price: 2500000, deliveryTime: 14, revisions: 3, features: ['60 second explainer', 'Custom characters', 'Voice over sync', 'Background music'] },
-      premium: { name: 'Commercial Animation', description: 'Animasi komersial premium', price: 5000000, deliveryTime: 21, revisions: 5, features: ['90+ second animation', 'Advanced animation', 'Professional voice over', 'Multiple versions', 'Commercial license'] }
-    },
-    isActive: true,
-    createdAt: new Date('2024-01-16'),
-    updatedAt: new Date('2024-01-16'),
-    rating: 4.9,
-    totalOrders: 29,
-    inQueue: 4
-  },
-  // 17. Database Design
-  {
-    id: 'gig_017',
-    freelancerId: 'freelancer_008',
-    title: 'Database Design & Optimization untuk Aplikasi',
-    description: 'Saya akan merancang dan mengoptimasi database yang efisien dan scalable untuk aplikasi Anda, termasuk MySQL, PostgreSQL, atau MongoDB.',
-    category: 'Programming & Tech',
-    subcategory: 'Database',
-    tags: ['database', 'mysql', 'postgresql', 'mongodb', 'optimization'],
-    images: [
-      'https://images.unsplash.com/photo-1544383835-bda2bc66a55d?w=800&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800&h=600&fit=crop'
-    ],
-    packages: {
-      basic: { name: 'Database Design', description: 'Desain database basic', price: 800000, deliveryTime: 5, revisions: 2, features: ['ERD design', 'Table structure', 'Basic optimization', 'Documentation'] },
-      standard: { name: 'Complete Database', description: 'Database lengkap dengan optimasi', price: 2000000, deliveryTime: 10, revisions: 3, features: ['Advanced design', 'Performance tuning', 'Backup strategy', 'Security setup'] },
-      premium: { name: 'Enterprise Database', description: 'Database enterprise level', price: 4500000, deliveryTime: 21, revisions: 5, features: ['Scalable architecture', 'High availability', 'Disaster recovery', 'Migration services', 'Training included'] }
-    },
-    isActive: true,
-    createdAt: new Date('2024-01-17'),
-    updatedAt: new Date('2024-01-17'),
-    rating: 4.8,
-    totalOrders: 23,
-    inQueue: 2
-  },
-  // 18. Podcast Production
-  {
-    id: 'gig_018',
-    freelancerId: 'freelancer_009',
-    title: 'Podcast Production & Audio Post-Processing',
-    description: 'Saya akan memproduksi podcast Anda dari recording hingga final edit, termasuk noise reduction, mixing, dan mastering untuk kualitas audio yang profesional.',
-    category: 'Music & Audio',
-    subcategory: 'Podcast Production',
-    tags: ['podcast', 'audio editing', 'mixing', 'mastering', 'production'],
-    images: [
-      'https://images.unsplash.com/photo-1478737270239-2f02b77fc618?w=800&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800&h=600&fit=crop'
-    ],
-    packages: {
-      basic: { name: 'Basic Editing', description: 'Edit podcast basic', price: 300000, deliveryTime: 3, revisions: 2, features: ['Noise reduction', 'Basic editing', 'Intro/outro', 'MP3 export'] },
-      standard: { name: 'Professional Edit', description: 'Edit podcast profesional', price: 750000, deliveryTime: 5, revisions: 3, features: ['Advanced editing', 'Sound enhancement', 'Background music', 'Multiple formats'] },
-      premium: { name: 'Full Production', description: 'Produksi podcast lengkap', price: 1500000, deliveryTime: 10, revisions: 5, features: ['Complete production', 'Script assistance', 'Professional mixing', 'Distribution help', 'Branding audio'] }
-    },
-    isActive: true,
-    createdAt: new Date('2024-01-18'),
-    updatedAt: new Date('2024-01-18'),
-    rating: 4.7,
-    totalOrders: 35,
-    inQueue: 2
-  },
-  // 19. Virtual Assistant
-  {
-    id: 'gig_019',
-    freelancerId: 'freelancer_010',
-    title: 'Virtual Assistant & Administrative Support',
-    description: 'Saya akan membantu Anda dengan tugas-tugas administrative, data entry, email management, appointment scheduling, dan berbagai task virtual assistant lainnya.',
-    category: 'Business',
-    subcategory: 'Virtual Assistant',
-    tags: ['virtual assistant', 'admin support', 'data entry', 'email management', 'scheduling'],
-    images: [
-      'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=800&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=800&h=600&fit=crop'
-    ],
-    packages: {
-      basic: { name: 'Basic Support', description: 'Dukungan administrative basic', price: 500000, deliveryTime: 7, revisions: 2, features: ['10 hours support', 'Email management', 'Data entry', 'Basic research'] },
-      standard: { name: 'Business Support', description: 'Dukungan bisnis comprehensive', price: 1200000, deliveryTime: 14, revisions: 3, features: ['20 hours support', 'Calendar management', 'Customer service', 'Report preparation'] },
-      premium: { name: 'Executive Support', description: 'Dukungan executive level', price: 2500000, deliveryTime: 30, revisions: 5, features: ['40 hours support', 'Project management', 'Strategic assistance', 'Priority support', 'Dedicated communication'] }
-    },
-    isActive: true,
-    createdAt: new Date('2024-01-19'),
-    updatedAt: new Date('2024-01-19'),
-    rating: 4.6,
-    totalOrders: 48,
-    inQueue: 3
-  },
-  // 20. API Development
-  {
-    id: 'gig_020',
-    freelancerId: 'freelancer_005',
-    title: 'REST API Development & Integration Services',
-    description: 'Saya akan mengembangkan REST API yang robust dan scalable untuk aplikasi Anda, termasuk dokumentasi lengkap dan testing yang comprehensive.',
-    category: 'Programming & Tech',
-    subcategory: 'API Development',
-    tags: ['api', 'rest api', 'backend', 'integration', 'documentation'],
-    images: [
-      'https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?w=800&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?w=800&h=600&fit=crop'
-    ],
-    packages: {
-      basic: { name: 'Simple API', description: 'API sederhana dengan basic endpoints', price: 1500000, deliveryTime: 7, revisions: 2, features: ['5 endpoints', 'Basic CRUD operations', 'JSON responses', 'Basic documentation'] },
-      standard: { name: 'Business API', description: 'API untuk aplikasi bisnis', price: 3500000, deliveryTime: 14, revisions: 3, features: ['15 endpoints', 'Authentication system', 'Data validation', 'Comprehensive docs'] },
-      premium: { name: 'Enterprise API', description: 'API enterprise dengan fitur lengkap', price: 7000000, deliveryTime: 21, revisions: 5, features: ['Unlimited endpoints', 'Advanced security', 'Rate limiting', 'Monitoring setup', 'Testing suite'] }
-    },
-    isActive: true,
-    createdAt: new Date('2024-01-20'),
-    updatedAt: new Date('2024-01-20'),
-    rating: 4.9,
-    totalOrders: 16,
-    inQueue: 4
+    status: 'active'
   }
 ];
 
-// Sample reviews data - expanded for all 20 gigs
-const reviews = [
-  // Reviews for Ahmad (UI/UX Designer) - gig_001
-  {
-    id: 'review_001',
-    gigId: 'gig_001',
-    freelancerId: 'freelancer_001',
-    clientId: 'client_001',
-    orderId: 'order_001',
-    rating: 5,
-    comment: 'Hasil kerja Ahmad luar biasa! Desain UI/UX nya sangat modern dan user-friendly. Komunikasi lancar dan selalu responsive. Highly recommended!',
-    createdAt: new Date('2024-01-20'),
-    helpful: 12
-  },
-  {
-    id: 'review_002',
-    gigId: 'gig_001',
-    freelancerId: 'freelancer_001',
-    clientId: 'client_002',
-    orderId: 'order_002',
-    rating: 5,
-    comment: 'Desainer yang sangat profesional. Prototype yang dibuat sangat detail dan mudah dipahami oleh developer. Pasti akan order lagi!',
-    createdAt: new Date('2024-01-18'),
-    helpful: 8
-  },
-  // Reviews for Sari (Web Developer) - gig_002
-  {
-    id: 'review_003',
-    gigId: 'gig_002',
-    freelancerId: 'freelancer_002',
-    clientId: 'client_001',
-    orderId: 'order_003',
-    rating: 5,
-    comment: 'Website yang dibangun Sari sangat berkualitas. Code nya clean, dokumentasi lengkap, dan performance excellent. Worth every penny!',
-    createdAt: new Date('2024-01-22'),
-    helpful: 15
-  },
-  {
-    id: 'review_004',
-    gigId: 'gig_002',
-    freelancerId: 'freelancer_002',
-    clientId: 'client_003',
-    orderId: 'order_004',
-    rating: 5,
-    comment: 'Sangat puas dengan hasil web development nya. Sari sangat detail dan always deliver on time. Recommended developer!',
-    createdAt: new Date('2024-01-19'),
-    helpful: 9
-  },
-  // Reviews for Budi (Content Writer) - gig_003
-  {
-    id: 'review_005',
-    gigId: 'gig_003',
-    freelancerId: 'freelancer_003',
-    clientId: 'client_002',
-    orderId: 'order_005',
-    rating: 5,
-    comment: 'Konten yang ditulis Budi sangat berkualitas dan SEO-friendly. Website traffic kami meningkat setelah menggunakan artikel dari Budi.',
-    createdAt: new Date('2024-01-21'),
-    helpful: 7
-  },
-  {
-    id: 'review_006',
-    gigId: 'gig_003',
-    freelancerId: 'freelancer_003',
-    clientId: 'client_004',
-    orderId: 'order_006',
-    rating: 4,
-    comment: 'Writing style nya bagus dan sesuai dengan brand voice kami. Deliverynya on time. Good job!',
-    createdAt: new Date('2024-01-17'),
-    helpful: 4
-  },
-  // Reviews for Lisa (Logo Designer) - gig_004
-  {
-    id: 'review_007',
-    gigId: 'gig_004',
-    freelancerId: 'freelancer_004',
-    clientId: 'client_001',
-    orderId: 'order_007',
-    rating: 5,
-    comment: 'Logo yang dibuat Lisa sangat kreatif dan memorable. Brand identity package nya juga sangat comprehensive. Highly recommended!',
-    createdAt: new Date('2024-01-23'),
-    helpful: 11
-  },
-  {
-    id: 'review_008',
-    gigId: 'gig_004',
-    freelancerId: 'freelancer_004',
-    clientId: 'client_005',
-    orderId: 'order_008',
-    rating: 5,
-    comment: 'Proses desain sangat smooth, banyak pilihan concept yang diberikan. Hasil akhir melebihi ekspektasi!',
-    createdAt: new Date('2024-01-16'),
-    helpful: 6
-  },
-  // Reviews for Andi (Mobile Developer) - gig_005
-  {
-    id: 'review_009',
-    gigId: 'gig_005',
-    freelancerId: 'freelancer_005',
-    clientId: 'client_003',
-    orderId: 'order_009',
-    rating: 5,
-    comment: 'Aplikasi mobile yang dibuat Andi sangat smooth dan bug-free. Deployment ke store juga dibantu sampai selesai. Excellent work!',
-    createdAt: new Date('2024-01-25'),
-    helpful: 14
-  },
-  {
-    id: 'review_010',
-    gigId: 'gig_005',
-    freelancerId: 'freelancer_005',
-    clientId: 'client_002',
-    orderId: 'order_010',
-    rating: 4,
-    comment: 'Kualitas coding sangat baik, dokumentasi lengkap. Ada sedikit delay tapi hasil akhirnya memuaskan.',
-    createdAt: new Date('2024-01-20'),
-    helpful: 5
-  },
-  // Reviews for Maya (Digital Marketing) - gig_006
-  {
-    id: 'review_011',
-    gigId: 'gig_006',
-    freelancerId: 'freelancer_006',
-    clientId: 'client_004',
-    orderId: 'order_011',
-    rating: 5,
-    comment: 'SEO strategy dari Maya sangat effective. Website ranking meningkat drastis dalam 2 bulan. ROI sangat bagus!',
-    createdAt: new Date('2024-01-24'),
-    helpful: 13
-  },
-  {
-    id: 'review_012',
-    gigId: 'gig_006',
-    freelancerId: 'freelancer_006',
-    clientId: 'client_001',
-    orderId: 'order_012',
-    rating: 4,
-    comment: 'Analisis yang mendalam dan actionable insights. Monthly report nya sangat detail dan mudah dipahami.',
-    createdAt: new Date('2024-01-18'),
-    helpful: 8
-  },
-  // Reviews for David (Video Editor) - gig_007
-  {
-    id: 'review_013',
-    gigId: 'gig_007',
-    freelancerId: 'freelancer_007',
-    clientId: 'client_005',
-    orderId: 'order_013',
-    rating: 5,
-    comment: 'Video editing David sangat profesional! Motion graphics nya smooth dan audio quality excellent. Hasilnya melebihi ekspektasi.',
-    createdAt: new Date('2024-01-26'),
-    helpful: 10
-  },
-  {
-    id: 'review_014',
-    gigId: 'gig_007',
-    freelancerId: 'freelancer_007',
-    clientId: 'client_003',
-    orderId: 'order_014',
-    rating: 5,
-    comment: 'Sangat kreatif dalam storytelling. Video promotional kami jadi viral berkat editing yang amazing!',
-    createdAt: new Date('2024-01-22'),
-    helpful: 9
-  },
-  // Reviews for Nina (Data Scientist) - gig_008
-  {
-    id: 'review_015',
-    gigId: 'gig_008',
-    freelancerId: 'freelancer_008',
-    clientId: 'client_001',
-    orderId: 'order_015',
-    rating: 5,
-    comment: 'Machine learning model yang dibuat Nina sangat akurat. Dashboard analytics nya juga user-friendly. Sangat membantu decision making!',
-    createdAt: new Date('2024-01-27'),
-    helpful: 16
-  },
-  {
-    id: 'review_016',
-    gigId: 'gig_008',
-    freelancerId: 'freelancer_008',
-    clientId: 'client_004',
-    orderId: 'order_016',
-    rating: 5,
-    comment: 'Data analysis yang comprehensive dan insights yang actionable. Nina sangat expert di bidangnya.',
-    createdAt: new Date('2024-01-23'),
-    helpful: 12
-  },
-  // Reviews for Riko (Voice Over) - gig_009
-  {
-    id: 'review_017',
-    gigId: 'gig_009',
-    freelancerId: 'freelancer_009',
-    clientId: 'client_002',
-    orderId: 'order_017',
-    rating: 4,
-    comment: 'Suara Riko sangat clear dan profesional. Audio quality bagus, perfect untuk commercial video kami.',
-    createdAt: new Date('2024-01-25'),
-    helpful: 7
-  },
-  {
-    id: 'review_018',
-    gigId: 'gig_009',
-    freelancerId: 'freelancer_009',
-    clientId: 'client_005',
-    orderId: 'order_018',
-    rating: 5,
-    comment: 'Voice over untuk podcast sangat engaging. Riko juga membantu dengan script editing. Great service!',
-    createdAt: new Date('2024-01-21'),
-    helpful: 6
-  },
-  // Reviews for Tina (Business Consultant) - gig_010
-  {
-    id: 'review_019',
-    gigId: 'gig_010',
-    freelancerId: 'freelancer_010',
-    clientId: 'client_003',
-    orderId: 'order_019',
-    rating: 5,
-    comment: 'Business plan yang dibuat Tina sangat comprehensive. Market research nya mendalam dan strategy nya realistic. Berhasil dapat funding!',
-    createdAt: new Date('2024-01-28'),
-    helpful: 18
-  },
-  {
-    id: 'review_020',
-    gigId: 'gig_010',
-    freelancerId: 'freelancer_010',
-    clientId: 'client_001',
-    orderId: 'order_020',
-    rating: 5,
-    comment: 'Consultation sessions sangat valuable. Tina memberikan insights yang praktis dan implementable.',
-    createdAt: new Date('2024-01-24'),
-    helpful: 11
-  },
-  // Additional reviews for other gigs
-  {
-    id: 'review_021',
-    gigId: 'gig_011',
-    freelancerId: 'freelancer_004',
-    clientId: 'client_002',
-    orderId: 'order_021',
-    rating: 5,
-    comment: 'Social media designs nya sangat eye-catching! Engagement rate meningkat signifikan setelah pakai design dari Lisa.',
-    createdAt: new Date('2024-01-26'),
-    helpful: 9
-  },
-  {
-    id: 'review_022',
-    gigId: 'gig_012',
-    freelancerId: 'freelancer_002',
-    clientId: 'client_005',
-    orderId: 'order_022',
-    rating: 5,
-    comment: 'Toko online Shopify yang dibuat sangat profesional. Payment gateway smooth dan inventory management mudah digunakan.',
-    createdAt: new Date('2024-01-29'),
-    helpful: 13
-  },
-  {
-    id: 'review_023',
-    gigId: 'gig_013',
-    freelancerId: 'freelancer_003',
-    clientId: 'client_004',
-    orderId: 'order_023',
-    rating: 4,
-    comment: 'Terjemahan akurat dan natural. Nuansa bahasa Indonesia nya sangat baik untuk target market lokal.',
-    createdAt: new Date('2024-01-27'),
-    helpful: 5
-  },
-  {
-    id: 'review_024',
-    gigId: 'gig_014',
-    freelancerId: 'freelancer_006',
-    clientId: 'client_003',
-    orderId: 'order_024',
-    rating: 5,
-    comment: 'Social media management nya excellent! Followers bertambah 300% dalam 3 bulan. Content strategy nya on point.',
-    createdAt: new Date('2024-01-30'),
-    helpful: 15
-  },
-  {
-    id: 'review_025',
-    gigId: 'gig_015',
-    freelancerId: 'freelancer_002',
-    clientId: 'client_001',
-    orderId: 'order_025',
-    rating: 5,
-    comment: 'WordPress website yang dibuat sangat fast loading dan SEO optimized. Maintenance service nya juga reliable.',
-    createdAt: new Date('2024-01-28'),
-    helpful: 12
-  },
-  {
-    id: 'review_026',
-    gigId: 'gig_016',
-    freelancerId: 'freelancer_007',
-    clientId: 'client_004',
-    orderId: 'order_026',
-    rating: 5,
-    comment: 'Explainer video animation nya amazing! Character design unik dan storyline engaging. Perfect untuk marketing campaign.',
-    createdAt: new Date('2024-01-31'),
-    helpful: 14
-  },
-  {
-    id: 'review_027',
-    gigId: 'gig_017',
-    freelancerId: 'freelancer_008',
-    clientId: 'client_005',
-    orderId: 'order_027',
-    rating: 5,
-    comment: 'Database design sangat efficient dan scalable. Performance improvement signifikan setelah optimization.',
-    createdAt: new Date('2024-01-29'),
-    helpful: 8
-  },
-  {
-    id: 'review_028',
-    gigId: 'gig_018',
-    freelancerId: 'freelancer_009',
-    clientId: 'client_002',
-    orderId: 'order_028',
-    rating: 4,
-    comment: 'Podcast editing sangat profesional. Audio quality crystal clear dan mixing nya balanced.',
-    createdAt: new Date('2024-01-30'),
-    helpful: 6
-  },
-  {
-    id: 'review_029',
-    gigId: 'gig_019',
-    freelancerId: 'freelancer_010',
-    clientId: 'client_003',
-    orderId: 'order_029',
-    rating: 5,
-    comment: 'Virtual assistant service sangat membantu! Email management dan scheduling nya efficient. Sangat professional.',
-    createdAt: new Date('2024-01-31'),
-    helpful: 10
-  },
-  {
-    id: 'review_030',
-    gigId: 'gig_020',
-    freelancerId: 'freelancer_005',
-    clientId: 'client_004',
-    orderId: 'order_030',
-    rating: 5,
-    comment: 'REST API yang dibuat sangat robust dan well-documented. Integration dengan frontend sangat smooth.',
-    createdAt: new Date('2024-02-01'),
-    helpful: 13
-  }
-];
-
-/**
- * Seed users (freelancers and clients)
- */
+// Individual seeding functions
 export const seedUsers = async () => {
-  console.log('🌱 Seeding users...');
-  
   try {
-    // Seed freelancers
-    for (const freelancer of freelancers) {
-      // Create user document
-      await setDoc(doc(db, COLLECTIONS.USERS, freelancer.uid), {
-        uid: freelancer.uid,
-        email: freelancer.email,
-        username: freelancer.username,
-        displayName: freelancer.displayName,
-        phoneNumber: freelancer.phoneNumber,
-        gender: freelancer.gender,
-        location: freelancer.location,
-        bio: freelancer.bio,
-        profilePhoto: freelancer.profilePhoto,
-        isFreelancer: freelancer.isFreelancer,
-        roles: freelancer.roles,
-        emailVerified: freelancer.emailVerified,
-        isActive: freelancer.isActive,
+    console.log('👥 Creating users...');
+    for (const user of sampleUsers) {
+      await setDoc(doc(db, COLLECTIONS.USERS, user.id), {
+        ...user,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
-      
-      // Create freelancer profile
-      await setDoc(doc(db, COLLECTIONS.FREELANCER_PROFILES, freelancer.uid), {
-        userId: freelancer.uid,
-        skills: freelancer.skills,
-        experienceLevel: freelancer.experienceLevel,
-        hourlyRate: freelancer.hourlyRate,
-        availability: freelancer.availability,
-        portfolioLinks: freelancer.portfolioLinks,
-        rating: freelancer.rating,
-        totalReviews: freelancer.totalReviews,
-        completedProjects: freelancer.completedProjects,
-        tier: freelancer.tier,
-        education: freelancer.education,
-        certifications: freelancer.certifications,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-      
-      console.log(`✅ Created freelancer: ${freelancer.displayName}`);
+      console.log(`✅ Created user: ${user.displayName}`);
     }
     
-    // Seed clients
-    for (const client of clients) {
-      // Create user document
-      await setDoc(doc(db, COLLECTIONS.USERS, client.uid), {
-        uid: client.uid,
-        email: client.email,
-        username: client.username,
-        displayName: client.displayName,
-        phoneNumber: client.phoneNumber,
-        location: client.location,
-        bio: client.bio,
-        profilePhoto: client.profilePhoto,
-        isFreelancer: client.isFreelancer,
-        roles: client.roles,
-        emailVerified: client.emailVerified,
-        isActive: client.isActive,
+    console.log('👤 Creating client profiles...');
+    for (const profile of sampleClientProfiles) {
+      await setDoc(doc(db, COLLECTIONS.CLIENT_PROFILES, profile.id), {
+        ...profile,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
-      
-      // Create client profile
-      await setDoc(doc(db, COLLECTIONS.CLIENT_PROFILES, client.uid), {
-        userId: client.uid,
-        companyName: client.companyName,
-        industry: client.industry,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-      
-      console.log(`✅ Created client: ${client.displayName}`);
+      console.log(`✅ Created client profile: ${profile.userId}`);
     }
     
-    console.log('✅ Users seeded successfully!');
+    console.log('💼 Creating freelancer profiles...');
+    for (const profile of sampleFreelancerProfiles) {
+      await setDoc(doc(db, COLLECTIONS.FREELANCER_PROFILES, profile.id), {
+        ...profile,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      console.log(`✅ Created freelancer profile: ${profile.userId}`);
+    }
+    
+    console.log('✅ Users seeding completed!');
   } catch (error) {
     console.error('❌ Error seeding users:', error);
     throw error;
   }
 };
 
-/**
- * Seed gigs
- */
 export const seedGigs = async () => {
-  console.log('🌱 Seeding gigs...');
-  
   try {
-    for (const gig of gigs) {
-      await setDoc(doc(db, COLLECTIONS.GIGS, gig.id), {
+    console.log('🎯 Creating gigs...');
+    const gigIds = [];
+    for (const gig of sampleGigs) {
+      const gigRef = await addDoc(collection(db, COLLECTIONS.GIGS), {
         ...gig,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
-      
+      gigIds.push(gigRef.id);
       console.log(`✅ Created gig: ${gig.title}`);
     }
-    
-    console.log('✅ Gigs seeded successfully!');
+    console.log('✅ Gigs seeding completed!');
+    return gigIds;
   } catch (error) {
     console.error('❌ Error seeding gigs:', error);
     throw error;
   }
 };
 
-/**
- * Seed reviews
- */
-export const seedReviews = async () => {
-  console.log('🌱 Seeding reviews...');
-  
+export const seedOrders = async () => {
   try {
-    for (const review of reviews) {
-      await setDoc(doc(db, COLLECTIONS.REVIEWS, review.id), {
-        ...review,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-      
-      console.log(`✅ Created review for gig: ${review.gigId}`);
+    console.log('📦 Creating sample orders...');
+    // Get existing gig IDs to create orders for them
+    const gigsSnapshot = await getDocs(collection(db, COLLECTIONS.GIGS));
+    const gigIds = gigsSnapshot.docs.map(doc => doc.id);
+    
+    if (gigIds.length === 0) {
+      console.log('⚠️ No gigs found. Seeding some gigs first...');
+      const newGigIds = await seedGigs();
+      gigIds.push(...newGigIds);
     }
     
-    console.log('✅ Reviews seeded successfully!');
-  } catch (error) {
-    console.error('❌ Error seeding reviews:', error);
-    throw error;
-  }
-};
-
-/**
- * Seed orders
- */
-export const seedOrders = async () => {
-  console.log('🌱 Seeding orders...');
-  
-  try {
-    // Sample orders based on reviews
-    const orders = [
+    // Create multiple orders to match the reviews we'll create
+    const sampleOrders = [
+      // Orders for user_freelancer_1 (5 orders to match 5 reviews)
       {
-        id: 'order_001',
-        gigId: 'gig_001',
-        freelancerId: 'freelancer_001',
-        clientId: 'client_001',
+        orderNumber: 'ORD-20241120-001',
+        clientId: 'user_client_1',
+        freelancerId: 'user_freelancer_1',
+        gigId: gigIds[0],
         packageType: 'standard',
-        status: 'completed',
-        totalAmount: 1500000,
-        createdAt: new Date('2024-01-15'),
-        completedAt: new Date('2024-01-20'),
-        deliveryTime: 10
-      },
-      {
-        id: 'order_002',
-        gigId: 'gig_001',
-        freelancerId: 'freelancer_001',
-        clientId: 'client_002',
-        packageType: 'premium',
-        status: 'completed',
-        totalAmount: 2500000,
-        createdAt: new Date('2024-01-10'),
-        completedAt: new Date('2024-01-18'),
-        deliveryTime: 14
-      },
-      {
-        id: 'order_003',
-        gigId: 'gig_002',
-        freelancerId: 'freelancer_002',
-        clientId: 'client_001',
-        packageType: 'premium',
-        status: 'completed',
+        title: 'Website E-commerce untuk Toko Online',
+        description: 'Website e-commerce dengan fitur dasar untuk toko online fashion',
+        requirements: 'Butuh website untuk jualan baju online dengan payment gateway',
+        price: 5000000,
         totalAmount: 5000000,
-        createdAt: new Date('2024-01-05'),
-        completedAt: new Date('2024-01-22'),
-        deliveryTime: 21
-      },
-      {
-        id: 'order_004',
-        gigId: 'gig_002',
-        freelancerId: 'freelancer_002',
-        clientId: 'client_003',
-        packageType: 'standard',
+        platformFee: 500000,
+        freelancerEarning: 4500000,
+        deliveryTime: 14,
+        revisions: 3,
+        maxRevisions: 3,
         status: 'completed',
-        totalAmount: 2500000,
-        createdAt: new Date('2024-01-12'),
-        completedAt: new Date('2024-01-19'),
-        deliveryTime: 14
+        paymentStatus: 'paid',
+        paymentMethod: 'bank_transfer',
+        progress: {
+          percentage: 100,
+          currentPhase: 'completed',
+          phases: [
+            { name: 'Menunggu Konfirmasi', completed: true, date: new Date('2024-11-20') },
+            { name: 'Sedang Dikerjakan', completed: true, date: new Date('2024-11-21') },
+            { name: 'Review Client', completed: true, date: new Date('2024-12-03') },
+            { name: 'Selesai', completed: true, date: new Date('2024-12-05') }
+          ]
+        },
+        deliveries: [{
+          id: '1',
+          message: 'Website sudah selesai dan siap untuk review',
+          attachments: [{ name: 'website-demo.zip', url: 'https://example.com/demo.zip', size: 15000000, type: 'application/zip' }],
+          deliveredAt: new Date('2024-12-03')
+        }],
+        revisionCount: 0,
+        hasAttachments: true,
+        deliveryMessage: 'Website sudah selesai dan siap untuk review',
+        deliveredAt: new Date('2024-12-03'),
+        completedAt: new Date('2024-12-05'),
+        hasRating: true,
+        ratedAt: new Date('2024-12-05'),
+        timeline: {
+          ordered: new Date('2024-11-20'),
+          confirmed: new Date('2024-11-21'),
+          completed: new Date('2024-12-05'),
+          cancelled: null
+        }
       },
       {
-        id: 'order_005',
-        gigId: 'gig_003',
-        freelancerId: 'freelancer_003',
-        clientId: 'client_002',
+        orderNumber: 'ORD-20241115-002',
+        clientId: 'user_client_2',
+        freelancerId: 'user_freelancer_1',
+        gigId: gigIds[0],
         packageType: 'premium',
+        title: 'E-commerce Advanced dengan Multi-vendor',
+        description: 'Website e-commerce lengkap dengan fitur advanced',
+        requirements: 'Marketplace multi-vendor dengan analytics dashboard',
+        price: 8500000,
+        totalAmount: 8500000,
+        platformFee: 850000,
+        freelancerEarning: 7650000,
+        deliveryTime: 21,
+        revisions: 5,
+        maxRevisions: 5,
         status: 'completed',
-        totalAmount: 1500000,
-        createdAt: new Date('2024-01-08'),
-        completedAt: new Date('2024-01-21'),
-        deliveryTime: 14
+        paymentStatus: 'paid',
+        paymentMethod: 'e_wallet',
+        progress: { percentage: 100, currentPhase: 'completed', phases: [] },
+        deliveries: [{ id: '1', message: 'Project completed successfully', attachments: [], deliveredAt: new Date('2024-11-30') }],
+        revisionCount: 1,
+        hasAttachments: false,
+        deliveryMessage: 'Project completed successfully',
+        deliveredAt: new Date('2024-11-30'),
+        completedAt: new Date('2024-12-01'),
+        hasRating: true,
+        ratedAt: new Date('2024-12-01'),
+        timeline: {
+          ordered: new Date('2024-11-15'),
+          confirmed: new Date('2024-11-16'),
+          completed: new Date('2024-12-01'),
+          cancelled: null
+        }
+      },
+      {
+        orderNumber: 'ORD-20241110-003',
+        clientId: 'user_client_1',
+        freelancerId: 'user_freelancer_1',
+        gigId: gigIds[0],
+        packageType: 'basic',
+        title: 'Landing Page Sederhana',
+        description: 'Landing page sederhana dengan 5 halaman',
+        requirements: 'Landing page untuk company profile',
+        price: 2500000,
+        totalAmount: 2500000,
+        platformFee: 250000,
+        freelancerEarning: 2250000,
+        deliveryTime: 7,
+        revisions: 2,
+        maxRevisions: 2,
+        status: 'completed',
+        paymentStatus: 'paid',
+        paymentMethod: 'bank_transfer',
+        progress: { percentage: 100, currentPhase: 'completed', phases: [] },
+        deliveries: [{ id: '1', message: 'Landing page completed', attachments: [], deliveredAt: new Date('2024-11-16') }],
+        revisionCount: 1,
+        hasAttachments: false,
+        deliveryMessage: 'Landing page completed',
+        deliveredAt: new Date('2024-11-16'),
+        completedAt: new Date('2024-11-17'),
+        hasRating: true,
+        ratedAt: new Date('2024-11-17'),
+        timeline: {
+          ordered: new Date('2024-11-10'),
+          confirmed: new Date('2024-11-11'),
+          completed: new Date('2024-11-17'),
+          cancelled: null
+        }
+      },
+      
+      // Orders for user_freelancer_2 (4 orders to match 4 reviews)
+      {
+        orderNumber: 'ORD-20241125-004',
+        clientId: 'user_client_1',
+        freelancerId: 'user_freelancer_2',
+        gigId: gigIds[1] || gigIds[0],
+        packageType: 'premium',
+        title: 'Complete UX/UI Design Package',
+        description: 'Paket lengkap UX research dan UI design',
+        requirements: 'Mobile app design dengan user research',
+        price: 5500000,
+        totalAmount: 5500000,
+        platformFee: 550000,
+        freelancerEarning: 4950000,
+        deliveryTime: 15,
+        revisions: 4,
+        maxRevisions: 4,
+        status: 'completed',
+        paymentStatus: 'paid',
+        paymentMethod: 'bank_transfer',
+        progress: { percentage: 100, currentPhase: 'completed', phases: [] },
+        deliveries: [{ id: '1', message: 'UI/UX design completed with prototypes', attachments: [], deliveredAt: new Date('2024-12-08') }],
+        revisionCount: 0,
+        hasAttachments: true,
+        deliveryMessage: 'UI/UX design completed with prototypes',
+        deliveredAt: new Date('2024-12-08'),
+        completedAt: new Date('2024-12-09'),
+        hasRating: true,
+        ratedAt: new Date('2024-12-09'),
+        timeline: {
+          ordered: new Date('2024-11-25'),
+          confirmed: new Date('2024-11-26'),
+          completed: new Date('2024-12-09'),
+          cancelled: null
+        }
+      },
+      
+      // Orders for user_freelancer_3 (4 orders to match 4 reviews)
+      {
+        orderNumber: 'ORD-20241118-005',
+        clientId: 'user_client_2',
+        freelancerId: 'user_freelancer_3',
+        gigId: gigIds[2] || gigIds[0],
+        packageType: 'standard',
+        title: '5 Artikel SEO dengan Tema Terkait',
+        description: 'Lima artikel SEO dengan tema terkait',
+        requirements: 'Artikel SEO untuk website travel',
+        price: 1200000,
+        totalAmount: 1200000,
+        platformFee: 120000,
+        freelancerEarning: 1080000,
+        deliveryTime: 7,
+        revisions: 2,
+        maxRevisions: 2,
+        status: 'completed',
+        paymentStatus: 'paid',
+        paymentMethod: 'e_wallet',
+        progress: { percentage: 100, currentPhase: 'completed', phases: [] },
+        deliveries: [{ id: '1', message: 'All 5 SEO articles completed', attachments: [], deliveredAt: new Date('2024-11-24') }],
+        revisionCount: 0,
+        hasAttachments: false,
+        deliveryMessage: 'All 5 SEO articles completed',
+        deliveredAt: new Date('2024-11-24'),
+        completedAt: new Date('2024-11-25'),
+        hasRating: true,
+        ratedAt: new Date('2024-11-25'),
+        timeline: {
+          ordered: new Date('2024-11-18'),
+          confirmed: new Date('2024-11-19'),
+          completed: new Date('2024-11-25'),
+          cancelled: null
+        }
       }
     ];
     
-    for (const order of orders) {
-      await setDoc(doc(db, COLLECTIONS.ORDERS, order.id), {
+    const orderIds = [];
+    for (const order of sampleOrders) {
+      const orderRef = await addDoc(collection(db, COLLECTIONS.ORDERS), {
         ...order,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
-      
-      console.log(`✅ Created order: ${order.id}`);
+      orderIds.push(orderRef.id);
+      console.log(`✅ Created order: ${order.orderNumber}`);
     }
     
-    console.log('✅ Orders seeded successfully!');
+    console.log('✅ Orders seeding completed!');
+    return orderIds;
   } catch (error) {
     console.error('❌ Error seeding orders:', error);
     throw error;
   }
 };
 
-/**
- * Seed all data
- */
-export const seedAllData = async () => {
-  console.log('🌱 Starting comprehensive database seeding...');
-  
+// Function to clear existing reviews to prevent duplicates
+const clearExistingReviews = async () => {
   try {
-    await seedUsers();
-    await seedGigs();
-    await seedReviews();
-    await seedOrders();
+    console.log('🧹 Clearing existing reviews...');
+    const reviewsSnapshot = await getDocs(collection(db, COLLECTIONS.REVIEWS));
     
-    console.log('🎉 All data seeded successfully!');
-    console.log('📊 Summary:');
-    console.log(`   • ${freelancers.length} freelancers`);
-    console.log(`   • ${clients.length} clients`);
-    console.log(`   • ${gigs.length} gigs across multiple categories`);
-    console.log(`   • ${reviews.length} reviews`);
-    console.log('   • Sample orders');
+    for (const reviewDoc of reviewsSnapshot.docs) {
+      await reviewDoc.ref.delete();
+    }
+    
+    console.log(`✅ Cleared ${reviewsSnapshot.size} existing reviews`);
   } catch (error) {
-    console.error('❌ Error seeding data:', error);
+    console.warn('⚠️ Error clearing reviews (may not exist yet):', error.message);
+  }
+};
+
+export const seedReviews = async () => {
+  try {
+    console.log('⭐ Creating sample reviews...');
+    
+    // Clear existing reviews first
+    await clearExistingReviews();
+    
+    // Get existing gigs and map them by title for consistent mapping
+    const gigsSnapshot = await getDocs(collection(db, COLLECTIONS.GIGS));
+    const gigsByTitle = {};
+    
+    gigsSnapshot.forEach((doc) => {
+      const gigData = doc.data();
+      gigsByTitle[gigData.title] = doc.id;
+    });
+    
+    // Get existing orders
+    const ordersSnapshot = await getDocs(collection(db, COLLECTIONS.ORDERS));
+    const orderIds = ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    
+    if (orderIds.length === 0 || Object.keys(gigsByTitle).length === 0) {
+      console.log('⚠️ No orders or gigs found. Creating dependencies first...');
+      if (Object.keys(gigsByTitle).length === 0) await seedGigs();
+      if (orderIds.length === 0) await seedOrders();
+      
+      // Re-fetch gigs after seeding
+      const newGigsSnapshot = await getDocs(collection(db, COLLECTIONS.GIGS));
+      newGigsSnapshot.forEach((doc) => {
+        const gigData = doc.data();
+        gigsByTitle[gigData.title] = doc.id;
+      });
+    }
+    
+    // Define fixed gig titles for consistent mapping
+    const ecommerceGigId = gigsByTitle['Pembuatan Website E-commerce Modern dengan React'];
+    const uiuxGigId = gigsByTitle['Desain UI/UX untuk Aplikasi Mobile'];
+    const contentGigId = gigsByTitle['Penulisan Artikel SEO dan Content Marketing'];
+    
+    console.log('🔗 Gig mappings:');
+    console.log(`📱 E-commerce Gig ID: ${ecommerceGigId}`);
+    console.log(`🎨 UI/UX Gig ID: ${uiuxGigId}`);
+    console.log(`✍️ Content Gig ID: ${contentGigId}`);
+    
+    // Create reviews with fixed gig assignments
+    const sampleReviews = [
+      // Reviews for E-commerce gig (user_freelancer_1)
+      {
+        orderId: orderIds[0]?.id || 'sample_order_1',
+        gigId: ecommerceGigId || 'fallback_gig_1',
+        freelancerId: 'user_freelancer_1',
+        clientId: 'user_client_1',
+        rating: 5,
+        comment: 'Pekerjaan sangat memuaskan! Website e-commerce yang dibuat sesuai dengan ekspektasi dan delivery tepat waktu. Highly recommended!',
+        helpful: 3,
+        status: 'published',
+        isVisible: true,
+        isReported: false
+      },
+      {
+        orderId: orderIds[1]?.id || 'sample_order_2',
+        gigId: ecommerceGigId || 'fallback_gig_1',
+        freelancerId: 'user_freelancer_1',
+        clientId: 'user_client_2',
+        rating: 5,
+        comment: 'Excellent work on the e-commerce platform! The website exceeded my expectations. Great communication throughout the project.',
+        helpful: 8,
+        status: 'published',
+        isVisible: true,
+        isReported: false
+      },
+      {
+        orderId: orderIds[2]?.id || 'sample_order_3',
+        gigId: ecommerceGigId || 'fallback_gig_1',
+        freelancerId: 'user_freelancer_1',
+        clientId: 'user_client_1',
+        rating: 4,
+        comment: 'Good quality work on the landing page, delivered on time. The website looks professional and responsive.',
+        helpful: 2,
+        status: 'published',
+        isVisible: true,
+        isReported: false
+      },
+      
+      // Review for UI/UX gig (user_freelancer_2)
+      {
+        orderId: orderIds[3]?.id || 'sample_order_4',
+        gigId: uiuxGigId || 'fallback_gig_2',
+        freelancerId: 'user_freelancer_2',
+        clientId: 'user_client_1',
+        rating: 5,
+        comment: 'Amazing UI/UX design for mobile app! Maya really understood our vision and delivered exactly what we needed. The prototypes were excellent.',
+        helpful: 7,
+        status: 'published',
+        isVisible: true,
+        isReported: false
+      },
+      
+      // Review for Content writing gig (user_freelancer_3)
+      {
+        orderId: orderIds[4]?.id || 'sample_order_5',
+        gigId: contentGigId || 'fallback_gig_3',
+        freelancerId: 'user_freelancer_3',
+        clientId: 'user_client_2',
+        rating: 5,
+        comment: 'Excellent content writing! SEO-friendly articles that really improved our website traffic. Very professional approach to content marketing.',
+        helpful: 9,
+        status: 'published',
+        isVisible: true,
+        isReported: false
+      }
+    ];
+    
+    // Log which reviews will be created for which gigs
+    console.log('📝 Creating reviews with fixed assignments:');
+    sampleReviews.forEach((review, index) => {
+      const gigTitle = Object.keys(gigsByTitle).find(title => gigsByTitle[title] === review.gigId);
+      console.log(`   Review ${index + 1}: ${review.freelancerId} → "${gigTitle || 'Unknown Gig'}" (Rating: ${review.rating})`);
+    });
+    
+    for (const review of sampleReviews) {
+      await addDoc(collection(db, COLLECTIONS.REVIEWS), {
+        ...review,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      console.log(`✅ Created review for freelancer: ${review.freelancerId} (Rating: ${review.rating})`);
+    }
+    
+    console.log('✅ Reviews seeding completed with fixed gig assignments!');
+    
+    // Now calculate and update freelancer ratings based on actual reviews
+    await updateFreelancerRatings();
+    
+  } catch (error) {
+    console.error('❌ Error seeding reviews:', error);
     throw error;
   }
 };
 
-// Export individual data for testing
-export { freelancers, clients, gigs, reviews }; 
+// Function to calculate and update freelancer ratings dynamically
+const updateFreelancerRatings = async () => {
+  try {
+    console.log('🔢 Calculating freelancer ratings from reviews...');
+    
+    // Get all freelancers
+    const freelancersSnapshot = await getDocs(collection(db, COLLECTIONS.FREELANCER_PROFILES));
+    
+    for (const freelancerDoc of freelancersSnapshot.docs) {
+      const freelancerId = freelancerDoc.id;
+      
+      // Get all reviews for this freelancer
+      const reviewsQuery = query(
+        collection(db, COLLECTIONS.REVIEWS),
+        where('freelancerId', '==', freelancerId),
+        where('status', '==', 'published')
+      );
+      const reviewsSnapshot = await getDocs(reviewsQuery);
+      
+      // Calculate rating
+      let totalRating = 0;
+      let reviewCount = 0;
+      
+      reviewsSnapshot.forEach(reviewDoc => {
+        const review = reviewDoc.data();
+        totalRating += review.rating || 0;
+        reviewCount++;
+      });
+      
+      const averageRating = reviewCount > 0 ? Math.round((totalRating / reviewCount) * 10) / 10 : 0;
+      
+      // Get completed orders count for this freelancer
+      const ordersQuery = query(
+        collection(db, COLLECTIONS.ORDERS),
+        where('freelancerId', '==', freelancerId),
+        where('status', '==', 'completed')
+      );
+      const ordersSnapshot = await getDocs(ordersQuery);
+      const completedOrdersCount = ordersSnapshot.size;
+      
+      // Update freelancer profile with calculated data
+      await updateDoc(doc(db, COLLECTIONS.FREELANCER_PROFILES, freelancerId), {
+        rating: averageRating,
+        totalReviews: reviewCount,
+        totalOrders: completedOrdersCount,
+        completedProjects: completedOrdersCount,
+        updatedAt: serverTimestamp()
+      });
+      
+      console.log(`✅ Updated ${freelancerId}: Rating ${averageRating} (${reviewCount} reviews, ${completedOrdersCount} orders)`);
+    }
+    
+    console.log('✅ Freelancer ratings updated successfully!');
+    
+  } catch (error) {
+    console.error('❌ Error updating freelancer ratings:', error);
+    throw error;
+  }
+};
+
+// Main seeding function that calls all individual functions
+export const seedAllData = async () => {
+  try {
+    console.log('🌱 Starting complete database seeding with new structure...');
+    
+    await seedUsers();
+    await seedGigs();
+    await seedOrders();
+    await seedReviews();
+    
+    // Create additional sample data
+    console.log('💬 Creating sample chats...');
+    const gigsSnapshot = await getDocs(collection(db, COLLECTIONS.GIGS));
+    const gigIds = gigsSnapshot.docs.map(doc => doc.id);
+    
+    const ordersSnapshot = await getDocs(collection(db, COLLECTIONS.ORDERS));
+    const orderIds = ordersSnapshot.docs.map(doc => doc.id);
+    
+    const sampleChats = [
+      {
+        participants: ['user_client_1', 'user_freelancer_1'],
+        participantDetails: {
+          'user_client_1': {
+            displayName: 'Andi Pratama',
+            profilePhoto: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face&auto=format',
+            role: 'client'
+          },
+          'user_freelancer_1': {
+            displayName: 'Budi Santoso',
+            profilePhoto: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face&auto=format',
+            role: 'freelancer'
+          }
+        },
+        gigId: gigIds[0] || 'sample_gig_1',
+        orderId: orderIds[0] || 'sample_order_1',
+        isActive: true,
+        lastMessage: 'Terima kasih atas kerjasamanya!',
+        lastMessageSender: 'user_client_1',
+        lastMessageTime: serverTimestamp(),
+        unreadCount: {
+          'user_client_1': 0,
+          'user_freelancer_1': 0
+        }
+      }
+    ];
+    
+    const chatIds = [];
+    for (const chat of sampleChats) {
+      const chatRef = await addDoc(collection(db, COLLECTIONS.CHATS), {
+        ...chat,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      chatIds.push(chatRef.id);
+      console.log(`✅ Created chat between participants`);
+    }
+    
+    // Create Sample Messages
+    console.log('📨 Creating sample messages...');
+    const sampleMessages = [
+      {
+        chatId: chatIds[0],
+        senderId: 'user_client_1',
+        content: 'Halo, saya tertarik dengan jasa pembuatan website e-commerce Anda',
+        messageType: 'text',
+        isRead: true,
+        readAt: new Date('2024-11-15T10:30:00')
+      },
+      {
+        chatId: chatIds[0],
+        senderId: 'user_freelancer_1',
+        content: 'Halo! Terima kasih atas minatnya. Bisa dijelaskan lebih detail kebutuhan websitenya?',
+        messageType: 'text',
+        isRead: true,
+        readAt: new Date('2024-11-15T11:00:00')
+      },
+      {
+        chatId: chatIds[0],
+        senderId: 'user_client_1',
+        content: 'Terima kasih atas kerjasamanya!',
+        messageType: 'text',
+        isRead: true,
+        readAt: new Date('2024-11-30T15:00:00')
+      }
+    ];
+    
+    for (const message of sampleMessages) {
+      await addDoc(collection(db, COLLECTIONS.MESSAGES), {
+        ...message,
+        createdAt: serverTimestamp()
+      });
+      console.log(`✅ Created message in chat`);
+    }
+    
+    // Create Sample Favorites
+    console.log('❤️ Creating sample favorites...');
+    const sampleFavorites = [
+      {
+        userId: 'user_client_1',
+        gigId: gigIds[1] || gigIds[0] || 'sample_gig_1'
+      },
+      {
+        userId: 'user_client_2',
+        gigId: gigIds[0] || 'sample_gig_1'
+      }
+    ];
+    
+    for (const favorite of sampleFavorites) {
+      await addDoc(collection(db, COLLECTIONS.FAVORITES), {
+        ...favorite,
+        createdAt: serverTimestamp()
+      });
+      console.log(`✅ Created favorite for user: ${favorite.userId}`);
+    }
+    
+    // Create Sample Notifications
+    console.log('🔔 Creating sample notifications...');
+    const sampleNotifications = [
+      {
+        userId: 'user_freelancer_1',
+        type: 'order_update',
+        message: 'Pesanan baru dari Andi Pratama untuk Website E-commerce',
+        orderId: orderIds[0] || 'sample_order_1',
+        read: true,
+        readAt: new Date('2024-11-15T12:00:00')
+      },
+      {
+        userId: 'user_client_1',
+        type: 'order_delivered',
+        message: 'Pesanan Anda telah diselesaikan oleh Budi Santoso',
+        orderId: orderIds[0] || 'sample_order_1',
+        read: true,
+        readAt: new Date('2024-11-28T16:00:00')
+      }
+    ];
+    
+    for (const notification of sampleNotifications) {
+      await addDoc(collection(db, COLLECTIONS.NOTIFICATIONS), {
+        ...notification,
+        createdAt: serverTimestamp()
+      });
+      console.log(`✅ Created notification for user: ${notification.userId}`);
+    }
+    
+    console.log('🎉 Complete database seeding finished successfully!');
+    console.log('📊 Summary:');
+    console.log(`   • ${sampleUsers.length} users created`);
+    console.log(`   • ${sampleClientProfiles.length} client profiles created`);
+    console.log(`   • ${sampleFreelancerProfiles.length} freelancer profiles created`);
+    console.log(`   • ${sampleGigs.length} gigs created`);
+    console.log(`   • Sample orders, reviews, chats, messages, favorites, and notifications created`);
+    
+  } catch (error) {
+    console.error('❌ Error in complete seeding:', error);
+    throw error;
+  }
+};
+
+// Seed function (keeping for backwards compatibility)
+async function seedDatabase() {
+  return await seedAllData();
+}
+
+// Export functions that SeedingPage.js expects
+export { seedDatabase };
+
+// Function to clear all existing data and reseed everything
+export const reseedAllData = async () => {
+  try {
+    console.log('🔄 Starting complete reseed with data clearing...');
+    
+    // Clear existing data
+    console.log('🧹 Clearing existing data...');
+    
+    // Clear reviews first (they depend on orders and gigs)
+    await clearExistingReviews();
+    
+    // Clear other collections as needed
+    try {
+      const collections = [
+        COLLECTIONS.NOTIFICATIONS,
+        COLLECTIONS.MESSAGES, 
+        COLLECTIONS.CHATS,
+        COLLECTIONS.FAVORITES,
+        COLLECTIONS.ORDERS,
+        COLLECTIONS.GIGS,
+        COLLECTIONS.FREELANCER_PROFILES,
+        COLLECTIONS.CLIENT_PROFILES
+      ];
+      
+      for (const collectionName of collections) {
+        const snapshot = await getDocs(collection(db, collectionName));
+        console.log(`🧹 Clearing ${snapshot.size} documents from ${collectionName}...`);
+        
+        for (const doc of snapshot.docs) {
+          await doc.ref.delete();
+        }
+      }
+    } catch (error) {
+      console.warn('⚠️ Some collections may not exist yet:', error.message);
+    }
+    
+    console.log('✅ Data clearing completed!');
+    
+    // Now seed fresh data
+    await seedAllData();
+    
+    console.log('🎉 Complete reseed finished successfully!');
+    
+  } catch (error) {
+    console.error('❌ Error in complete reseed:', error);
+    throw error;
+  }
+};

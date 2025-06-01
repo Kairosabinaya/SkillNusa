@@ -15,11 +15,12 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { Chat, Message } from '../models/Chat';
+import { COLLECTIONS } from '../utils/constants';
 
 class ChatService {
   constructor() {
-    this.chatsCollection = 'chats';
-    this.messagesCollection = 'messages';
+    this.chatsCollection = COLLECTIONS.CHATS;
+    this.messagesCollection = COLLECTIONS.MESSAGES;
   }
 
   // Create or get existing chat between two users with enhanced context
@@ -59,10 +60,10 @@ class ChatService {
         return existingChat;
       }
 
-      // Get user details for chat creation
+      // Get user details for chat creation using standardized collections
       const [user1Doc, user2Doc] = await Promise.all([
-        getDoc(doc(db, 'users', user1Id)),
-        getDoc(doc(db, 'users', user2Id))
+        getDoc(doc(db, COLLECTIONS.USERS, user1Id)),
+        getDoc(doc(db, COLLECTIONS.USERS, user2Id))
       ]);
 
       const user1Data = user1Doc.exists() ? user1Doc.data() : null;
@@ -75,12 +76,12 @@ class ChatService {
           [user1Id]: {
             displayName: user1Data?.displayName || 'User',
             profilePhoto: user1Data?.profilePhoto || null,
-            role: user1Data?.roles?.[0] || 'client'
+            role: user1Data?.isFreelancer ? 'freelancer' : 'client'
           },
           [user2Id]: {
             displayName: user2Data?.displayName || 'User',
             profilePhoto: user2Data?.profilePhoto || null,
-            role: user2Data?.roles?.[0] || 'freelancer'
+            role: user2Data?.isFreelancer ? 'freelancer' : 'client'
           }
         },
         lastMessage: '',
@@ -163,8 +164,8 @@ class ChatService {
   // Send gig context message
   async sendGigContextMessage(chatId, senderId, gigId) {
     try {
-      // Get gig details
-      const gigDoc = await getDoc(doc(db, 'gigs', gigId));
+      // Get gig details using standardized collection
+      const gigDoc = await getDoc(doc(db, COLLECTIONS.GIGS, gigId));
       if (!gigDoc.exists()) {
         return null;
       }
@@ -182,8 +183,7 @@ class ChatService {
         metadata: {
           gigId,
           gigTitle: gigData.title,
-          gigThumbnail: gigData.images?.[0] || null,
-          packages: gigData.packages
+          gigThumbnail: gigData.images?.[0] || null
         },
         isRead: false,
         createdAt: serverTimestamp()
@@ -199,10 +199,7 @@ class ChatService {
   // Send order notification message
   async sendOrderNotificationMessage(chatId, senderId, orderId, orderData) {
     try {
-      const { gigTitle, packageType, price, clientRequirements } = orderData;
-      
-      // Clean formatting with explicit line breaks
-      const notificationContent = `🎉 Pesanan Baru Dibuat!\n\n📋 Layanan: ${gigTitle}\n📦 Paket: ${packageType}\n💰 Total: Rp ${price?.toLocaleString('id-ID') || 'N/A'}\n\n📝 Kebutuhan Client:\n"${clientRequirements}"\n\n✅ Pesanan telah dibuat dan menunggu konfirmasi freelancer.`;
+      const notificationContent = `📦 Pesanan Baru!\n\n🎯 ${orderData.gigTitle}\n📋 Paket: ${orderData.packageType}\n💰 Harga: Rp ${orderData.price?.toLocaleString('id-ID')}\n\n📝 Kebutuhan Client:\n${orderData.clientRequirements}\n\nSilakan konfirmasi pesanan ini!`;
 
       const message = {
         chatId,
@@ -211,8 +208,12 @@ class ChatService {
         messageType: 'order_notification',
         metadata: {
           orderId,
-          orderData,
-          type: 'order_created'
+          orderData: {
+            gigTitle: orderData.gigTitle,
+            packageType: orderData.packageType,
+            price: orderData.price,
+            clientRequirements: orderData.clientRequirements
+          }
         },
         isRead: false,
         createdAt: serverTimestamp()
@@ -226,30 +227,39 @@ class ChatService {
   }
 
   // Send order status update message
-  async sendOrderStatusMessage(chatId, senderId, orderId, newStatus, additionalInfo = '') {
+  async sendOrderStatusMessage(chatId, senderId, orderId, newStatus, additionalInfo = '', orderData = {}) {
     try {
-      const statusMessages = {
-        'confirmed': '✅ Pesanan Dikonfirmasi\n\nFreelancer telah mengkonfirmasi pesanan Anda dan akan segera memulai pengerjaan.',
-        'in_progress': '🚀 Pengerjaan Dimulai\n\nFreelancer telah memulai mengerjakan pesanan Anda.',
-        'in_review': '👀 Menunggu Review\n\nPekerjaan telah diselesaikan dan menunggu review dari client.',
-        'completed': '🎊 Pesanan Selesai\n\nPesanan telah selesai dikerjakan dan diserahkan.',
-        'cancelled': '❌ Pesanan Dibatalkan\n\nPesanan telah dibatalkan.',
-        'revision_requested': '🔄 Revisi Diminta\n\nClient meminta revisi pada pekerjaan.'
-      };
-
-      const content = statusMessages[newStatus] || `📈 Status Update\n\nStatus pesanan: ${newStatus}`;
-      const fullContent = additionalInfo ? `${content}\n\n📝 Catatan:\n${additionalInfo}` : content;
+      let statusContent = '';
+      
+      switch (newStatus) {
+        case 'confirmed':
+          statusContent = `✅ Pesanan Dikonfirmasi!\n\n🎯 ${orderData.title || 'Pesanan Anda'}\n⏱️ Estimasi: ${orderData.deliveryTime || 'Sesuai paket'}\n\nPekerjaan akan segera dimulai!`;
+          break;
+        case 'delivered':
+          statusContent = `🚀 Pekerjaan Diserahkan!\n\n🎯 ${orderData.title || 'Pesanan Anda'}\nPekerjaan telah selesai dan siap untuk review.\n\n${additionalInfo}`;
+          break;
+        case 'in_revision':
+          statusContent = `🔄 Revisi Diminta\n\n🎯 ${orderData.title || 'Pesanan Anda'}\n\n📝 Catatan revisi:\n${additionalInfo}`;
+          break;
+        case 'completed':
+          statusContent = `🎉 Pesanan Selesai!\n\n🎯 ${orderData.title || 'Pesanan Anda'}\nTerima kasih atas kerjasamanya!\n\n${additionalInfo}`;
+          break;
+        case 'cancelled':
+          statusContent = `❌ Pesanan Dibatalkan\n\n🎯 ${orderData.title || 'Pesanan Anda'}\n\n📝 Alasan:\n${additionalInfo}`;
+          break;
+        default:
+          statusContent = `📋 Update Status Pesanan\n\n🎯 ${orderData.title || 'Pesanan Anda'}\nStatus: ${newStatus}\n\n${additionalInfo}`;
+      }
 
       const message = {
         chatId,
         senderId,
-        content: fullContent,
+        content: statusContent,
         messageType: 'order_status',
         metadata: {
           orderId,
           newStatus,
-          additionalInfo,
-          type: 'status_update'
+          additionalInfo
         },
         isRead: false,
         createdAt: serverTimestamp()
@@ -262,7 +272,7 @@ class ChatService {
     }
   }
 
-  // Enhanced send message with better handling
+  // Send regular message
   async sendMessage(chatId, senderId, content, messageType = 'text', fileUrl = null, fileName = null, metadata = {}) {
     try {
       const message = {
@@ -284,42 +294,36 @@ class ChatService {
     }
   }
 
-  // Add message and update chat
+  // Add message to database and update chat
   async addMessage(messageData) {
     try {
       // Add message to messages collection
       const messageRef = await addDoc(collection(db, this.messagesCollection), messageData);
-
+      
       // Update chat with last message info
       const chatRef = doc(db, this.chatsCollection, messageData.chatId);
       const chatDoc = await getDoc(chatRef);
       
       if (chatDoc.exists()) {
         const chatData = chatDoc.data();
+        const unreadCount = { ...chatData.unreadCount };
         
-        // Check if participants array exists and is valid
-        if (!chatData.participants || !Array.isArray(chatData.participants)) {
-          console.error('Chat participants array is missing or invalid:', chatData.participants);
-          return { id: messageRef.id, ...messageData };
-        }
-        
-        const otherParticipants = chatData.participants.filter(id => id !== messageData.senderId);
-        
-        // Update unread count for other participants
-        const newUnreadCount = { ...chatData.unreadCount };
-        otherParticipants.forEach(participantId => {
-          newUnreadCount[participantId] = (newUnreadCount[participantId] || 0) + 1;
+        // Increment unread count for all participants except sender
+        chatData.participants.forEach(participantId => {
+          if (participantId !== messageData.senderId) {
+            unreadCount[participantId] = (unreadCount[participantId] || 0) + 1;
+          }
         });
-
+        
         await updateDoc(chatRef, {
-          lastMessage: messageData.content,
-          lastMessageTime: serverTimestamp(),
+          lastMessage: messageData.content.substring(0, 100), // Truncate for preview
           lastMessageSender: messageData.senderId,
-          unreadCount: newUnreadCount,
+          lastMessageTime: serverTimestamp(),
+          unreadCount,
           updatedAt: serverTimestamp()
         });
       }
-
+      
       return { id: messageRef.id, ...messageData };
     } catch (error) {
       console.error('Error adding message:', error);
@@ -327,93 +331,40 @@ class ChatService {
     }
   }
 
-  // Get user chats with enhanced data
+  // Get user chats
   async getUserChats(userId) {
     try {
       const q = query(
         collection(db, this.chatsCollection),
-        where('participants', 'array-contains', userId)
+        where('participants', 'array-contains', userId),
+        where('isActive', '==', true),
+        orderBy('lastMessageTime', 'desc')
       );
 
       const querySnapshot = await getDocs(q);
       const chats = [];
-      
-      for (const docSnapshot of querySnapshot.docs) {
-        const chatData = { id: docSnapshot.id, ...docSnapshot.data() };
+
+      for (const doc of querySnapshot.docs) {
+        const chatData = { id: doc.id, ...doc.data() };
         
-        // Check if participants array exists and is valid
-        if (!chatData.participants || !Array.isArray(chatData.participants)) {
-          console.error('Chat participants array is missing or invalid for chat:', chatData.id, chatData.participants);
-          continue; // Skip this chat
-        }
-        
-        // Get other participant details
+        // Get the other participant's current data
         const otherParticipantId = chatData.participants.find(id => id !== userId);
         if (otherParticipantId) {
-          try {
-            // Use cached participant details if available
-            if (chatData.participantDetails && chatData.participantDetails[otherParticipantId]) {
-              chatData.otherParticipant = {
-                id: otherParticipantId,
-                ...chatData.participantDetails[otherParticipantId]
-              };
-            } else {
-              // Fallback to fetching user details
-              const userDoc = await getDoc(doc(db, 'users', otherParticipantId));
-              if (userDoc.exists()) {
-                chatData.otherParticipant = { id: userDoc.id, ...userDoc.data() };
-              }
-            }
-          } catch (error) {
-            console.error(`Error getting user details for ${otherParticipantId}:`, error);
-          }
-        }
-
-        // Get gig details if gig context exists
-        if (chatData.gigId) {
-          try {
-            const gigDoc = await getDoc(doc(db, 'gigs', chatData.gigId));
-            if (gigDoc.exists()) {
-              chatData.gigContext = {
-                id: gigDoc.id,
-                title: gigDoc.data().title,
-                images: gigDoc.data().images,
-                category: gigDoc.data().category
-              };
-            }
-          } catch (error) {
-            console.error(`Error getting gig details for ${chatData.gigId}:`, error);
-          }
-        }
-
-        // Get order details if order context exists
-        if (chatData.orderId) {
-          try {
-            const orderDoc = await getDoc(doc(db, 'orders', chatData.orderId));
-            if (orderDoc.exists()) {
-              const orderData = orderDoc.data();
-              chatData.orderContext = {
-                id: orderDoc.id,
-                status: orderData.status,
-                packageType: orderData.packageType,
-                price: orderData.price
-              };
-            }
-          } catch (error) {
-            console.error(`Error getting order details for ${chatData.orderId}:`, error);
+          const otherUserDoc = await getDoc(doc(db, COLLECTIONS.USERS, otherParticipantId));
+          if (otherUserDoc.exists()) {
+            const otherUserData = otherUserDoc.data();
+            // Update participant details with current data
+            chatData.participantDetails[otherParticipantId] = {
+              displayName: otherUserData.displayName,
+              profilePhoto: otherUserData.profilePhoto,
+              role: otherUserData.isFreelancer ? 'freelancer' : 'client'
+            };
           }
         }
         
         chats.push(chatData);
       }
 
-      // Sort by lastMessageTime in JavaScript instead of Firestore
-      chats.sort((a, b) => {
-        const aTime = a.lastMessageTime?.toDate?.() || a.lastMessageTime || new Date(0);
-        const bTime = b.lastMessageTime?.toDate?.() || b.lastMessageTime || new Date(0);
-        return bTime - aTime; // desc order (newest first)
-      });
-      
       return chats;
     } catch (error) {
       console.error('Error getting user chats:', error);
@@ -421,14 +372,14 @@ class ChatService {
     }
   }
 
-  // Get chat messages with pagination
+  // Get chat messages
   async getChatMessages(chatId, limitCount = 50, startAfter = null) {
     try {
       let q = query(
         collection(db, this.messagesCollection),
         where('chatId', '==', chatId),
+        orderBy('createdAt', 'desc'),
         limit(limitCount)
-        // Removed orderBy to avoid composite index requirement
       );
 
       if (startAfter) {
@@ -436,23 +387,12 @@ class ChatService {
       }
 
       const querySnapshot = await getDocs(q);
-      const messages = [];
-      
-      querySnapshot.forEach((docSnapshot) => {
-        messages.push({
-          id: docSnapshot.id,
-          ...docSnapshot.data()
-        });
-      });
+      const messages = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
 
-      // Sort by createdAt in JavaScript instead of Firestore
-      messages.sort((a, b) => {
-        const aTime = a.createdAt?.toDate?.() || a.createdAt || new Date(0);
-        const bTime = b.createdAt?.toDate?.() || b.createdAt || new Date(0);
-        return aTime - bTime; // asc order (oldest first for messages)
-      });
-      
-      return messages;
+      return messages.reverse(); // Return in chronological order
     } catch (error) {
       console.error('Error getting chat messages:', error);
       throw error;
@@ -467,11 +407,11 @@ class ChatService {
       
       if (chatDoc.exists()) {
         const chatData = chatDoc.data();
-        const newUnreadCount = { ...chatData.unreadCount };
-        newUnreadCount[userId] = 0;
-
+        const unreadCount = { ...chatData.unreadCount };
+        unreadCount[userId] = 0;
+        
         await updateDoc(chatRef, {
-          unreadCount: newUnreadCount,
+          unreadCount,
           updatedAt: serverTimestamp()
         });
       }
@@ -481,99 +421,78 @@ class ChatService {
     }
   }
 
-  // Subscribe to chat messages (real-time)
+  // Subscribe to chat messages
   subscribeToChatMessages(chatId, callback) {
     const q = query(
       collection(db, this.messagesCollection),
-      where('chatId', '==', chatId)
-      // Removed orderBy to avoid potential composite index requirement
+      where('chatId', '==', chatId),
+      orderBy('createdAt', 'desc'),
+      limit(50)
     );
 
     return onSnapshot(q, (querySnapshot) => {
-      const messages = [];
-      querySnapshot.forEach((docSnapshot) => {
-        messages.push({
-          id: docSnapshot.id,
-          ...docSnapshot.data()
-        });
-      });
-
-      // Sort by createdAt in JavaScript
-      messages.sort((a, b) => {
-        const aTime = a.createdAt?.toDate?.() || a.createdAt || new Date(0);
-        const bTime = b.createdAt?.toDate?.() || b.createdAt || new Date(0);
-        return aTime - bTime; // asc order (oldest first for messages)
-      });
-
-      callback(messages);
+      const messages = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      callback(messages.reverse());
     });
   }
 
-  // Subscribe to user chats (real-time)
+  // Subscribe to user chats
   subscribeToUserChats(userId, callback) {
     const q = query(
       collection(db, this.chatsCollection),
-      where('participants', 'array-contains', userId)
+      where('participants', 'array-contains', userId),
+      where('isActive', '==', true),
+      orderBy('lastMessageTime', 'desc')
     );
 
     return onSnapshot(q, async (querySnapshot) => {
       const chats = [];
       
-      for (const docSnapshot of querySnapshot.docs) {
-        const chatData = { id: docSnapshot.id, ...docSnapshot.data() };
+      for (const doc of querySnapshot.docs) {
+        const chatData = { id: doc.id, ...doc.data() };
         
-        // Check if participants array exists and is valid
-        if (!chatData.participants || !Array.isArray(chatData.participants)) {
-          console.error('Chat participants array is missing or invalid for chat:', chatData.id, chatData.participants);
-          continue; // Skip this chat
-        }
-        
-        // Get other participant details
+        // Get the other participant's current data
         const otherParticipantId = chatData.participants.find(id => id !== userId);
         if (otherParticipantId) {
-          try {
-            // Use cached participant details if available
-            if (chatData.participantDetails && chatData.participantDetails[otherParticipantId]) {
-              chatData.otherParticipant = {
-                id: otherParticipantId,
-                ...chatData.participantDetails[otherParticipantId]
-              };
-            } else {
-              // Fallback to fetching user details
-              const userDoc = await getDoc(doc(db, 'users', otherParticipantId));
-              if (userDoc.exists()) {
-                chatData.otherParticipant = { id: userDoc.id, ...userDoc.data() };
-              }
-            }
-          } catch (error) {
-            console.error(`Error getting user details for ${otherParticipantId}:`, error);
+          const otherUserDoc = await getDoc(doc(db, COLLECTIONS.USERS, otherParticipantId));
+          if (otherUserDoc.exists()) {
+            const otherUserData = otherUserDoc.data();
+            // Update participant details with current data
+            chatData.participantDetails[otherParticipantId] = {
+              displayName: otherUserData.displayName,
+              profilePhoto: otherUserData.profilePhoto,
+              role: otherUserData.isFreelancer ? 'freelancer' : 'client'
+            };
           }
         }
         
         chats.push(chatData);
       }
-
-      // Sort by lastMessageTime in JavaScript instead of Firestore
-      chats.sort((a, b) => {
-        const aTime = a.lastMessageTime?.toDate?.() || a.lastMessageTime || new Date(0);
-        const bTime = b.lastMessageTime?.toDate?.() || b.lastMessageTime || new Date(0);
-        return bTime - aTime; // desc order (newest first)
-      });
       
       callback(chats);
     });
   }
 
-  // Get total unread count for user
+  // Get user unread count
   async getUserUnreadCount(userId) {
     try {
-      const chats = await this.getUserChats(userId);
+      const q = query(
+        collection(db, this.chatsCollection),
+        where('participants', 'array-contains', userId),
+        where('isActive', '==', true)
+      );
+
+      const querySnapshot = await getDocs(q);
       let totalUnread = 0;
-      
-      chats.forEach(chat => {
-        totalUnread += chat.unreadCount?.[userId] || 0;
+
+      querySnapshot.docs.forEach(doc => {
+        const chatData = doc.data();
+        totalUnread += chatData.unreadCount?.[userId] || 0;
       });
-      
+
       return totalUnread;
     } catch (error) {
       console.error('Error getting user unread count:', error);
@@ -581,38 +500,25 @@ class ChatService {
     }
   }
 
-  // Subscribe to user's unread count (real-time)
+  // Subscribe to unread count
   subscribeToUnreadCount(userId, callback) {
-    try {
-      const q = query(
-        collection(db, this.chatsCollection),
-        where('participants', 'array-contains', userId)
-      );
+    const q = query(
+      collection(db, this.chatsCollection),
+      where('participants', 'array-contains', userId),
+      where('isActive', '==', true)
+    );
+
+    return onSnapshot(q, (querySnapshot) => {
+      let totalUnread = 0;
       
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        let totalUnread = 0;
-        
-        snapshot.forEach((doc) => {
-          const chatData = doc.data();
-          const userUnreadCount = chatData.unreadCount?.[userId] || 0;
-          totalUnread += userUnreadCount;
-        });
-        
-        console.log('Real-time unread count update:', totalUnread);
-        callback(totalUnread);
-      }, (error) => {
-        console.error('Error in unread count subscription:', error);
-        callback(0);
+      querySnapshot.docs.forEach(doc => {
+        const chatData = doc.data();
+        totalUnread += chatData.unreadCount?.[userId] || 0;
       });
       
-      return unsubscribe;
-    } catch (error) {
-      console.error('Error setting up unread count subscription:', error);
-      callback(0);
-      return null;
-    }
+      callback(totalUnread);
+    });
   }
 }
 
-const chatService = new ChatService();
-export default chatService; 
+export default new ChatService(); 

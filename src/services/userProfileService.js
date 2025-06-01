@@ -1,7 +1,8 @@
 /**
  * User Profile Service
  * 
- * Standardized service for accessing and managing user profile data across different collections
+ * Standardized service for accessing and managing user profile data
+ * Following new database structure with single source of truth
  */
 
 import { 
@@ -9,7 +10,11 @@ import {
   getDoc, 
   setDoc, 
   updateDoc, 
-  serverTimestamp
+  serverTimestamp,
+  query,
+  collection,
+  getDocs,
+  where
 } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
 import { db, auth } from '../firebase/config';
@@ -26,47 +31,56 @@ export const getUserProfile = async (userId) => {
     
     const profileData = {};
     
-    // Get user basic data from users collection
+    // Get user basic data from users collection (SINGLE SOURCE)
     const userDoc = await getDoc(doc(db, COLLECTIONS.USERS, userId));
     if (userDoc.exists()) {
       const userData = userDoc.data();
       Object.assign(profileData, userData);
+    } else {
+      return null; // User not found
     }
     
-    // Check clientProfiles collection (string format)
-    let clientProfileDoc = await getDoc(doc(db, 'clientProfiles', userId));
-    
-    // If not found, check client_profiles collection (underscore format)
-    if (!clientProfileDoc.exists()) {
-      clientProfileDoc = await getDoc(doc(db, COLLECTIONS.CLIENT_PROFILES, userId));
-    }
-    
-    // Assign profile data if it exists in either collection
+    // Get client profile data if exists
+    const clientProfileDoc = await getDoc(doc(db, COLLECTIONS.CLIENT_PROFILES, userId));
     if (clientProfileDoc.exists()) {
-      Object.assign(profileData, clientProfileDoc.data());
+      const clientData = clientProfileDoc.data();
+      // Merge client-specific fields
+      Object.assign(profileData, {
+        gender: clientData.gender,
+        dateOfBirth: clientData.dateOfBirth,
+        location: clientData.location,
+        bio: clientData.bio,
+        companyName: clientData.companyName,
+        industry: clientData.industry,
+        marketingEmails: clientData.marketingEmails
+      });
     }
     
     // Get freelancer profile data if user is a freelancer
     if (profileData.isFreelancer) {
-      // Check both potential collection names for freelancer profiles
-      let freelancerProfileDoc = await getDoc(doc(db, 'freelancerProfiles', userId));
-      
-      if (!freelancerProfileDoc.exists()) {
-        freelancerProfileDoc = await getDoc(doc(db, COLLECTIONS.FREELANCER_PROFILES, userId));
-      }
-      
+      const freelancerProfileDoc = await getDoc(doc(db, COLLECTIONS.FREELANCER_PROFILES, userId));
       if (freelancerProfileDoc.exists()) {
-        // Merge specific fields we want from freelancer profile
         const freelancerData = freelancerProfileDoc.data();
-        profileData.skills = freelancerData.skills;
-        profileData.experienceLevel = freelancerData.experienceLevel;
-        profileData.portfolioLinks = freelancerData.portfolioLinks;
-        profileData.hourlyRate = freelancerData.hourlyRate;
-        profileData.availability = freelancerData.availability;
-        // Only override bio if not already set and if freelancer bio exists
-        if (!profileData.bio && freelancerData.bio) {
-          profileData.bio = freelancerData.bio;
-        }
+        // Merge freelancer-specific fields
+        Object.assign(profileData, {
+          skills: freelancerData.skills,
+          education: freelancerData.education,
+          certifications: freelancerData.certifications,
+          experienceLevel: freelancerData.experienceLevel,
+          hourlyRate: freelancerData.hourlyRate,
+          availability: freelancerData.availability,
+          workingHours: freelancerData.workingHours,
+          languages: freelancerData.languages,
+          portfolioLinks: freelancerData.portfolioLinks,
+          website: freelancerData.website,
+          rating: freelancerData.rating,
+          totalReviews: freelancerData.totalReviews,
+          totalOrders: freelancerData.totalOrders,
+          completedProjects: freelancerData.completedProjects,
+          tier: freelancerData.tier,
+          // Override bio if freelancer bio exists and client bio doesn't
+          bio: freelancerData.bio || profileData.bio
+        });
       }
     }
     
@@ -78,7 +92,7 @@ export const getUserProfile = async (userId) => {
 };
 
 /**
- * Update user profile data
+ * Update user profile data following new structure
  * @param {string} userId - User ID
  * @param {Object} profileData - Profile data to update
  * @param {boolean} updateAuthProfile - Whether to update auth profile displayName/photoURL
@@ -88,110 +102,101 @@ export const updateUserProfile = async (userId, profileData, updateAuthProfile =
   try {
     if (!userId) return false;
     
-    const userRef = doc(db, COLLECTIONS.USERS, userId);
-    const clientProfileRef = doc(db, COLLECTIONS.CLIENT_PROFILES, userId);
-    
     // Fields that belong in users collection
     const userFields = [
       'displayName', 
       'email', 
       'username', 
+      'phoneNumber',
+      'profilePhoto',
       'roles',
       'activeRole', 
-      'isFreelancer', 
+      'isFreelancer',
+      'isActive',
+      'isOnline'
     ];
     
     // Fields that belong in client profile
-    const profileFields = [
-      'displayName', 
-      'fullName',
-      'phoneNumber', 
+    const clientFields = [
       'gender', 
       'dateOfBirth',
       'location', 
-      'bio', 
-      'profilePhoto'
+      'bio',
+      'companyName',
+      'industry',
+      'marketingEmails'
+    ];
+    
+    // Fields that belong in freelancer profile
+    const freelancerFields = [
+      'skills',
+      'education',
+      'certifications',
+      'experienceLevel',
+      'hourlyRate',
+      'availability',
+      'workingHours',
+      'languages',
+      'portfolioLinks',
+      'website',
+      'bio' // Can be in both client and freelancer profiles
     ];
     
     // Separate data for different collections
     const userData = {};
     const clientData = {};
+    const freelancerData = {};
     
     // Distribute fields to appropriate objects
     Object.keys(profileData).forEach(key => {
       if (userFields.includes(key)) {
         userData[key] = profileData[key];
       }
-      if (profileFields.includes(key)) {
+      if (clientFields.includes(key)) {
         clientData[key] = profileData[key];
+      }
+      if (freelancerFields.includes(key) && profileData.isFreelancer) {
+        freelancerData[key] = profileData[key];
       }
     });
     
     // Add timestamps
-    userData.updatedAt = serverTimestamp();
-    clientData.updatedAt = serverTimestamp();
-    
-    // Update in users collection if we have user data
+    const timestamp = serverTimestamp();
     if (Object.keys(userData).length > 0) {
+      userData.updatedAt = timestamp;
+    }
+    if (Object.keys(clientData).length > 0) {
+      clientData.updatedAt = timestamp;
+    }
+    if (Object.keys(freelancerData).length > 0) {
+      freelancerData.updatedAt = timestamp;
+    }
+    
+    // Update users collection
+    if (Object.keys(userData).length > 0) {
+      const userRef = doc(db, COLLECTIONS.USERS, userId);
       await updateDoc(userRef, userData);
     }
     
-    // Update in client_profiles collection if we have client data
+    // Update client profile collection
     if (Object.keys(clientData).length > 0) {
-      // Use setDoc with merge to create if not exists
+      const clientProfileRef = doc(db, COLLECTIONS.CLIENT_PROFILES, userId);
       await setDoc(clientProfileRef, {
         ...clientData,
-        userId // Ensure userId is set
+        userId // Ensure userId reference is set
       }, { merge: true });
-      
-      // Also update data in clientProfiles if it exists (to keep both collections in sync)
-      const oldFormatRef = doc(db, 'clientProfiles', userId);
-      const oldFormatDoc = await getDoc(oldFormatRef);
-      if (oldFormatDoc.exists()) {
-        await setDoc(oldFormatRef, {
-          ...clientData,
-          userId,
-          updatedAt: serverTimestamp()
-        }, { merge: true });
-      }
     }
     
-    // Also handle freelancer profile data if relevant
-    if (profileData.isFreelancer) {
-      // Check if we have any freelancer-specific fields
-      const freelancerFields = ['skills', 'experienceLevel', 'portfolioLinks', 'hourlyRate', 'availability'];
-      const hasFreelancerData = Object.keys(profileData).some(key => freelancerFields.includes(key));
-      
-      if (hasFreelancerData) {
-        const freelancerData = {};
-        freelancerFields.forEach(field => {
-          if (profileData[field]) freelancerData[field] = profileData[field];
-        });
-        
-        if (Object.keys(freelancerData).length > 0) {
-          // Update in both possible collections
-          const freelancerProfileRef = doc(db, COLLECTIONS.FREELANCER_PROFILES, userId);
-          await setDoc(freelancerProfileRef, {
-            ...freelancerData,
-            userId,
-            updatedAt: serverTimestamp()
-          }, { merge: true });
-          
-          // Also update in old format collection if it exists
-          const oldFormatFreelancerRef = doc(db, 'freelancerProfiles', userId);
-          const oldFormatDoc = await getDoc(oldFormatFreelancerRef);
-          if (oldFormatDoc.exists()) {
-            await setDoc(oldFormatFreelancerRef, {
-              ...freelancerData,
-              userId,
-              updatedAt: serverTimestamp()
-            }, { merge: true });
-          }
-        }
-      }
+    // Update freelancer profile collection if user is freelancer
+    if (profileData.isFreelancer && Object.keys(freelancerData).length > 0) {
+      const freelancerProfileRef = doc(db, COLLECTIONS.FREELANCER_PROFILES, userId);
+      await setDoc(freelancerProfileRef, {
+        ...freelancerData,
+        userId // Ensure userId reference is set
+      }, { merge: true });
     }
     
-    // Update auth profile if requested and if we have displayName or profilePhoto
+    // Update auth profile if requested
     if (updateAuthProfile && auth.currentUser && 
         (profileData.displayName || profileData.profilePhoto)) {
       const updateData = {};
@@ -208,7 +213,197 @@ export const updateUserProfile = async (userId, profileData, updateAuthProfile =
   }
 };
 
+/**
+ * Create initial profile documents for new user
+ * @param {string} userId - User ID
+ * @param {Object} userData - Initial user data
+ * @returns {boolean} - Success status
+ */
+export const createUserProfile = async (userId, userData) => {
+  try {
+    const timestamp = serverTimestamp();
+    
+    // Create user document
+    const userRef = doc(db, COLLECTIONS.USERS, userId);
+    await setDoc(userRef, {
+      ...userData,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    });
+    
+    // Create client profile document (all users start as clients)
+    const clientProfileRef = doc(db, COLLECTIONS.CLIENT_PROFILES, userId);
+    await setDoc(clientProfileRef, {
+      userId,
+      marketingEmails: false,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    });
+    
+    // Create freelancer profile if user is freelancer
+    if (userData.isFreelancer) {
+      const freelancerProfileRef = doc(db, COLLECTIONS.FREELANCER_PROFILES, userId);
+      await setDoc(freelancerProfileRef, {
+        userId,
+        skills: [],
+        education: [],
+        certifications: [],
+        portfolioLinks: [],
+        rating: 0,
+        totalReviews: 0,
+        totalOrders: 0,
+        completedProjects: 0,
+        hourlyRate: 0,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      });
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error creating user profile:', error);
+    return false;
+  }
+};
+
+/**
+ * Get freelancer performance data (SINGLE SOURCE OF TRUTH)
+ * @param {string} freelancerId - Freelancer ID
+ * @returns {Object} - Freelancer performance data
+ */
+export const getFreelancerPerformance = async (freelancerId) => {
+  try {
+    const freelancerDoc = await getDoc(doc(db, COLLECTIONS.FREELANCER_PROFILES, freelancerId));
+    if (freelancerDoc.exists()) {
+      const data = freelancerDoc.data();
+      return {
+        rating: data.rating || 0,
+        totalReviews: data.totalReviews || 0,
+        totalOrders: data.totalOrders || 0,
+        completedProjects: data.completedProjects || 0,
+        tier: data.tier || 'bronze'
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error('Error fetching freelancer performance:', error);
+    return null;
+  }
+};
+
+/**
+ * Update freelancer performance metrics (called when orders/reviews change)
+ * @param {string} freelancerId - Freelancer ID
+ * @param {Object} metrics - Performance metrics to update
+ * @returns {boolean} - Success status
+ */
+export const updateFreelancerPerformance = async (freelancerId, metrics) => {
+  try {
+    const freelancerProfileRef = doc(db, COLLECTIONS.FREELANCER_PROFILES, freelancerId);
+    await updateDoc(freelancerProfileRef, {
+      ...metrics,
+      updatedAt: serverTimestamp()
+    });
+    return true;
+  } catch (error) {
+    console.error('Error updating freelancer performance:', error);
+    return false;
+  }
+};
+
+/**
+ * Calculate and update freelancer rating from reviews
+ * @param {string} freelancerId - Freelancer user ID
+ * @returns {Promise<Object>} Updated rating data
+ */
+export const recalculateFreelancerRating = async (freelancerId) => {
+  try {
+    console.log(`🔢 Recalculating rating for freelancer: ${freelancerId}`);
+    
+    // Get all published reviews for this freelancer
+    const reviewsQuery = query(
+      collection(db, COLLECTIONS.REVIEWS),
+      where('freelancerId', '==', freelancerId),
+      where('status', '==', 'published')
+    );
+    const reviewsSnapshot = await getDocs(reviewsQuery);
+    
+    // Calculate average rating
+    let totalRating = 0;
+    let reviewCount = 0;
+    
+    reviewsSnapshot.forEach(reviewDoc => {
+      const review = reviewDoc.data();
+      totalRating += review.rating || 0;
+      reviewCount++;
+    });
+    
+    const averageRating = reviewCount > 0 ? Math.round((totalRating / reviewCount) * 10) / 10 : 0;
+    
+    // Get completed orders count
+    const ordersQuery = query(
+      collection(db, COLLECTIONS.ORDERS),
+      where('freelancerId', '==', freelancerId),
+      where('status', '==', 'completed')
+    );
+    const ordersSnapshot = await getDocs(ordersQuery);
+    const completedOrdersCount = ordersSnapshot.size;
+    
+    // Update freelancer profile
+    const freelancerRef = doc(db, COLLECTIONS.FREELANCER_PROFILES, freelancerId);
+    const updateData = {
+      rating: averageRating,
+      totalReviews: reviewCount,
+      totalOrders: completedOrdersCount,
+      completedProjects: completedOrdersCount,
+      updatedAt: serverTimestamp()
+    };
+    
+    await updateDoc(freelancerRef, updateData);
+    
+    console.log(`✅ Updated freelancer rating: ${averageRating} (${reviewCount} reviews, ${completedOrdersCount} orders)`);
+    
+    return {
+      rating: averageRating,
+      totalReviews: reviewCount,
+      totalOrders: completedOrdersCount,
+      completedProjects: completedOrdersCount
+    };
+    
+  } catch (error) {
+    console.error('❌ Error recalculating freelancer rating:', error);
+    throw error;
+  }
+};
+
+/**
+ * Recalculate ratings for all freelancers
+ * @returns {Promise<void>}
+ */
+export const recalculateAllFreelancerRatings = async () => {
+  try {
+    console.log('🔢 Recalculating all freelancer ratings...');
+    
+    const freelancersSnapshot = await getDocs(collection(db, COLLECTIONS.FREELANCER_PROFILES));
+    
+    for (const freelancerDoc of freelancersSnapshot.docs) {
+      await recalculateFreelancerRating(freelancerDoc.id);
+    }
+    
+    console.log('✅ All freelancer ratings updated successfully!');
+    
+  } catch (error) {
+    console.error('❌ Error recalculating all freelancer ratings:', error);
+    throw error;
+  }
+};
+
 export default {
   getUserProfile,
-  updateUserProfile
+  updateUserProfile,
+  createUserProfile,
+  getFreelancerPerformance,
+  updateFreelancerPerformance,
+  recalculateFreelancerRating,
+  recalculateAllFreelancerRatings
 };

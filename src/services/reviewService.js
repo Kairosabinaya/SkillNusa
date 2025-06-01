@@ -1,5 +1,21 @@
 import firebaseService from './firebaseService';
 import { COLLECTIONS } from '../utils/constants';
+import { 
+  collection, 
+  doc, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  getDocs, 
+  getDoc,
+  query, 
+  where, 
+  orderBy, 
+  limit as firestoreLimit,
+  serverTimestamp 
+} from 'firebase/firestore';
+import { db } from '../firebase/config';
+import { recalculateFreelancerRating } from './userProfileService';
 
 /**
  * Service for managing reviews
@@ -56,35 +72,112 @@ class ReviewService {
   }
   
   /**
-   * Create a new review
+   * Create a new review and auto-update freelancer rating
    * @param {Object} reviewData - Review data
-   * @returns {Promise<string>} New review ID
+   * @returns {Promise<string>} Review ID
    */
   async createReview(reviewData) {
     try {
-      const review = {
-        ...reviewData,
-        status: 'published'
-      };
+      console.log('📝 Creating review and updating freelancer rating...');
       
-      return await firebaseService.addDocument(COLLECTIONS.REVIEWS, review);
+      // Create the review
+      const reviewRef = await addDoc(collection(db, COLLECTIONS.REVIEWS), {
+        ...reviewData,
+        status: 'published',
+        isVisible: true,
+        isReported: false,
+        helpful: 0,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      
+      console.log('✅ Review created:', reviewRef.id);
+      
+      // Auto-recalculate freelancer rating
+      if (reviewData.freelancerId) {
+        console.log('🔄 Auto-updating freelancer rating...');
+        await recalculateFreelancerRating(reviewData.freelancerId);
+        console.log('✅ Freelancer rating updated automatically');
+      }
+      
+      return reviewRef.id;
     } catch (error) {
-      console.error('Error creating review:', error);
+      console.error('❌ Error creating review:', error);
       throw error;
     }
   }
   
   /**
-   * Update a review
+   * Update review and recalculate freelancer rating
    * @param {string} reviewId - Review ID
-   * @param {Object} updates - Data to update
-   * @returns {Promise<void>}
+   * @param {Object} updateData - Data to update
+   * @returns {Promise<boolean>} Success status
    */
-  async updateReview(reviewId, updates) {
+  async updateReview(reviewId, updateData) {
     try {
-      return await firebaseService.updateDocument(COLLECTIONS.REVIEWS, reviewId, updates);
+      console.log('📝 Updating review and recalculating rating...');
+      
+      // Get current review to know which freelancer to update
+      const reviewDoc = await getDoc(doc(db, COLLECTIONS.REVIEWS, reviewId));
+      if (!reviewDoc.exists()) {
+        throw new Error('Review not found');
+      }
+      
+      const currentReview = reviewDoc.data();
+      
+      // Update the review
+      await updateDoc(doc(db, COLLECTIONS.REVIEWS, reviewId), {
+        ...updateData,
+        updatedAt: serverTimestamp()
+      });
+      
+      console.log('✅ Review updated');
+      
+      // Auto-recalculate freelancer rating if rating changed
+      if (updateData.rating !== undefined && currentReview.freelancerId) {
+        console.log('🔄 Auto-updating freelancer rating due to rating change...');
+        await recalculateFreelancerRating(currentReview.freelancerId);
+        console.log('✅ Freelancer rating recalculated');
+      }
+      
+      return true;
     } catch (error) {
-      console.error('Error updating review:', error);
+      console.error('❌ Error updating review:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Delete review and recalculate freelancer rating
+   * @param {string} reviewId - Review ID
+   * @returns {Promise<boolean>} Success status
+   */
+  async deleteReview(reviewId) {
+    try {
+      console.log('🗑️ Deleting review and recalculating rating...');
+      
+      // Get review data before deletion
+      const reviewDoc = await getDoc(doc(db, COLLECTIONS.REVIEWS, reviewId));
+      if (!reviewDoc.exists()) {
+        throw new Error('Review not found');
+      }
+      
+      const reviewData = reviewDoc.data();
+      
+      // Delete the review
+      await deleteDoc(doc(db, COLLECTIONS.REVIEWS, reviewId));
+      console.log('✅ Review deleted');
+      
+      // Auto-recalculate freelancer rating
+      if (reviewData.freelancerId) {
+        console.log('🔄 Auto-updating freelancer rating after deletion...');
+        await recalculateFreelancerRating(reviewData.freelancerId);
+        console.log('✅ Freelancer rating recalculated');
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('❌ Error deleting review:', error);
       throw error;
     }
   }

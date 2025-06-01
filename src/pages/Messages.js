@@ -157,11 +157,19 @@ export default function Messages() {
                       }`}
                     >
                       <div className="flex items-center space-x-3">
-                        <img
-                          src={chat.otherParticipant?.profilePhoto || 'https://picsum.photos/seed/user/40/40'}
-                          alt={chat.otherParticipant?.displayName || 'User'}
-                          className="w-10 h-10 rounded-full object-cover"
-                        />
+                        <div className="h-10 w-10 rounded-full bg-[#010042]/10 flex items-center justify-center">
+                          {chat.otherParticipant?.profilePhoto ? (
+                            <img
+                              src={chat.otherParticipant.profilePhoto}
+                              alt={chat.otherParticipant?.displayName || 'User'}
+                              className="w-10 h-10 rounded-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-[#010042] font-semibold text-sm">
+                              {chat.otherParticipant?.displayName?.charAt(0).toUpperCase() || 'U'}
+                            </span>
+                          )}
+                        </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between">
                             <h3 className="font-medium text-gray-900 truncate">
@@ -194,11 +202,19 @@ export default function Messages() {
                   {/* Chat Header */}
                   <div className="p-4 border-b border-gray-200 bg-gray-50">
                     <div className="flex items-center space-x-3">
-                      <img
-                        src={selectedChat.otherParticipant?.profilePhoto || 'https://picsum.photos/seed/user/40/40'}
-                        alt={selectedChat.otherParticipant?.displayName || 'User'}
-                        className="w-10 h-10 rounded-full object-cover"
-                      />
+                      <div className="h-10 w-10 rounded-full bg-[#010042]/10 flex items-center justify-center">
+                        {selectedChat.otherParticipant?.profilePhoto ? (
+                          <img
+                            src={selectedChat.otherParticipant.profilePhoto}
+                            alt={selectedChat.otherParticipant?.displayName || 'User'}
+                            className="w-10 h-10 rounded-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-[#010042] font-semibold text-sm">
+                            {selectedChat.otherParticipant?.displayName?.charAt(0).toUpperCase() || 'U'}
+                          </span>
+                        )}
+                      </div>
                       <div>
                         <h3 className="font-medium text-gray-900">
                           {selectedChat.otherParticipant?.displayName || 'Unknown User'}

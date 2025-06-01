@@ -34,6 +34,7 @@ export default function FreelancerOrders() {
   const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [buttonLoading, setButtonLoading] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [deliveryMessage, setDeliveryMessage] = useState('');
@@ -136,34 +137,41 @@ export default function FreelancerOrders() {
   };
 
   const updateOrderStatus = async (orderId, newStatus, message = '') => {
+    if (!currentUser) {
+      console.error('❌ [FreelancerOrders] No current user found');
+      alert('Anda harus login untuk melakukan aksi ini.');
+      return;
+    }
+
+    if (!orderId) {
+      console.error('❌ [FreelancerOrders] No order ID provided');
+      alert('ID pesanan tidak valid.');
+      return;
+    }
+
+    // Set loading state for this specific button
+    setButtonLoading(prev => ({ ...prev, [orderId]: true }));
+
     try {
-      console.log('🔄 [FreelancerOrders] Updating order status:', { orderId, newStatus, message });
+      console.log('🔄 [FreelancerOrders] Updating order status:', { 
+        orderId, 
+        newStatus, 
+        message,
+        currentUser: currentUser.uid 
+      });
       
-      await updateDoc(doc(db, 'orders', orderId), {
-        status: newStatus,
-        updatedAt: serverTimestamp(),
-        ...(message && { statusMessage: message })
+      // Use orderService to update status - this will automatically send notifications
+      await orderService.updateOrderStatus(orderId, newStatus, currentUser.uid, {
+        statusMessage: message
       });
 
-      // Find the order to get clientId
-      const order = orders.find(o => o.id === orderId);
-      if (order) {
-        // Send notification to client (not buyer)
-        await addDoc(collection(db, 'notifications'), {
-          userId: order.clientId, // Use clientId instead of buyerId
-          type: 'order_update',
-          message: `Status pesanan ${orderId.slice(-8)} diubah menjadi ${getStatusText(newStatus)}`,
-          orderId: orderId,
-          createdAt: serverTimestamp(),
-          read: false
-        });
-      }
+      console.log('✅ [FreelancerOrders] Order status updated successfully with auto notification');
 
-      // Update local state
+      // Update local state immediately for better UX
       setOrders(prevOrders => 
         prevOrders.map(order => 
           order.id === orderId 
-            ? { ...order, status: newStatus, statusMessage: message }
+            ? { ...order, status: newStatus, statusMessage: message, updatedAt: new Date() }
             : order
         )
       );
@@ -173,17 +181,21 @@ export default function FreelancerOrders() {
         setSelectedOrder(prev => ({ 
           ...prev, 
           status: newStatus, 
-          statusMessage: message 
+          statusMessage: message,
+          updatedAt: new Date()
         }));
       }
+
+      // Refresh orders to get latest data
+      await fetchOrders();
       
-      // Refresh orders to get updated data
-      fetchOrders();
-      
-      console.log('✅ [FreelancerOrders] Order status updated successfully');
+      alert(`Status pesanan berhasil diubah menjadi ${getStatusText(newStatus)}! Notifikasi otomatis telah dikirim.`);
     } catch (error) {
       console.error('💥 [FreelancerOrders] Error updating order status:', error);
-      alert('Gagal mengupdate status pesanan. Silakan coba lagi.');
+      alert('Gagal mengubah status pesanan. Silakan coba lagi. Error: ' + (error.message || error));
+    } finally {
+      // Clear loading state for this specific button
+      setButtonLoading(prev => ({ ...prev, [orderId]: false }));
     }
   };
 
@@ -198,10 +210,9 @@ export default function FreelancerOrders() {
       
       // Prepare delivery data
       const deliveryData = {
-        status: 'delivered',
         deliveryMessage: deliveryMessage,
-        deliveredAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        deliveredAt: new Date().toISOString(),
+        statusMessage: deliveryMessage
       };
       
       // Add file information if files are attached
@@ -213,31 +224,30 @@ export default function FreelancerOrders() {
           lastModified: file.lastModified
         }));
         deliveryData.hasAttachments = true;
+        deliveryData.statusMessage += ` (dengan ${attachedFiles.length} file lampiran)`;
       }
 
-      await updateDoc(doc(db, 'orders', selectedOrder.id), deliveryData);
+      // Use orderService to update status - this will automatically send notifications
+      await orderService.updateOrderStatus(
+        selectedOrder.id, 
+        'delivered', 
+        currentUser.uid, 
+        deliveryData
+      );
 
-      // Send notification to client
-      await addDoc(collection(db, 'notifications'), {
-        userId: selectedOrder.clientId,
-        type: 'order_delivered',
-        message: `Pesanan ${selectedOrder.id.slice(-8)} telah dikirim${attachedFiles.length > 0 ? ` dengan ${attachedFiles.length} file lampiran` : ''}`,
-        orderId: selectedOrder.id,
-        createdAt: serverTimestamp(),
-        read: false
-      });
+      console.log('✅ [FreelancerOrders] Order delivered successfully with auto notification');
 
       // Reset form
       setDeliveryMessage('');
       setAttachedFiles([]);
       
       // Refresh data
-      fetchOrders();
+      await fetchOrders();
       
-      alert('Hasil pekerjaan berhasil dikirim!');
+      alert('Hasil pekerjaan berhasil dikirim! Client akan mendapat notifikasi otomatis.');
     } catch (error) {
       console.error('Error delivering order:', error);
-      alert('Gagal mengirim hasil pekerjaan. Silakan coba lagi.');
+      alert('Gagal mengirim hasil pekerjaan. Silakan coba lagi. Error: ' + (error.message || error));
     } finally {
       setIsUploading(false);
     }
@@ -415,8 +425,8 @@ export default function FreelancerOrders() {
               </motion.div>
             )}
 
-            {/* Delivery Section */}
-            {selectedOrder.status === 'active' && (
+            {/* Delivery Section - Show for both active and in_revision status */}
+            {(selectedOrder.status === 'active' || selectedOrder.status === 'in_revision') && (
               <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -424,18 +434,31 @@ export default function FreelancerOrders() {
                 className="bg-white rounded-lg shadow p-6"
               >
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                  Kirim Hasil Pekerjaan
+                  {selectedOrder.status === 'in_revision' ? 'Kirim Revisi' : 'Kirim Hasil Pekerjaan'}
                 </h2>
+                
+                {selectedOrder.status === 'in_revision' && (
+                  <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                    <p className="text-sm text-orange-800">
+                      <span className="font-medium">📝 Revisi diperlukan:</span> Client meminta revisi untuk pesanan ini. 
+                      Silakan perbaiki pekerjaan sesuai feedback dan kirim ulang.
+                    </p>
+                  </div>
+                )}
+                
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Pesan Delivery
+                      {selectedOrder.status === 'in_revision' ? 'Pesan Revisi' : 'Pesan Delivery'}
                     </label>
                     <textarea
                       value={deliveryMessage}
                       onChange={(e) => setDeliveryMessage(e.target.value)}
                       rows={4}
-                      placeholder="Jelaskan hasil pekerjaan Anda..."
+                      placeholder={selectedOrder.status === 'in_revision' 
+                        ? "Jelaskan perbaikan yang telah Anda lakukan..." 
+                        : "Jelaskan hasil pekerjaan Anda..."
+                      }
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042]"
                     />
                   </div>
@@ -493,7 +516,12 @@ export default function FreelancerOrders() {
                     disabled={!deliveryMessage.trim() || isUploading}
                     className="w-full bg-[#010042] text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isUploading ? 'Mengirim...' : 'Kirim Hasil Pekerjaan'}
+                    {isUploading 
+                      ? 'Mengirim...' 
+                      : selectedOrder.status === 'in_revision' 
+                        ? 'Kirim Revisi' 
+                        : 'Kirim Hasil Pekerjaan'
+                    }
                   </button>
                 </div>
               </motion.div>
@@ -600,33 +628,97 @@ export default function FreelancerOrders() {
                 Aksi Cepat
               </h3>
               <div className="space-y-2">
+                {/* Actions for pending orders */}
                 {selectedOrder.status === 'pending' && (
                   <>
                     <button 
                       onClick={() => updateOrderStatus(selectedOrder.id, 'active')}
-                      className="w-full flex items-center gap-2 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700"
+                      disabled={buttonLoading[selectedOrder.id] || !currentUser}
+                      className={`w-full flex items-center justify-center gap-2 py-2 px-4 rounded-lg transition-colors ${
+                        buttonLoading[selectedOrder.id] 
+                          ? 'bg-gray-400 cursor-not-allowed' 
+                          : 'bg-blue-600 hover:bg-blue-700'
+                      } text-white`}
                     >
-                      <CheckCircleIcon className="h-5 w-5" />
-                      Terima Pesanan
+                      {buttonLoading[selectedOrder.id] ? (
+                        <>
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                          <span>Memproses...</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircleIcon className="h-5 w-5" />
+                          <span>Terima Pesanan</span>
+                        </>
+                      )}
                     </button>
                     <button 
-                      onClick={() => updateOrderStatus(selectedOrder.id, 'cancelled', 'Pesanan dibatalkan oleh seller')}
-                      className="w-full flex items-center gap-2 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700"
+                      onClick={() => updateOrderStatus(selectedOrder.id, 'cancelled', 'Pesanan dibatalkan oleh freelancer')}
+                      disabled={buttonLoading[selectedOrder.id] || !currentUser}
+                      className={`w-full flex items-center justify-center gap-2 py-2 px-4 rounded-lg transition-colors ${
+                        buttonLoading[selectedOrder.id] 
+                          ? 'bg-gray-400 cursor-not-allowed' 
+                          : 'bg-red-600 hover:bg-red-700'
+                      } text-white`}
                     >
-                      <XCircleIcon className="h-5 w-5" />
-                      Tolak Pesanan
+                      {buttonLoading[selectedOrder.id] ? (
+                        <>
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                          <span>Memproses...</span>
+                        </>
+                      ) : (
+                        <>
+                          <XCircleIcon className="h-5 w-5" />
+                          <span>Tolak Pesanan</span>
+                        </>
+                      )}
                     </button>
                   </>
                 )}
                 
+                {/* Actions for active orders */}
+                {selectedOrder.status === 'active' && (
+                  <div className="bg-blue-50 p-3 rounded-lg">
+                    <p className="text-sm text-blue-800">
+                      <span className="font-medium">🚀 Sedang Dikerjakan:</span> Gunakan form di atas untuk mengirim hasil pekerjaan setelah selesai.
+                    </p>
+                  </div>
+                )}
+                
+                {/* Actions for in_revision orders */}
+                {selectedOrder.status === 'in_revision' && (
+                  <div className="bg-orange-50 p-3 rounded-lg">
+                    <p className="text-sm text-orange-800">
+                      <span className="font-medium">🔄 Revisi Diperlukan:</span> Gunakan form di atas untuk mengirim hasil revisi.
+                    </p>
+                  </div>
+                )}
+                
+                {/* Actions for delivered orders */}
                 {selectedOrder.status === 'delivered' && (
-                  <button 
-                    onClick={() => updateOrderStatus(selectedOrder.id, 'in_revision')}
-                    className="w-full flex items-center gap-2 bg-orange-600 text-white py-2 px-4 rounded-lg hover:bg-orange-700"
-                  >
-                    <ExclamationTriangleIcon className="h-5 w-5" />
-                    Minta Revisi
-                  </button>
+                  <div className="bg-purple-50 p-3 rounded-lg">
+                    <p className="text-sm text-purple-800">
+                      <span className="font-medium">⏳ Menunggu Review:</span> Pekerjaan telah dikirim dan menunggu review dari client.
+                    </p>
+                  </div>
+                )}
+                
+                {/* Actions for completed orders */}
+                {selectedOrder.status === 'completed' && (
+                  <div className="bg-green-50 p-3 rounded-lg">
+                    <p className="text-sm text-green-800">
+                      <span className="font-medium">✅ Pesanan Selesai:</span> Pesanan telah selesai dan payment telah diproses.
+                    </p>
+                  </div>
+                )}
+                
+                {/* Actions for cancelled orders */}
+                {selectedOrder.status === 'cancelled' && (
+                  <div className="bg-red-50 p-3 rounded-lg">
+                    <p className="text-sm text-red-800">
+                      <span className="font-medium">❌ Pesanan Dibatalkan:</span> Pesanan ini telah dibatalkan.
+                    </p>
+                  </div>
                 )}
               </div>
             </motion.div>
@@ -829,18 +921,54 @@ export default function FreelancerOrders() {
                       {order.status === 'pending' && (
                         <>
                           <button 
-                            onClick={() => updateOrderStatus(order.id, 'active')}
-                            className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              updateOrderStatus(order.id, 'active');
+                            }}
+                            disabled={buttonLoading[order.id] || !currentUser}
+                            className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                              buttonLoading[order.id] 
+                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                                : 'bg-green-100 text-green-700 hover:bg-green-200'
+                            }`}
                           >
-                            <CheckCircleIcon className="h-4 w-4" />
-                            Terima
+                            {buttonLoading[order.id] ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-500"></div>
+                                <span>Loading...</span>
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircleIcon className="h-4 w-4" />
+                                <span>Terima</span>
+                              </>
+                            )}
                           </button>
                           <button 
-                            onClick={() => updateOrderStatus(order.id, 'cancelled')}
-                            className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              updateOrderStatus(order.id, 'cancelled', 'Pesanan dibatalkan oleh freelancer');
+                            }}
+                            disabled={buttonLoading[order.id] || !currentUser}
+                            className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                              buttonLoading[order.id] 
+                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                                : 'bg-red-100 text-red-700 hover:bg-red-200'
+                            }`}
                           >
-                            <XCircleIcon className="h-4 w-4" />
-                            Tolak
+                            {buttonLoading[order.id] ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-500"></div>
+                                <span>Loading...</span>
+                              </>
+                            ) : (
+                              <>
+                                <XCircleIcon className="h-4 w-4" />
+                                <span>Tolak</span>
+                              </>
+                            )}
                           </button>
                         </>
                       )}

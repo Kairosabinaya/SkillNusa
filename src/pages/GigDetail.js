@@ -7,6 +7,8 @@ import firebaseService from '../services/firebaseService';
 import favoriteService from '../services/favoriteService';
 import cartService from '../services/cartService';
 import chatService from '../services/chatService';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../firebase/config';
 
 export default function GigDetail() {
   const { gigId } = useParams();
@@ -25,42 +27,113 @@ export default function GigDetail() {
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [cartLoading, setCartLoading] = useState(false);
   const [isInCart, setIsInCart] = useState(false);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Load gig data
+  // Function to refresh reviews
+  const refreshReviews = async () => {
+    if (!gigId) return;
+    
+    setReviewsLoading(true);
+    try {
+      const updatedReviews = await gigService.getGigReviews(gigId);
+      console.log('🔄 Refreshed reviews:', updatedReviews);
+      setReviews(updatedReviews);
+    } catch (error) {
+      console.error('Error refreshing reviews:', error);
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+
+  // Make refresh function available globally
   useEffect(() => {
-    const loadGigData = async () => {
-      setLoading(true);
-      try {
-        const gigData = await gigService.getGigById(gigId);
-        
-        // Debug logging for freelancer data
-        console.log('🔍 GigDetail: Full gig data received:', gigData);
-        console.log('👤 GigDetail: Freelancer data:', gigData.freelancer);
-        console.log('🎓 GigDetail: Education data:', gigData.freelancer?.education);
-        console.log('📜 GigDetail: Certification data:', gigData.freelancer?.certifications);
-        
-        setGig(gigData);
-        setReviews(gigData.reviews || []);
-      } catch (error) {
-        console.error('Error loading gig:', error);
-        // Handle error state - maybe redirect to 404
-      } finally {
-        setLoading(false);
-      }
-    };
-
     if (gigId) {
-      loadGigData();
+      window.refreshGigReviews = refreshReviews;
+      
+      // Cleanup function
+      return () => {
+        delete window.refreshGigReviews;
+      };
     }
   }, [gigId]);
+
+  // Debug function to check reviews in database (SIMPLIFIED)
+  const debugReviews = async (gigId) => {
+    try {
+      console.log('🔍 Debug: Checking reviews for gig:', gigId);
+      
+      // Direct query to reviews collection for this gig
+      const reviewsRef = collection(db, 'reviews');
+      const gigReviewsQuery = query(reviewsRef, where('gigId', '==', gigId));
+      const gigReviewsSnapshot = await getDocs(gigReviewsQuery);
+      
+      console.log(`📊 Debug: Found ${gigReviewsSnapshot.size} reviews for gig ${gigId}`);
+      
+      if (gigReviewsSnapshot.size > 0) {
+        console.log('⭐ Debug: Review details:');
+        gigReviewsSnapshot.forEach((doc) => {
+          const data = doc.data();
+          console.log(`  - Rating: ${data.rating}, Status: ${data.status}, Comment: ${data.comment?.substring(0, 30)}...`);
+        });
+      }
+      
+    } catch (error) {
+      console.error('❌ Debug: Error checking reviews:', error);
+    }
+  };
+
+  // Load gig data
+  const loadGigData = async () => {
+    if (!gigId) return;
+    
+    setLoading(true);
+    try {
+      console.log('🔍 GigDetail: Loading gig data for ID:', gigId);
+      
+      // Debug reviews first
+      await debugReviews(gigId);
+      
+      const gigData = await gigService.getGigById(gigId);
+      console.log('🔍 GigDetail: Full gig data received:', gigData);
+      console.log('👤 GigDetail: Freelancer data:', gigData.freelancer);
+      console.log('🎓 GigDetail: Education data:', gigData.freelancer?.education);
+      console.log('📜 GigDetail: Certification data:', gigData.freelancer?.certifications);
+      console.log('⭐ GigDetail: Reviews data:', gigData.reviews);
+      console.log('📊 GigDetail: Reviews count:', gigData.reviews?.length || 0);
+      
+      setGig(gigData);
+      setReviews(gigData.reviews || []);
+      
+      // Register refresh function globally
+      window.refreshGigReviews = async () => {
+        console.log('🔄 GigDetail: Refreshing reviews...');
+        try {
+          const freshGigData = await gigService.getGigById(gigId);
+          console.log('🔄 GigDetail: Fresh reviews:', freshGigData.reviews);
+          setReviews(freshGigData.reviews || []);
+          setGig(prev => ({ ...prev, reviews: freshGigData.reviews || [] }));
+        } catch (error) {
+          console.error('Error refreshing reviews:', error);
+        }
+      };
+      
+    } catch (error) {
+      console.error('Error loading gig:', error);
+      setError('Failed to load gig details');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Check if gig is favorited when component mounts
   useEffect(() => {
     const checkFavoriteStatus = async () => {
       if (currentUser && gig) {
         try {
-          const favorited = await favoriteService.isFavorited(currentUser.uid, gig.id);
-          setIsFavorited(favorited);
+          const favoriteRecord = await favoriteService.checkIfFavorite(currentUser.uid, gig.id);
+          const isFav = !!favoriteRecord; // Convert to boolean
+          setIsFavorited(isFav);
         } catch (error) {
           console.error('Error checking favorite status:', error);
         }
@@ -102,11 +175,12 @@ export default function GigDetail() {
 
     setCartLoading(true);
     try {
-      await cartService.addToCart(currentUser.uid, {
-        gigId: gig.id,
-        packageType: selectedPackage,
-        quantity: 1
-      });
+      await cartService.addToCart(
+        currentUser.uid, 
+        gig.id, 
+        selectedPackage, 
+        '' // customRequirements
+      );
 
       setIsInCart(true);
       
@@ -137,11 +211,12 @@ export default function GigDetail() {
     const currentPackage = gig.packages[selectedPackage];
     navigate('/checkout', {
       state: {
+        isDirectCheckout: true,
         orderData: {
           gigId: gig.id,
           title: gig.title,
           description: currentPackage.description,
-          freelancerId: gig.freelancerId,
+          freelancerId: gig.userId || gig.freelancerId,
           freelancer: gig.freelancer,
           packageType: selectedPackage,
           price: currentPackage.price,
@@ -176,20 +251,9 @@ export default function GigDetail() {
     }).format(amount);
   };
 
-  // Get tier badge color
-  const getTierBadgeColor = (tier) => {
-    const colors = {
-      bronze: 'bg-orange-100 text-orange-800',
-      silver: 'bg-gray-100 text-gray-800',
-      gold: 'bg-yellow-100 text-yellow-800',
-      platinum: 'bg-purple-100 text-purple-800'
-    };
-    return colors[tier] || colors.bronze;
-  };
-
   // Handle freelancer profile click
   const handleFreelancerProfileClick = () => {
-    navigate(`/freelancer/${gig.freelancerId}`);
+    navigate(`/freelancer/${gig.userId || gig.freelancerId}`);
   };
 
   // Handle contact freelancer
@@ -203,7 +267,7 @@ export default function GigDetail() {
       // Create or get chat with gig context
       const chat = await chatService.createOrGetChat(
         currentUser.uid, 
-        gig.freelancerId, 
+        gig.userId || gig.freelancerId, 
         gig.id
       );
 
@@ -241,6 +305,13 @@ export default function GigDetail() {
       setFavoriteLoading(false);
     }
   };
+
+  // Load gig data when component mounts
+  useEffect(() => {
+    if (gigId) {
+      loadGigData();
+    }
+  }, [gigId]);
 
   // Loading state
   if (loading) {
@@ -313,21 +384,8 @@ export default function GigDetail() {
                   >
                     {gig.freelancer.displayName}
                   </span>
-                  {gig.freelancer.isVerified && (
-                    <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                  )}
                 </div>
                 <div className="flex items-center space-x-3 text-sm text-gray-600">
-                  <div className={`flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${getTierBadgeColor(gig.freelancer.tier)}`}>
-                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M11.1459 7.02251C11.5259 6.34084 11.7159 6 12 6C12.2841 6 12.4741 6.34084 12.8541 7.02251L12.9524 7.19887C13.0603 7.39258 13.1143 7.48944 13.1985 7.55334C13.2827 7.61725 13.3875 7.64097 13.5972 7.68841L13.7881 7.73161C14.526 7.89857 14.895 7.98205 14.9828 8.26432C15.0706 8.54659 14.819 8.84072 14.316 9.42898L14.1858 9.58117C14.0429 9.74833 13.9714 9.83191 13.9392 9.93531C13.9071 10.0387 13.9179 10.1502 13.9395 10.3733L13.9592 10.5763C14.0352 11.3612 14.0733 11.7536 13.8435 11.9281C13.6136 12.1025 13.2682 11.9435 12.5773 11.6254L12.3986 11.5431C12.2022 11.4527 12.1041 11.4075 12 11.4075C11.8959 11.4075 11.7978 11.4527 11.6014 11.5431L11.4227 11.6254C10.7318 11.9435 10.3864 12.1025 10.1565 11.9281C9.92674 11.7536 9.96476 11.3612 10.0408 10.5763L10.0605 10.3733C10.0821 10.1502 10.0929 10.0387 10.0608 9.93531C10.0286 9.83191 9.95713 9.74833 9.81418 9.58117L9.68403 9.42898C9.18097 8.84072 8.92945 8.54659 9.01723 8.26432C9.10501 7.98205 9.47396 7.89857 10.2119 7.73161L10.4028 7.68841C10.6125 7.64097 10.7173 7.61725 10.8015 7.55334C10.8857 7.48944 10.9397 7.39258 11.0476 7.19887L11.1459 7.02251Z" stroke="currentColor" strokeWidth="1.5"></path>
-                      <path d="M7.35111 15L6.71424 17.323C6.0859 19.6148 5.77173 20.7607 6.19097 21.3881C6.3379 21.6079 6.535 21.7844 6.76372 21.9008C7.41635 22.2331 8.42401 21.7081 10.4393 20.658C11.1099 20.3086 11.4452 20.1339 11.8014 20.0959C11.9335 20.0818 12.0665 20.0818 12.1986 20.0959C12.5548 20.1339 12.8901 20.3086 13.5607 20.658C15.576 21.7081 16.5837 22.2331 17.2363 21.9008C17.465 21.7844 17.6621 21.6079 17.809 21.3881C18.2283 20.7607 17.9141 19.6148 17.2858 17.323L16.6489 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"></path>
-                      <path d="M5.5 6.39691C5.17745 7.20159 5 8.08007 5 9C5 12.866 8.13401 16 12 16C15.866 16 19 12.866 19 9C19 5.13401 15.866 2 12 2C11.0801 2 10.2016 2.17745 9.39691 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"></path>
-                    </svg>
-                    {gig.freelancer.tier.toUpperCase()}
-                  </div>
                   <div className="flex items-center">
                     <svg className="w-4 h-4 text-yellow-400 mr-1" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
@@ -421,11 +479,6 @@ export default function GigDetail() {
                       >
                         {gig.freelancer.displayName}
                       </h3>
-                      {gig.freelancer.isVerified && (
-                        <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                      )}
                     </div>
                     <div className="flex items-center gap-2 mb-2">
                       <div className="flex items-center">
@@ -444,20 +497,7 @@ export default function GigDetail() {
                         {gig.freelancer.completedProjects || 0} orders completed
                       </span>
                     </div>
-                    <div className="flex">
-                      <div className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${getTierBadgeColor(gig.freelancer.tier)}`}>
-                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M11.1459 7.02251C11.5259 6.34084 11.7159 6 12 6C12.2841 6 12.4741 6.34084 12.8541 7.02251L12.9524 7.19887C13.0603 7.39258 13.1143 7.48944 13.1985 7.55334C13.2827 7.61725 13.3875 7.64097 13.5972 7.68841L13.7881 7.73161C14.526 7.89857 14.895 7.98205 14.9828 8.26432C15.0706 8.54659 14.819 8.84072 14.316 9.42898L14.1858 9.58117C14.0429 9.74833 13.9714 9.83191 13.9392 9.93531C13.9071 10.0387 13.9179 10.1502 13.9395 10.3733L13.9592 10.5763C14.0352 11.3612 14.0733 11.7536 13.8435 11.9281C13.6136 12.1025 13.2682 11.9435 12.5773 11.6254L12.3986 11.5431C12.2022 11.4527 12.1041 11.4075 12 11.4075C11.8959 11.4075 11.7978 11.4527 11.6014 11.5431L11.4227 11.6254C10.7318 11.9435 10.3864 12.1025 10.1565 11.9281C9.92674 11.7536 9.96476 11.3612 10.0408 10.5763L10.0605 10.3733C10.0821 10.1502 10.0929 10.0387 10.0608 9.93531C10.0286 9.83191 9.95713 9.74833 9.81418 9.58117L9.68403 9.42898C9.18097 8.84072 8.92945 8.54659 9.01723 8.26432C9.10501 7.98205 9.47396 7.89857 10.2119 7.73161L10.4028 7.68841C10.6125 7.64097 10.7173 7.61725 10.8015 7.55334C10.8857 7.48944 10.9397 7.39258 11.0476 7.19887L11.1459 7.02251Z" stroke="currentColor" strokeWidth="1.5"></path>
-                          <path d="M7.35111 15L6.71424 17.323C6.0859 19.6148 5.77173 20.7607 6.19097 21.3881C6.3379 21.6079 6.535 21.7844 6.76372 21.9008C7.41635 22.2331 8.42401 21.7081 10.4393 20.658C11.1099 20.3086 11.4452 20.1339 11.8014 20.0959C11.9335 20.0818 12.0665 20.0818 12.1986 20.0959C12.5548 20.1339 12.8901 20.3086 13.5607 20.658C15.576 21.7081 16.5837 22.2331 17.2363 21.9008C17.465 21.7844 17.6621 21.6079 17.809 21.3881C18.2283 20.7607 17.9141 19.6148 17.2858 17.323L16.6489 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"></path>
-                          <path d="M5.5 6.39691C5.17745 7.20159 5 8.08007 5 9C5 12.866 8.13401 16 12 16C15.866 16 19 12.866 19 9C19 5.13401 15.866 2 12 2C11.0801 2 10.2016 2.17745 9.39691 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"></path>
-                        </svg>
-                        {gig.freelancer.tier.toUpperCase()}
-                      </div>
-                    </div>
-                    
                   </div>
-                    
-
                 </div>
                 <p className="text-gray-700 text-base w-full">
                   {gig.freelancer.bio}
@@ -635,13 +675,13 @@ export default function GigDetail() {
                     <div key={review.id} className="border-b border-gray-200 pb-6 last:border-b-0">
                       <div className="flex items-start space-x-3">
                         <img 
-                          src={review.client.avatar || 'https://via.placeholder.com/40'} 
-                          alt={review.client.name}
+                          src={review.client.profilePhoto || `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=40&h=40&fit=crop&crop=face&auto=format`} 
+                          alt={review.client.displayName}
                           className="w-10 h-10 rounded-full object-cover"
                         />
                         <div className="flex-1">
                           <div className="flex items-center space-x-2 mb-1">
-                            <h4 className="font-medium text-gray-900">{review.client.name}</h4>
+                            <h4 className="font-medium text-gray-900">{review.client.displayName}</h4>
                             <div className="flex items-center">
                               {[1, 2, 3, 4, 5].map((star) => (
                                 <svg

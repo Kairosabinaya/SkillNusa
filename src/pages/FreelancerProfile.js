@@ -24,7 +24,6 @@ import {
   AcademicCapIcon,
   BriefcaseIcon,
   TrophyIcon,
-  PhotoIcon,
   ArrowLeftIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
@@ -40,7 +39,6 @@ export default function FreelancerProfile() {
   const [freelancerReviews, setFreelancerReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('about');
-  const [portfolioLightbox, setPortfolioLightbox] = useState({ isOpen: false, imageIndex: 0 });
 
   useEffect(() => {
     loadFreelancerData();
@@ -61,66 +59,224 @@ export default function FreelancerProfile() {
       setFreelancerData(userData);
 
       // Load freelancer profile
-      const profileQuery = query(
-        collection(db, 'freelancerProfiles'),
-        where('userId', '==', freelancerId),
-        limit(1)
-      );
-      
-      const profileSnapshot = await getDocs(profileQuery);
-      let profileData = null;
-      
-      if (!profileSnapshot.empty) {
-        const profileDoc = profileSnapshot.docs[0];
-        profileData = { id: profileDoc.id, ...profileDoc.data() };
-      }
-      
-      setFreelancerProfile(profileData);
-
-      // Load freelancer gigs
-      const gigsQuery = query(
-        collection(db, 'gigs'),
-        where('freelancerId', '==', freelancerId),
-        where('isActive', '==', true),
-        orderBy('createdAt', 'desc')
-      );
-      
-      const gigsSnapshot = await getDocs(gigsQuery);
-      const gigsData = [];
-      
-      gigsSnapshot.forEach((doc) => {
-        gigsData.push({ id: doc.id, ...doc.data() });
-      });
-      
-      setFreelancerGigs(gigsData);
-
-      // Load freelancer reviews
-      const reviewsQuery = query(
-        collection(db, 'reviews'),
-        where('freelancerId', '==', freelancerId),
-        orderBy('createdAt', 'desc'),
-        limit(10)
-      );
-      
-      const reviewsSnapshot = await getDocs(reviewsQuery);
-      const reviewsData = [];
-      
-      for (const reviewDoc of reviewsSnapshot.docs) {
-        const reviewData = reviewDoc.data();
+      try {
+        const profileQuery = query(
+          collection(db, 'freelancerProfiles'),
+          where('userId', '==', freelancerId),
+          limit(1)
+        );
         
-        // Get client data for each review
-        const clientDoc = await getDoc(doc(db, 'users', reviewData.clientId));
-        if (clientDoc.exists()) {
-          reviewData.client = { id: clientDoc.id, ...clientDoc.data() };
+        const profileSnapshot = await getDocs(profileQuery);
+        let profileData = null;
+        
+        if (!profileSnapshot.empty) {
+          const profileDoc = profileSnapshot.docs[0];
+          profileData = { id: profileDoc.id, ...profileDoc.data() };
+          
+          // Debug logging for education and certification data
+          console.log('🎓 DEBUG: Education data:', profileData.education);
+          console.log('📜 DEBUG: Certification data:', profileData.certifications);
+          console.log('🔍 DEBUG: Full profile data:', profileData);
         }
         
-        reviewsData.push({ id: reviewDoc.id, ...reviewData });
+        setFreelancerProfile(profileData);
+      } catch (profileError) {
+        console.error('Error loading freelancer profile:', profileError);
+        setFreelancerProfile(null);
       }
-      
-      setFreelancerReviews(reviewsData);
+
+      // Load freelancer gigs with error handling for missing index
+      try {
+        const gigsQuery = query(
+          collection(db, 'gigs'),
+          where('userId', '==', freelancerId),
+          where('isActive', '==', true),
+          orderBy('createdAt', 'desc')
+        );
+        
+        const gigsSnapshot = await getDocs(gigsQuery);
+        const gigsData = [];
+        
+        // Process each gig and calculate its rating
+        for (const gigDoc of gigsSnapshot.docs) {
+          const gigData = { id: gigDoc.id, ...gigDoc.data() };
+          
+          // Calculate rating for this specific gig
+          try {
+            const gigReviewsQuery = query(
+              collection(db, 'reviews'),
+              where('gigId', '==', gigDoc.id),
+              where('status', '==', 'published')
+            );
+            
+            const gigReviewsSnapshot = await getDocs(gigReviewsQuery);
+            let totalRating = 0;
+            let reviewCount = 0;
+            
+            gigReviewsSnapshot.forEach(reviewDoc => {
+              const review = reviewDoc.data();
+              totalRating += review.rating || 0;
+              reviewCount++;
+            });
+            
+            gigData.rating = reviewCount > 0 ? Math.round((totalRating / reviewCount) * 10) / 10 : 0;
+            gigData.totalReviews = reviewCount;
+            
+            console.log(`📊 Gig "${gigData.title}" rating: ${gigData.rating} (${reviewCount} reviews)`);
+          } catch (reviewError) {
+            console.warn('Error calculating gig rating:', reviewError);
+            gigData.rating = 0;
+            gigData.totalReviews = 0;
+          }
+          
+          gigsData.push(gigData);
+        }
+        
+        setFreelancerGigs(gigsData);
+        console.log('✅ Loaded gigs with ratings:', gigsData.map(g => `${g.title}: ${g.rating}`));
+      } catch (gigsError) {
+        console.info('📋 Using fallback query for gigs (no composite index):', gigsError.message);
+        // Fallback: Load gigs without ordering if index is missing
+        try {
+          const fallbackGigsQuery = query(
+            collection(db, 'gigs'),
+            where('userId', '==', freelancerId),
+            where('isActive', '==', true)
+          );
+          
+          const fallbackGigsSnapshot = await getDocs(fallbackGigsQuery);
+          const fallbackGigsData = [];
+          
+          // Process each gig and calculate its rating (fallback)
+          for (const gigDoc of fallbackGigsSnapshot.docs) {
+            const gigData = { id: gigDoc.id, ...gigDoc.data() };
+            
+            // Calculate rating for this specific gig
+            try {
+              const gigReviewsQuery = query(
+                collection(db, 'reviews'),
+                where('gigId', '==', gigDoc.id)
+              );
+              
+              const gigReviewsSnapshot = await getDocs(gigReviewsQuery);
+              let totalRating = 0;
+              let reviewCount = 0;
+              
+              gigReviewsSnapshot.forEach(reviewDoc => {
+                const review = reviewDoc.data();
+                if (review.status === 'published') {
+                  totalRating += review.rating || 0;
+                  reviewCount++;
+                }
+              });
+              
+              gigData.rating = reviewCount > 0 ? Math.round((totalRating / reviewCount) * 10) / 10 : 0;
+              gigData.totalReviews = reviewCount;
+            } catch (reviewError) {
+              console.warn('Error calculating gig rating (fallback):', reviewError);
+              gigData.rating = 0;
+              gigData.totalReviews = 0;
+            }
+            
+            fallbackGigsData.push(gigData);
+          }
+          
+          // Sort manually by createdAt if available
+          fallbackGigsData.sort((a, b) => {
+            const aTime = a.createdAt?.seconds || 0;
+            const bTime = b.createdAt?.seconds || 0;
+            return bTime - aTime;
+          });
+          
+          setFreelancerGigs(fallbackGigsData);
+          console.log('✅ Loaded gigs with ratings (fallback):', fallbackGigsData.map(g => `${g.title}: ${g.rating}`));
+        } catch (fallbackError) {
+          console.error('Error loading gigs with fallback query:', fallbackError);
+          setFreelancerGigs([]);
+        }
+      }
+
+      // Load freelancer reviews
+      try {
+        const reviewsQuery = query(
+          collection(db, 'reviews'),
+          where('freelancerId', '==', freelancerId),
+          orderBy('createdAt', 'desc'),
+          limit(10)
+        );
+        
+        const reviewsSnapshot = await getDocs(reviewsQuery);
+        const reviewsData = [];
+        
+        for (const reviewDoc of reviewsSnapshot.docs) {
+          const reviewData = reviewDoc.data();
+          
+          // Get client data for each review
+          try {
+            const clientDoc = await getDoc(doc(db, 'users', reviewData.clientId));
+            if (clientDoc.exists()) {
+              reviewData.client = { id: clientDoc.id, ...clientDoc.data() };
+            }
+          } catch (clientError) {
+            console.warn('Error loading client data for review:', clientError);
+            reviewData.client = { displayName: 'Unknown Client' };
+          }
+          
+          reviewsData.push({ id: reviewDoc.id, ...reviewData });
+        }
+        
+        setFreelancerReviews(reviewsData);
+      } catch (reviewsError) {
+        console.info('📋 Using fallback query for reviews (no composite index):', reviewsError.message);
+        // Fallback: Load reviews without ordering if index is missing
+        try {
+          const fallbackReviewsQuery = query(
+            collection(db, 'reviews'),
+            where('freelancerId', '==', freelancerId),
+            limit(10)
+          );
+          
+          const fallbackReviewsSnapshot = await getDocs(fallbackReviewsQuery);
+          const fallbackReviewsData = [];
+          
+          for (const reviewDoc of fallbackReviewsSnapshot.docs) {
+            const reviewData = reviewDoc.data();
+            
+            // Get client data for each review
+            try {
+              const clientDoc = await getDoc(doc(db, 'users', reviewData.clientId));
+              if (clientDoc.exists()) {
+                reviewData.client = { id: clientDoc.id, ...clientDoc.data() };
+              }
+            } catch (clientError) {
+              console.warn('Error loading client data for review:', clientError);
+              reviewData.client = { displayName: 'Unknown Client' };
+            }
+            
+            fallbackReviewsData.push({ id: reviewDoc.id, ...reviewData });
+          }
+          
+          // Sort manually by createdAt if available
+          fallbackReviewsData.sort((a, b) => {
+            const aTime = a.createdAt?.seconds || 0;
+            const bTime = b.createdAt?.seconds || 0;
+            return bTime - aTime;
+          });
+          
+          setFreelancerReviews(fallbackReviewsData);
+        } catch (fallbackError) {
+          console.error('Error loading reviews with fallback query:', fallbackError);
+          setFreelancerReviews([]);
+        }
+      }
       
     } catch (error) {
       console.error('Error loading freelancer data:', error);
+      // Set default empty states on error to prevent crashes
+      setFreelancerData(null);
+      setFreelancerProfile(null);
+      setFreelancerGigs([]);
+      setFreelancerReviews([]);
     } finally {
       setLoading(false);
     }
@@ -162,14 +318,6 @@ export default function FreelancerProfile() {
     return 'Tidak tersedia';
   };
 
-  const openPortfolioLightbox = (index) => {
-    setPortfolioLightbox({ isOpen: true, imageIndex: index });
-  };
-
-  const closePortfolioLightbox = () => {
-    setPortfolioLightbox({ isOpen: false, imageIndex: 0 });
-  };
-
   const renderStars = (rating) => {
     const stars = [];
     for (let i = 1; i <= 5; i++) {
@@ -184,6 +332,65 @@ export default function FreelancerProfile() {
       );
     }
     return stars;
+  };
+
+  /**
+   * Safely render a skill item, handling both string and object formats
+   * @param {string|object} skillItem - The skill item to render
+   * @param {number} index - The index for the React key
+   * @returns {JSX.Element|null} The rendered skill component or null if invalid
+   */
+  const renderSkillItem = (skillItem, index) => {
+    let skillName = '';
+    let experienceLevel = '';
+    
+    if (typeof skillItem === 'string') {
+      skillName = skillItem;
+    } else if (typeof skillItem === 'object' && skillItem !== null) {
+      skillName = skillItem.skill || skillItem.name || '';
+      experienceLevel = skillItem.experienceLevel || '';
+    }
+    
+    // Ensure we have a valid skill name
+    if (!skillName) {
+      console.warn('Invalid skill item at index', index, ':', skillItem);
+      return null;
+    }
+    
+    return (
+      <span
+        key={index}
+        className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+      >
+        {skillName}
+        {experienceLevel && (
+          <span className="ml-1 text-blue-600 font-medium">
+            ({experienceLevel})
+          </span>
+        )}
+      </span>
+    );
+  };
+
+  /**
+   * Capitalize location name properly
+   * @param {string} location - Location string
+   * @returns {string} Properly capitalized location
+   */
+  const capitalizeLocation = (location) => {
+    if (!location) return '';
+    return location.split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  };
+
+  /**
+   * Check if array has valid data
+   * @param {Array} arr - Array to check
+   * @returns {boolean} True if array has valid data
+   */
+  const hasValidData = (arr) => {
+    return Array.isArray(arr) && arr.length > 0;
   };
 
   if (loading) {
@@ -239,7 +446,7 @@ export default function FreelancerProfile() {
             <div className="flex flex-col items-center lg:items-start">
               <div className="relative">
                 <img
-                  src={freelancerData.profilePhoto || `https://picsum.photos/seed/${freelancerId}/150/150`}
+                  src={freelancerData.profilePhoto || `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop&crop=face&auto=format`}
                   alt={freelancerData.displayName}
                   className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg"
                 />
@@ -248,16 +455,6 @@ export default function FreelancerProfile() {
                     <CheckBadgeIcon className="w-6 h-6 text-white" />
                   </div>
                 )}
-              </div>
-              
-              {/* Online Status */}
-              <div className="flex items-center mt-4 text-sm">
-                <div className={`w-3 h-3 rounded-full mr-2 ${
-                  freelancerData.isOnline ? 'bg-green-500' : 'bg-gray-400'
-                }`}></div>
-                <span className="text-gray-600">
-                  {freelancerData.isOnline ? 'Online' : 'Offline'}
-                </span>
               </div>
             </div>
 
@@ -283,39 +480,46 @@ export default function FreelancerProfile() {
                         ({freelancerProfile?.totalReviews || 0} ulasan)
                       </span>
                     </div>
-                    
-                    {freelancerProfile?.tier && (
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                        freelancerProfile.tier === 'platinum' ? 'bg-purple-100 text-purple-800' :
-                        freelancerProfile.tier === 'gold' ? 'bg-yellow-100 text-yellow-800' :
-                        freelancerProfile.tier === 'silver' ? 'bg-gray-100 text-gray-800' :
-                        'bg-orange-100 text-orange-800'
-                      }`}>
-                        {freelancerProfile.tier.charAt(0).toUpperCase() + freelancerProfile.tier.slice(1)}
-                      </span>
-                    )}
                   </div>
 
-                  {/* Location and Languages */}
+                  {/* Location, Languages, and Website */}
                   <div className="flex flex-wrap items-center gap-6 text-gray-600">
-                    {freelancerData.location && (
+                    {freelancerProfile?.location && (
                       <div className="flex items-center">
                         <MapPinIcon className="w-5 h-5 mr-2" />
-                        {freelancerData.location}
+                        {capitalizeLocation(freelancerProfile.location)}
                       </div>
                     )}
                     
-                    {freelancerProfile?.languages && freelancerProfile.languages.length > 0 && (
+                    {hasValidData(freelancerProfile?.languages) && (
                       <div className="flex items-center">
                         <GlobeAltIcon className="w-5 h-5 mr-2" />
-                        {freelancerProfile.languages.map(lang => lang.language).join(', ')}
+                        {freelancerProfile.languages.map(lang => 
+                          typeof lang === 'string' ? lang : lang.language || lang
+                        ).join(', ')}
                       </div>
                     )}
                     
-                    <div className="flex items-center">
-                      <ClockIcon className="w-5 h-5 mr-2" />
-                      Response time: {getResponseTime(freelancerProfile)}
-                    </div>
+                    {freelancerProfile?.website && (
+                      <div className="flex items-center">
+                        <GlobeAltIcon className="w-5 h-5 mr-2" />
+                        <a 
+                          href={freelancerProfile.website} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          Website
+                        </a>
+                      </div>
+                    )}
+                    
+                    {freelancerProfile?.averageResponseTime && (
+                      <div className="flex items-center">
+                        <ClockIcon className="w-5 h-5 mr-2" />
+                        Response time: {getResponseTime(freelancerProfile)}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -376,8 +580,7 @@ export default function FreelancerProfile() {
               {[
                 { key: 'about', label: 'About', count: null },
                 { key: 'gigs', label: 'Gigs', count: freelancerGigs.length },
-                { key: 'reviews', label: 'Reviews', count: freelancerReviews.length },
-                { key: 'portfolio', label: 'Portfolio', count: freelancerProfile?.portfolio?.length || 0 }
+                { key: 'reviews', label: 'Reviews', count: freelancerReviews.length }
               ].map((tab) => (
                 <button
                   key={tab.key}
@@ -409,64 +612,76 @@ export default function FreelancerProfile() {
                 className="space-y-8"
               >
                 {/* Bio */}
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">About</h3>
-                  <p className="text-gray-600 leading-relaxed">
-                    {freelancerProfile?.bio || freelancerData.bio || 'No bio available.'}
-                  </p>
-                </div>
+                {(freelancerProfile?.bio || freelancerData?.bio) && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">About</h3>
+                    <p className="text-gray-600 leading-relaxed">
+                      {freelancerProfile?.bio || freelancerData?.bio}
+                    </p>
+                  </div>
+                )}
 
                 {/* Skills */}
-                {freelancerProfile?.skills && freelancerProfile.skills.length > 0 && (
+                {hasValidData(freelancerProfile?.skills) && (
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Skills</h3>
                     <div className="flex flex-wrap gap-2">
-                      {freelancerProfile.skills.map((skill, index) => (
-                        <span
-                          key={index}
-                          className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
-                        >
-                          {skill}
-                        </span>
-                      ))}
+                      {freelancerProfile.skills.map(renderSkillItem)}
                     </div>
                   </div>
                 )}
 
                 {/* Education */}
-                {freelancerProfile?.education && freelancerProfile.education.length > 0 && (
+                {hasValidData(freelancerProfile?.education) && (
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Education</h3>
                     <div className="space-y-4">
-                      {freelancerProfile.education.map((edu, index) => (
-                        <div key={index} className="flex items-start">
-                          <AcademicCapIcon className="w-6 h-6 text-gray-400 mr-3 mt-1" />
-                          <div>
-                            <h4 className="font-medium text-gray-900">{edu.degree}</h4>
-                            <p className="text-gray-600">{edu.institution}</p>
-                            <p className="text-gray-500 text-sm">{edu.year}</p>
+                      {freelancerProfile.education.map((edu, index) => {
+                        // Handle different possible field names for education
+                        const degree = edu.degree || edu.title || 'Unknown Degree';
+                        const institution = edu.university || edu.institution || edu.school || 'Unknown Institution';
+                        const year = edu.graduationYear || edu.year || edu.endYear || '';
+                        const fieldOfStudy = edu.fieldOfStudy || edu.major || '';
+                        
+                        return (
+                          <div key={index} className="bg-gray-50 rounded-lg p-4">
+                            <div className="flex items-start">
+                              <AcademicCapIcon className="w-6 h-6 text-blue-600 mr-3 mt-1 flex-shrink-0" />
+                              <div className="flex-1">
+                                <h4 className="font-medium text-gray-900">
+                                  {degree}
+                                  {fieldOfStudy && ` in ${fieldOfStudy}`}
+                                </h4>
+                                <p className="text-gray-600 mt-1">{institution}</p>
+                                {year && (
+                                  <p className="text-blue-600 text-sm mt-1">{year}</p>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
 
                 {/* Work Experience */}
-                {freelancerProfile?.workExperience && freelancerProfile.workExperience.length > 0 && (
+                {hasValidData(freelancerProfile?.workExperience) && (
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Work Experience</h3>
                     <div className="space-y-4">
                       {freelancerProfile.workExperience.map((work, index) => (
-                        <div key={index} className="flex items-start">
-                          <BriefcaseIcon className="w-6 h-6 text-gray-400 mr-3 mt-1" />
-                          <div>
-                            <h4 className="font-medium text-gray-900">{work.position}</h4>
-                            <p className="text-gray-600">{work.company}</p>
-                            <p className="text-gray-500 text-sm">{work.duration}</p>
-                            {work.description && (
-                              <p className="text-gray-600 text-sm mt-2">{work.description}</p>
-                            )}
+                        <div key={index} className="bg-gray-50 rounded-lg p-4">
+                          <div className="flex items-start">
+                            <BriefcaseIcon className="w-6 h-6 text-blue-600 mr-3 mt-1 flex-shrink-0" />
+                            <div className="flex-1">
+                              {work.position && <h4 className="font-medium text-gray-900">{work.position}</h4>}
+                              {work.company && <p className="text-gray-600 mt-1">{work.company}</p>}
+                              {work.duration && <p className="text-blue-600 text-sm mt-1">{work.duration}</p>}
+                              {work.description && (
+                                <p className="text-gray-600 text-sm mt-2">{work.description}</p>
+                              )}
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -475,20 +690,31 @@ export default function FreelancerProfile() {
                 )}
 
                 {/* Certifications */}
-                {freelancerProfile?.certifications && freelancerProfile.certifications.length > 0 && (
+                {hasValidData(freelancerProfile?.certifications) && (
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Certifications</h3>
                     <div className="space-y-4">
-                      {freelancerProfile.certifications.map((cert, index) => (
-                        <div key={index} className="flex items-start">
-                          <TrophyIcon className="w-6 h-6 text-gray-400 mr-3 mt-1" />
-                          <div>
-                            <h4 className="font-medium text-gray-900">{cert.name}</h4>
-                            <p className="text-gray-600">{cert.issuer}</p>
-                            <p className="text-gray-500 text-sm">{cert.year}</p>
+                      {freelancerProfile.certifications.map((cert, index) => {
+                        // Handle different possible field names for certifications
+                        const name = cert.name || cert.title || 'Unknown Certification';
+                        const issuer = cert.issuedBy || cert.issuer || cert.organization || 'Unknown Issuer';
+                        const year = cert.year || cert.issueYear || cert.date || '';
+                        
+                        return (
+                          <div key={index} className="bg-gray-50 rounded-lg p-4">
+                            <div className="flex items-start">
+                              <TrophyIcon className="w-6 h-6 text-blue-600 mr-3 mt-1 flex-shrink-0" />
+                              <div className="flex-1">
+                                <h4 className="font-medium text-gray-900">{name}</h4>
+                                <p className="text-gray-600 mt-1">{issuer}</p>
+                                {year && (
+                                  <p className="text-blue-600 text-sm mt-1">{year}</p>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -555,7 +781,7 @@ export default function FreelancerProfile() {
                     <div key={review.id} className="border-b border-gray-200 pb-6 last:border-b-0">
                       <div className="flex items-start gap-4">
                         <img
-                          src={review.client?.profilePhoto || `https://picsum.photos/seed/${review.clientId}/40/40`}
+                          src={review.client?.profilePhoto || `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=40&h=40&fit=crop&crop=face&auto=format`}
                           alt={review.client?.displayName || 'Client'}
                           className="w-10 h-10 rounded-full object-cover"
                         />
@@ -591,91 +817,8 @@ export default function FreelancerProfile() {
                 )}
               </motion.div>
             )}
-
-            {/* Portfolio Tab */}
-            {activeTab === 'portfolio' && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
-                {freelancerProfile?.portfolio && freelancerProfile.portfolio.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {freelancerProfile.portfolio.map((item, index) => (
-                      <motion.div
-                        key={index}
-                        whileHover={{ y: -5 }}
-                        className="bg-gray-50 rounded-lg overflow-hidden hover:shadow-md transition-all duration-200 cursor-pointer"
-                        onClick={() => openPortfolioLightbox(index)}
-                      >
-                        <div className="relative group">
-                          <img
-                            src={item.imageUrl || 'https://picsum.photos/400/300'}
-                            alt={item.title}
-                            className="w-full h-48 object-cover"
-                          />
-                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
-                            <PhotoIcon className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-                          </div>
-                        </div>
-                        <div className="p-4">
-                          <h3 className="font-semibold text-gray-900 mb-2">
-                            {item.title}
-                          </h3>
-                          <p className="text-gray-600 text-sm line-clamp-2">
-                            {item.description}
-                          </p>
-                          {item.projectUrl && (
-                            <a
-                              href={item.projectUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center text-[#010042] hover:text-[#000030] text-sm mt-2"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <GlobeAltIcon className="w-4 h-4 mr-1" />
-                              View Project
-                            </a>
-                          )}
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <PhotoIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500">No portfolio items available.</p>
-                  </div>
-                )}
-              </motion.div>
-            )}
           </div>
         </motion.div>
-
-        {/* Portfolio Lightbox */}
-        {portfolioLightbox.isOpen && freelancerProfile?.portfolio && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4"
-            onClick={closePortfolioLightbox}
-          >
-            <div className="relative max-w-4xl max-h-full">
-              <img
-                src={freelancerProfile.portfolio[portfolioLightbox.imageIndex]?.imageUrl}
-                alt={freelancerProfile.portfolio[portfolioLightbox.imageIndex]?.title}
-                className="max-w-full max-h-full object-contain"
-                onClick={(e) => e.stopPropagation()}
-              />
-              <button
-                onClick={closePortfolioLightbox}
-                className="absolute top-4 right-4 text-white hover:text-gray-300 text-2xl"
-              >
-                ×
-              </button>
-            </div>
-          </motion.div>
-        )}
       </div>
     </div>
   );

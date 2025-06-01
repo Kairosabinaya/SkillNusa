@@ -76,11 +76,10 @@ export default function FreelancerAnalytics() {
       const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
 
-      // Fetch orders data
+      // Fetch orders data - Remove orderBy to avoid composite index requirement
       const ordersQuery = query(
         collection(db, 'orders'),
-        where('sellerId', '==', currentUser.uid),
-        orderBy('createdAt', 'desc')
+        where('sellerId', '==', currentUser.uid)
       );
       
       const ordersSnapshot = await getDocs(ordersQuery);
@@ -128,6 +127,13 @@ export default function FreelancerAnalytics() {
         if (order.status === 'in_revision') {
           revisionCount++;
         }
+      });
+
+      // Sort orders by createdAt in memory instead of using Firebase orderBy
+      orders.sort((a, b) => {
+        const dateA = a.createdAt?.toDate() || new Date(0);
+        const dateB = b.createdAt?.toDate() || new Date(0);
+        return dateB - dateA;
       });
 
       // Fetch gigs data
@@ -214,11 +220,9 @@ export default function FreelancerAnalytics() {
         .slice(0, 5);
       setTopGigs(sortedGigs);
 
-      // Get recent orders
-      const sortedOrders = orders
-        .sort((a, b) => b.createdAt?.toDate() - a.createdAt?.toDate())
-        .slice(0, 10);
-      setRecentOrders(sortedOrders);
+      // Get recent orders (already sorted above)
+      const recentOrdersData = orders.slice(0, 10);
+      setRecentOrders(recentOrdersData);
 
       // Generate earnings chart data (simplified)
       const chartData = generateEarningsChart(orders, parseInt(timeRange));

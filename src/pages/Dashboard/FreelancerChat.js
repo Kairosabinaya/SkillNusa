@@ -361,7 +361,7 @@ export default function FreelancerChat() {
                       className="h-10 w-10 rounded-full object-cover"
                     />
                   ) : (
-                    <span className="text-[#010042] font-semibold">
+                    <span className="text-[#010042] font-semibold text-sm">
                       {selectedConversation.otherUser?.displayName?.charAt(0).toUpperCase() || 'U'}
                     </span>
                   )}

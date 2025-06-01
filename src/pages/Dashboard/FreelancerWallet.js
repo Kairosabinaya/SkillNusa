@@ -60,10 +60,12 @@ export default function FreelancerWallet() {
     if (!currentUser) return;
 
     try {
+      console.log('🔍 [Wallet] Fetching wallet data for freelancer:', currentUser.uid);
+      
       // Fetch completed orders to calculate earnings
       const ordersQuery = query(
         collection(db, 'orders'),
-        where('sellerId', '==', currentUser.uid),
+        where('freelancerId', '==', currentUser.uid),
         where('status', '==', 'completed')
       );
 
@@ -71,34 +73,59 @@ export default function FreelancerWallet() {
       let totalEarnings = 0;
       let availableBalance = 0;
 
+      console.log('📊 [Wallet] Found completed orders:', ordersSnapshot.size);
+
       ordersSnapshot.forEach(doc => {
         const order = doc.data();
-        const earnings = order.amount * 0.85; // 15% platform fee
+        console.log('💰 [Wallet] Processing order:', { id: doc.id, amount: order.price, title: order.title });
+        
+        // Use order.price or order.amount, with platform fee calculation
+        const orderAmount = order.price || order.amount || 0;
+        const earnings = orderAmount * 0.9; // 10% platform fee (90% to freelancer)
         totalEarnings += earnings;
         
-        // Check if payment is released (e.g., 7 days after completion)
-        const completedDate = order.completedAt?.toDate();
+        // Check if payment is released (e.g., 1 day after completion for testing)
+        const completedDate = order.completedAt?.toDate() || order.updatedAt?.toDate();
         const now = new Date();
-        const daysDiff = (now - completedDate) / (1000 * 60 * 60 * 24);
+        const daysDiff = completedDate ? (now - completedDate) / (1000 * 60 * 60 * 24) : 0;
         
-        if (daysDiff >= 7) {
+        console.log('⏰ [Wallet] Order completion check:', { 
+          id: doc.id, 
+          completedDate: completedDate?.toISOString(), 
+          daysDiff: Math.round(daysDiff),
+          earnings 
+        });
+        
+        // For testing, make available immediately (change to 7 for production)
+        if (daysDiff >= 0) {
           availableBalance += earnings;
         }
       });
 
-      // Fetch pending balance from orders in review
+      // Fetch pending balance from orders not yet completed
       const pendingQuery = query(
         collection(db, 'orders'),
-        where('sellerId', '==', currentUser.uid),
-        where('status', 'in', ['delivered', 'in_revision'])
+        where('freelancerId', '==', currentUser.uid),
+        where('status', 'in', ['active', 'in_progress', 'delivered', 'in_revision'])
       );
 
       const pendingSnapshot = await getDocs(pendingQuery);
       let pendingBalance = 0;
 
+      console.log('⏳ [Wallet] Found pending orders:', pendingSnapshot.size);
+
       pendingSnapshot.forEach(doc => {
         const order = doc.data();
-        pendingBalance += order.amount * 0.85;
+        const orderAmount = order.price || order.amount || 0;
+        const potentialEarnings = orderAmount * 0.9;
+        pendingBalance += potentialEarnings;
+        
+        console.log('⏳ [Wallet] Pending order:', { 
+          id: doc.id, 
+          status: order.status, 
+          amount: orderAmount,
+          potentialEarnings 
+        });
       });
 
       // Subtract withdrawn amounts
@@ -118,15 +145,25 @@ export default function FreelancerWallet() {
         }
       });
 
+      const finalBalance = Math.max(0, availableBalance - withdrawnAmount);
+
+      console.log('💰 [Wallet] Final calculations:', {
+        totalEarnings: totalEarnings.toFixed(2),
+        availableBalance: availableBalance.toFixed(2),
+        pendingBalance: pendingBalance.toFixed(2),
+        withdrawnAmount: withdrawnAmount.toFixed(2),
+        finalBalance: finalBalance.toFixed(2)
+      });
+
       setWallet({
-        balance: availableBalance - withdrawnAmount,
+        balance: finalBalance,
         pendingBalance: pendingBalance,
         totalEarnings: totalEarnings,
-        availableForWithdraw: availableBalance - withdrawnAmount
+        availableForWithdraw: finalBalance
       });
 
     } catch (error) {
-      console.error('Error fetching wallet data:', error);
+      console.error('💥 [Wallet] Error fetching wallet data:', error);
     }
   };
 
@@ -134,12 +171,13 @@ export default function FreelancerWallet() {
     if (!currentUser) return;
 
     try {
-      // Fetch earnings from orders
+      console.log('📜 [Wallet] Fetching transactions for freelancer:', currentUser.uid);
+      
+      // Fetch earnings from orders - remove orderBy to avoid index issues
       const ordersQuery = query(
         collection(db, 'orders'),
-        where('sellerId', '==', currentUser.uid),
+        where('freelancerId', '==', currentUser.uid), // Fix: use freelancerId
         where('status', '==', 'completed'),
-        orderBy('completedAt', 'desc'),
         limit(20)
       );
 
@@ -148,22 +186,30 @@ export default function FreelancerWallet() {
 
       ordersSnapshot.forEach(doc => {
         const order = doc.data();
+        const orderAmount = order.price || order.amount || 0;
+        const earningsAmount = orderAmount * 0.9; // 10% platform fee
+        
         earnings.push({
           id: doc.id,
           type: 'earning',
-          amount: order.amount * 0.85,
-          description: `Pembayaran untuk: ${order.gigTitle || 'Gig'}`,
-          date: order.completedAt?.toDate(),
+          amount: earningsAmount,
+          description: `Pembayaran untuk: ${order.title || order.gigTitle || 'Pesanan'}`,
+          date: order.completedAt?.toDate() || order.updatedAt?.toDate() || new Date(),
           status: 'completed',
           orderId: doc.id
         });
+        
+        console.log('💰 [Wallet] Added earning transaction:', {
+          id: doc.id,
+          amount: earningsAmount,
+          title: order.title
+        });
       });
 
-      // Fetch withdrawals
+      // Fetch withdrawals - remove orderBy to avoid index issues
       const withdrawalsQuery = query(
         collection(db, 'withdrawals'),
         where('userId', '==', currentUser.uid),
-        orderBy('createdAt', 'desc'),
         limit(20)
       );
 
@@ -177,7 +223,7 @@ export default function FreelancerWallet() {
           type: 'withdrawal',
           amount: -withdrawal.amount,
           description: `Penarikan ke ${withdrawal.method}`,
-          date: withdrawal.createdAt?.toDate(),
+          date: withdrawal.createdAt?.toDate() || new Date(),
           status: withdrawal.status,
           accountNumber: withdrawal.accountNumber
         });
@@ -187,9 +233,15 @@ export default function FreelancerWallet() {
       const allTransactions = [...earnings, ...withdrawals]
         .sort((a, b) => (b.date || new Date()) - (a.date || new Date()));
 
+      console.log('📊 [Wallet] Total transactions loaded:', {
+        earnings: earnings.length,
+        withdrawals: withdrawals.length,
+        total: allTransactions.length
+      });
+
       setTransactions(allTransactions);
     } catch (error) {
-      console.error('Error fetching transactions:', error);
+      console.error('💥 [Wallet] Error fetching transactions:', error);
     } finally {
       setLoading(false);
     }

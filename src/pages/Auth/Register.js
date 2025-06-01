@@ -7,7 +7,7 @@ import RegisterStep1 from '../../components/Auth/RegisterStep1';
 import RegisterStep2 from '../../components/Auth/RegisterStep2';
 import RegisterStep3 from '../../components/Auth/RegisterStep3';
 import { USER_ROLES } from '../../utils/constants';
-import { createUserProfile } from '../../services/profileService';
+import registrationService from '../../services/registrationService';
 import ParticleBackground from '../../components/UI/ParticleBackground';
 
 export default function Register() {
@@ -105,46 +105,17 @@ export default function Register() {
     setLoading(true);
     
     try {
-      // Register user with Firebase Auth (always as client in new architecture)
-      const user = await signup(values.email, values.password, values.username, USER_ROLES.CLIENT);
-      
-      // Create complete user profile with multi-role architecture
-      await createUserProfile(user.uid, {
-        displayName: values.fullName,
-        username: values.username,
-        // Multi-role fields
-        roles: [USER_ROLES.CLIENT],
-        activeRole: USER_ROLES.CLIENT,
-        isFreelancer: false,
-        // Profile fields
-        profilePhoto: values.profilePhotoURL,
-        phoneNumber: values.phoneNumber,
-        dateOfBirth: values.dateOfBirth,
-        gender: values.gender,
-        location: values.location,
-        bio: values.bio,
-        // Preferences
-        marketingEmails: values.agreeToMarketing
-      });
+      // Use the new standardized registration service
+      const user = await registrationService.modernRegister(values);
       
       // Successful registration
       clearSavedFormData();
       navigate('/verify-email');
     } catch (error) {
-      // Provide user-friendly error messages in Indonesian
-      if (error.code === 'auth/email-already-in-use') {
-        setError('Email ini sudah terdaftar. Silakan masuk atau gunakan email lain.');
-      } else if (error.code === 'auth/weak-password') {
-        setError('Password terlalu lemah. Gunakan minimal 6 karakter dengan kombinasi huruf dan angka.');
-      } else if (error.code === 'auth/invalid-email') {
-        setError('Format email tidak valid. Periksa kembali email Anda.');
-      } else if (error.code === 'auth/network-request-failed') {
-        setError('Koneksi internet bermasalah. Periksa koneksi Anda dan coba lagi.');
-      } else if (error.code) {
-        setError(`Terjadi kesalahan: ${error.code}. Silakan coba lagi.`);
-      } else {
-        setError('Terjadi kesalahan saat mendaftar. Silakan coba lagi.');
-      }
+      console.error('Registration error:', error);
+      
+      // Use the error message from the registration service
+      setError(error.message);
     } finally {
       setLoading(false);
       setSubmitting(false);

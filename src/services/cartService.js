@@ -1,287 +1,192 @@
+/**
+ * Cart Service - Handles shopping cart functionality
+ * Updated to use new database structure with proper references
+ */
+
 import { db } from '../firebase/config';
 import { 
   collection, 
   doc, 
   addDoc, 
-  deleteDoc, 
+  updateDoc,
+  deleteDoc,
+  getDoc,
   getDocs, 
   query, 
   where, 
-  getDoc,
-  onSnapshot,
   serverTimestamp,
-  orderBy,
-  updateDoc
+  onSnapshot
 } from 'firebase/firestore';
+import { COLLECTIONS } from '../utils/constants';
 
-/**
- * Enhanced Cart Service for managing shopping cart functionality with Firestore
- */
 class CartService {
   constructor() {
-    this.collectionName = 'cartItems';
+    this.collectionName = 'cart'; // Keep cart as separate collection
   }
 
-  /**
-   * Add item to cart with enhanced gig data
-   * @param {string} userId - User ID
-   * @param {Object} cartItem - Cart item data
-   * @returns {Promise<Object>} Added cart item
-   */
-  async addToCart(userId, cartItem) {
+  // Add item to cart
+  async addToCart(userId, gigId, packageType, customRequirements = '') {
     try {
-      // Validate required fields
-      if (!userId || !cartItem.gigId || !cartItem.packageType) {
-        throw new Error('Missing required fields: userId, gigId, or packageType');
+      // Validate parameters to prevent undefined errors
+      if (!userId || !gigId || !packageType) {
+        throw new Error('Invalid parameters: userId, gigId, and packageType are required');
       }
 
       // Check if item already exists in cart
-      const existingItem = await this.getCartItem(userId, cartItem.gigId, cartItem.packageType);
+      const existingItem = await this.getCartItem(userId, gigId, packageType);
       if (existingItem) {
-        throw new Error('Item already exists in cart');
+        throw new Error('Item already in cart');
       }
 
-      // Get fresh gig details
-      const gigDoc = await getDoc(doc(db, 'gigs', cartItem.gigId));
+      // Get gig data using standardized collection
+      const gigDoc = await getDoc(doc(db, COLLECTIONS.GIGS, gigId));
       if (!gigDoc.exists()) {
         throw new Error('Gig not found');
       }
 
       const gigData = gigDoc.data();
-      const selectedPackage = gigData.packages[cartItem.packageType];
+      const packageData = gigData.packages?.[packageType];
       
-      if (!selectedPackage) {
+      if (!packageData) {
         throw new Error('Package not found');
       }
 
-      // Get freelancer details
+      // Get freelancer data using standardized userId field
+      const freelancerDoc = await getDoc(doc(db, COLLECTIONS.USERS, gigData.userId));
       let freelancerData = null;
-      if (gigData.freelancerId) {
-        const freelancerDoc = await getDoc(doc(db, 'users', gigData.freelancerId));
-        if (freelancerDoc.exists()) {
-          freelancerData = {
-            id: freelancerDoc.id,
-            displayName: freelancerDoc.data().displayName,
-            profilePhoto: freelancerDoc.data().profilePhoto
-          };
-        }
+      if (freelancerDoc.exists()) {
+        const userData = freelancerDoc.data();
+        
+        // Get freelancer profile for additional data
+        const freelancerProfileDoc = await getDoc(doc(db, COLLECTIONS.FREELANCER_PROFILES, gigData.userId));
+        const profileData = freelancerProfileDoc.exists() ? freelancerProfileDoc.data() : {};
+        
+        freelancerData = {
+          id: gigData.userId,
+          displayName: userData.displayName,
+          profilePhoto: userData.profilePhoto,
+          rating: profileData.rating || 0,
+          totalReviews: profileData.totalReviews || 0
+        };
       }
 
-      // Create cart item with denormalized data
-      const cartItemData = {
+      const cartItem = {
         userId,
-        gigId: cartItem.gigId,
-        freelancerId: gigData.freelancerId,
-        packageType: cartItem.packageType,
-        quantity: cartItem.quantity || 1,
-        
-        // Denormalized gig data - handle undefined values
+        gigId,
+        packageType,
+        customRequirements,
+        quantity: 1, // Add default quantity
+        // Store data in structured format for easy access
         gigData: {
-          title: gigData.title || 'Untitled Gig',
+          id: gigId,
+          title: gigData.title,
           images: gigData.images || [],
-          category: gigData.category || 'Other',
-          rating: gigData.rating || 0,
-          totalReviews: gigData.totalReviews || 0 // Default to 0 if undefined
+          category: gigData.category
         },
-        
-        // Denormalized package data
         packageData: {
-          name: selectedPackage.name || `${cartItem.packageType} Package`,
-          description: selectedPackage.description || '',
-          price: selectedPackage.price || 0,
-          deliveryTime: selectedPackage.deliveryTime || 7,
-          revisions: selectedPackage.revisions || 1,
-          features: selectedPackage.features || []
+          name: packageData.name,
+          description: packageData.description,
+          price: packageData.price,
+          deliveryTime: packageData.deliveryTime,
+          revisions: packageData.revisions,
+          features: packageData.features || []
         },
-        
-        // Denormalized freelancer data
-        freelancerData: freelancerData || {
-          displayName: 'Freelancer',
-          profilePhoto: null
-        },
-        
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        freelancerData: freelancerData,
+        // Keep legacy fields for compatibility
+        gigTitle: gigData.title,
+        gigImage: gigData.images?.[0] || null,
+        gigCategory: gigData.category,
+        freelancerId: gigData.userId,
+        freelancerName: freelancerData?.displayName || 'Unknown',
+        freelancerPhoto: freelancerData?.profilePhoto || null,
+        packageName: packageData.name,
+        packageDescription: packageData.description,
+        price: packageData.price,
+        deliveryTime: packageData.deliveryTime,
+        revisions: packageData.revisions,
+        features: packageData.features || [],
+        createdAt: serverTimestamp()
       };
 
-      const docRef = await addDoc(collection(db, this.collectionName), cartItemData);
-      
-      return {
-        id: docRef.id,
-        ...cartItemData,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
+      const docRef = await addDoc(collection(db, this.collectionName), cartItem);
+      return { id: docRef.id, ...cartItem };
     } catch (error) {
       console.error('Error adding to cart:', error);
       throw error;
     }
   }
 
-  /**
-   * Get specific cart item
-   * @param {string} userId - User ID
-   * @param {string} gigId - Gig ID
-   * @param {string} packageType - Package type
-   * @returns {Promise<Object|null>} Cart item or null
-   */
+  // Get cart item
   async getCartItem(userId, gigId, packageType) {
     try {
+      // Validate parameters to prevent undefined errors
+      if (!userId || !gigId || !packageType) {
+        console.warn('CartService.getCartItem - Invalid parameters:', { userId, gigId, packageType });
+        return null;
+      }
+
       const q = query(
         collection(db, this.collectionName),
         where('userId', '==', userId),
         where('gigId', '==', gigId),
         where('packageType', '==', packageType)
       );
-      
+
       const querySnapshot = await getDocs(q);
-      
-      if (querySnapshot.empty) {
-        return null;
+      if (!querySnapshot.empty) {
+        const doc = querySnapshot.docs[0];
+        return { id: doc.id, ...doc.data() };
       }
       
-      const doc = querySnapshot.docs[0];
-      return {
-        id: doc.id,
-        ...doc.data()
-      };
+      return null;
     } catch (error) {
       console.error('Error getting cart item:', error);
       return null;
     }
   }
 
-  /**
-   * Get all cart items for user
-   * @param {string} userId - User ID
-   * @returns {Promise<Array>} Cart items
-   */
-  async getCartItems(userId) {
+  // Update cart item
+  async updateCartItem(cartItemId, updates) {
     try {
-      const q = query(
-        collection(db, this.collectionName),
-        where('userId', '==', userId)
-      );
-      
-      const querySnapshot = await getDocs(q);
-      const cartItems = [];
-      
-      querySnapshot.forEach((doc) => {
-        cartItems.push({
-          id: doc.id,
-          ...doc.data()
-        });
-      });
-
-      // Sort by createdAt in JavaScript instead of Firestore
-      cartItems.sort((a, b) => {
-        const aTime = a.createdAt?.toDate?.() || a.createdAt || new Date(0);
-        const bTime = b.createdAt?.toDate?.() || b.createdAt || new Date(0);
-        return bTime - aTime; // desc order
+      const cartItemRef = doc(db, this.collectionName, cartItemId);
+      await updateDoc(cartItemRef, {
+        ...updates,
+        updatedAt: serverTimestamp()
       });
       
-      return cartItems;
+      return true;
     } catch (error) {
-      console.error('Error getting cart items:', error);
+      console.error('Error updating cart item:', error);
       throw error;
     }
   }
 
-  /**
-   * Subscribe to cart items (real-time updates)
-   * @param {string} userId - User ID
-   * @param {Function} callback - Callback function
-   * @returns {Function} Unsubscribe function
-   */
-  subscribeToCartItems(userId, callback) {
-    console.log('🔍 [CartService] subscribeToCartItems called for userId:', userId);
-    
+  // Update cart item quantity
+  async updateCartItemQuantity(userId, cartItemId, quantity) {
     try {
-      const q = query(
-        collection(db, this.collectionName),
-        where('userId', '==', userId)
-      );
-      
-      console.log('📡 [CartService] Setting up Firestore listener with query:', {
-        collection: this.collectionName,
-        userId,
-        query: 'userId == userId (sorted in JavaScript)'
-      });
-      
-      return onSnapshot(q, (snapshot) => {
-        console.log('📥 [CartService] Firestore snapshot received:', {
-          size: snapshot.size,
-          empty: snapshot.empty,
-          docs: snapshot.docs.length
-        });
-        
-        const cartItems = [];
-        
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          console.log('📄 [CartService] Processing doc:', {
-            id: doc.id,
-            userId: data.userId,
-            gigId: data.gigId,
-            packageType: data.packageType,
-            quantity: data.quantity,
-            hasGigData: !!data.gigData,
-            hasPackageData: !!data.packageData,
-            hasFreelancerData: !!data.freelancerData,
-            createdAt: data.createdAt
-          });
-          
-          cartItems.push({
-            id: doc.id,
-            ...data
-          });
-        });
+      if (quantity < 1) {
+        throw new Error('Quantity must be at least 1');
+      }
 
-        // Sort by createdAt in JavaScript instead of Firestore
-        cartItems.sort((a, b) => {
-          const aTime = a.createdAt?.toDate?.() || a.createdAt || new Date(0);
-          const bTime = b.createdAt?.toDate?.() || b.createdAt || new Date(0);
-          return bTime - aTime; // desc order
-        });
-        
-        console.log('✅ [CartService] Processed cart items:', {
-          count: cartItems.length,
-          items: cartItems.map(item => ({
-            id: item.id,
-            gigId: item.gigId,
-            packageType: item.packageType,
-            quantity: item.quantity,
-            title: item.gigData?.title
-          }))
-        });
-        
-        callback(cartItems);
-      }, (error) => {
-        console.error('💥 [CartService] Error in cart subscription:', error);
-        callback([]);
+      const cartItemRef = doc(db, this.collectionName, cartItemId);
+      await updateDoc(cartItemRef, {
+        quantity: quantity,
+        updatedAt: serverTimestamp()
       });
+      
+      return true;
     } catch (error) {
-      console.error('💥 [CartService] Error subscribing to cart:', error);
-      callback([]);
-      return () => {};
+      console.error('Error updating cart item quantity:', error);
+      throw error;
     }
   }
 
-  /**
-   * Remove item from cart
-   * @param {string} userId - User ID
-   * @param {string} cartItemId - Cart item ID
-   * @returns {Promise<boolean>} Success status
-   */
-  async removeFromCart(userId, cartItemId) {
+  // Remove item from cart (overloaded to support both userId+itemId and just itemId)
+  async removeFromCart(userIdOrItemId, cartItemId = null) {
     try {
-      // Verify ownership
-      const cartItemDoc = await getDoc(doc(db, this.collectionName, cartItemId));
-      if (!cartItemDoc.exists() || cartItemDoc.data().userId !== userId) {
-        throw new Error('Cart item not found or access denied');
-      }
-      
-      await deleteDoc(doc(db, this.collectionName, cartItemId));
+      // If cartItemId is null, treat first parameter as cartItemId
+      const itemId = cartItemId || userIdOrItemId;
+      await deleteDoc(doc(db, this.collectionName, itemId));
       return true;
     } catch (error) {
       console.error('Error removing from cart:', error);
@@ -289,56 +194,109 @@ class CartService {
     }
   }
 
-  /**
-   * Update cart item quantity
-   * @param {string} userId - User ID
-   * @param {string} cartItemId - Cart item ID
-   * @param {number} quantity - New quantity
-   * @returns {Promise<Object>} Updated cart item
-   */
-  async updateCartItemQuantity(userId, cartItemId, quantity) {
+  // Get user's cart items
+  async getUserCart(userId) {
     try {
-      if (quantity < 1) {
-        throw new Error('Quantity must be at least 1');
+      const q = query(
+        collection(db, this.collectionName),
+        where('userId', '==', userId)
+      );
+
+      const querySnapshot = await getDocs(q);
+      const cartItems = [];
+
+      for (const docSnapshot of querySnapshot.docs) {
+        const cartData = { id: docSnapshot.id, ...docSnapshot.data() };
+        
+        // If cart item doesn't have structured data, get fresh data from gig
+        if (!cartData.gigData || !cartData.packageData || !cartData.freelancerData) {
+          try {
+            const gigDoc = await getDoc(doc(db, COLLECTIONS.GIGS, cartData.gigId));
+            if (gigDoc.exists()) {
+              const gigData = gigDoc.data();
+              const packageData = gigData.packages?.[cartData.packageType];
+              
+              // Get freelancer data
+              const freelancerDoc = await getDoc(doc(db, COLLECTIONS.USERS, gigData.userId));
+              let freelancerData = null;
+              if (freelancerDoc.exists()) {
+                const userData = freelancerDoc.data();
+                const freelancerProfileDoc = await getDoc(doc(db, COLLECTIONS.FREELANCER_PROFILES, gigData.userId));
+                const profileData = freelancerProfileDoc.exists() ? freelancerProfileDoc.data() : {};
+                
+                freelancerData = {
+                  id: gigData.userId,
+                  displayName: userData.displayName,
+                  profilePhoto: userData.profilePhoto,
+                  rating: profileData.rating || 0,
+                  totalReviews: profileData.totalReviews || 0
+                };
+              }
+              
+              // Update cart data with structured format
+              cartData.gigData = {
+                id: cartData.gigId,
+                title: gigData.title,
+                images: gigData.images || [],
+                category: gigData.category
+              };
+              cartData.packageData = packageData;
+              cartData.freelancerData = freelancerData;
+              cartData.gigAvailable = true;
+            } else {
+              cartData.gigAvailable = false;
+            }
+          } catch (error) {
+            console.error('Error checking gig availability:', error);
+            cartData.gigAvailable = false;
+          }
+        } else {
+          // For existing structured data, just check if gig is still available
+          try {
+            const gigDoc = await getDoc(doc(db, COLLECTIONS.GIGS, cartData.gigId));
+            if (gigDoc.exists()) {
+              const gigData = gigDoc.data();
+              const packageData = gigData.packages?.[cartData.packageType];
+              
+              // Update with fresh data if different
+              if (packageData && packageData.price !== cartData.packageData.price) {
+                cartData.packageData.currentPrice = packageData.price;
+                cartData.priceChanged = true;
+              }
+              
+              cartData.gigAvailable = true;
+            } else {
+              cartData.gigAvailable = false;
+            }
+          } catch (error) {
+            console.error('Error checking gig availability:', error);
+            cartData.gigAvailable = false;
+          }
+        }
+        
+        cartItems.push(cartData);
       }
-      
-      // Verify ownership
-      const cartItemDoc = await getDoc(doc(db, this.collectionName, cartItemId));
-      if (!cartItemDoc.exists() || cartItemDoc.data().userId !== userId) {
-        throw new Error('Cart item not found or access denied');
-      }
-      
-      await updateDoc(doc(db, this.collectionName, cartItemId), {
-        quantity,
-        updatedAt: serverTimestamp()
-      });
-      
-      // Return updated item
-      const updatedDoc = await getDoc(doc(db, this.collectionName, cartItemId));
-      return {
-        id: updatedDoc.id,
-        ...updatedDoc.data()
-      };
+
+      return cartItems;
     } catch (error) {
-      console.error('Error updating cart item quantity:', error);
+      console.error('Error getting user cart:', error);
       throw error;
     }
   }
 
-  /**
-   * Clear all cart items for user
-   * @param {string} userId - User ID
-   * @returns {Promise<boolean>} Success status
-   */
+  // Clear user's cart
   async clearCart(userId) {
     try {
-      const cartItems = await this.getCartItems(userId);
-      
-      // Delete all cart items
-      const deletePromises = cartItems.map(item => 
-        deleteDoc(doc(db, this.collectionName, item.id))
+      const q = query(
+        collection(db, this.collectionName),
+        where('userId', '==', userId)
       );
-      
+
+      const querySnapshot = await getDocs(q);
+      const deletePromises = querySnapshot.docs.map(docSnapshot => 
+        deleteDoc(docSnapshot.ref)
+      );
+
       await Promise.all(deletePromises);
       return true;
     } catch (error) {
@@ -347,164 +305,267 @@ class CartService {
     }
   }
 
-  /**
-   * Get cart items count for user
-   * @param {string} userId - User ID
-   * @returns {Promise<number>} Cart items count
-   */
-  async getCartCount(userId) {
+  // Get cart summary
+  async getCartSummary(userId) {
     try {
-      const cartItems = await this.getCartItems(userId);
-      return cartItems.reduce((total, item) => total + (item.quantity || 1), 0);
-    } catch (error) {
-      console.error('Error getting cart count:', error);
-      return 0;
-    }
-  }
-
-  /**
-   * Subscribe to real-time cart count updates
-   * @param {string} userId - User ID
-   * @param {Function} callback - Callback function for count updates
-   * @returns {Function} Unsubscribe function
-   */
-  subscribeToCartCount(userId, callback) {
-    try {
-      const q = query(
-        collection(db, this.collectionName),
-        where('userId', '==', userId)
-      );
+      const cartItems = await this.getUserCart(userId);
       
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        let totalCount = 0;
-        snapshot.forEach((doc) => {
-          const item = doc.data();
-          totalCount += item.quantity || 1;
-        });
-        
-        console.log('Real-time cart count update:', totalCount);
-        callback(totalCount);
-      }, (error) => {
-        console.error('Error in cart count subscription:', error);
-        callback(0);
+      const summary = {
+        itemCount: cartItems.length,
+        totalPrice: 0,
+        totalDeliveryTime: 0,
+        categories: new Set(),
+        freelancers: new Set()
+      };
+
+      cartItems.forEach(item => {
+        summary.totalPrice += item.currentPrice || item.price || 0;
+        summary.totalDeliveryTime = Math.max(summary.totalDeliveryTime, item.deliveryTime || 0);
+        summary.categories.add(item.gigCategory);
+        summary.freelancers.add(item.freelancerId);
       });
-      
-      return unsubscribe;
+
+      return {
+        ...summary,
+        categories: Array.from(summary.categories),
+        freelancers: Array.from(summary.freelancers),
+        uniqueFreelancers: summary.freelancers.size,
+        uniqueCategories: summary.categories.size
+      };
     } catch (error) {
-      console.error('Error setting up cart count subscription:', error);
-      callback(0);
-      return null;
+      console.error('Error getting cart summary:', error);
+      return {
+        itemCount: 0,
+        totalPrice: 0,
+        totalDeliveryTime: 0,
+        categories: [],
+        freelancers: [],
+        uniqueFreelancers: 0,
+        uniqueCategories: 0
+      };
     }
   }
 
-  /**
-   * Get cart total price
-   * @param {string} userId - User ID
-   * @returns {Promise<number>} Total price
-   */
-  async getCartTotal(userId) {
-    try {
-      const cartItems = await this.getCartItems(userId);
-      return cartItems.reduce((total, item) => {
-        const price = item.packageData?.price || 0;
-        const quantity = item.quantity || 1;
-        return total + (price * quantity);
-      }, 0);
-    } catch (error) {
-      console.error('Error getting cart total:', error);
-      return 0;
-    }
-  }
-
-  /**
-   * Check if item is in cart
-   * @param {string} userId - User ID
-   * @param {string} gigId - Gig ID
-   * @param {string} packageType - Package type
-   * @returns {Promise<boolean>} Is in cart
-   */
+  // Check if item is in cart
   async isInCart(userId, gigId, packageType) {
     try {
       const item = await this.getCartItem(userId, gigId, packageType);
-      return item !== null;
+      return !!item;
     } catch (error) {
       console.error('Error checking if item is in cart:', error);
       return false;
     }
   }
 
-  /**
-   * Validate cart items (check if gigs still exist and active)
-   * @param {string} userId - User ID
-   * @returns {Promise<Object>} Validation result
-   */
-  async validateCartItems(userId) {
+  // Get cart item count
+  async getCartItemCount(userId) {
     try {
-      const cartItems = await this.getCartItems(userId);
-      const validItems = [];
-      const invalidItems = [];
-      
+      const cartItems = await this.getUserCart(userId);
+      return cartItems.length;
+    } catch (error) {
+      console.error('Error getting cart item count:', error);
+      return 0;
+    }
+  }
+
+  // Validate cart before checkout
+  async validateCart(userId) {
+    try {
+      const cartItems = await this.getUserCart(userId);
+      const validationResults = {
+        isValid: true,
+        errors: [],
+        warnings: [],
+        validItems: [],
+        invalidItems: []
+      };
+
       for (const item of cartItems) {
+        const itemValidation = {
+          id: item.id,
+          gigId: item.gigId,
+          packageType: item.packageType,
+          isValid: true,
+          errors: []
+        };
+
+        // Check if gig still exists and is active
         try {
-          const gigDoc = await getDoc(doc(db, 'gigs', item.gigId));
-          
-          if (gigDoc.exists() && gigDoc.data().isActive) {
-            const gigData = gigDoc.data();
-            const packageExists = gigData.packages && gigData.packages[item.packageType];
-            
-            if (packageExists) {
-              validItems.push(item);
-            } else {
-              invalidItems.push({ ...item, reason: 'Package no longer available' });
-            }
+          const gigDoc = await getDoc(doc(db, COLLECTIONS.GIGS, item.gigId));
+          if (!gigDoc.exists()) {
+            itemValidation.isValid = false;
+            itemValidation.errors.push('Gig no longer exists');
           } else {
-            invalidItems.push({ ...item, reason: 'Gig no longer available' });
+            const gigData = gigDoc.data();
+            if (!gigData.isActive) {
+              itemValidation.isValid = false;
+              itemValidation.errors.push('Gig is no longer active');
+            }
+
+            // Check if package still exists
+            const packageData = gigData.packages?.[item.packageType];
+            if (!packageData) {
+              itemValidation.isValid = false;
+              itemValidation.errors.push('Package no longer available');
+            } else if (packageData.price !== item.price) {
+              validationResults.warnings.push(`Price changed for ${item.gigTitle}`);
+            }
           }
         } catch (error) {
-          invalidItems.push({ ...item, reason: 'Error validating gig' });
+          itemValidation.isValid = false;
+          itemValidation.errors.push('Error validating gig');
+        }
+
+        if (itemValidation.isValid) {
+          validationResults.validItems.push(item);
+        } else {
+          validationResults.invalidItems.push({ ...item, validation: itemValidation });
+          validationResults.isValid = false;
+          validationResults.errors.push(...itemValidation.errors);
         }
       }
-      
+
+      return validationResults;
+    } catch (error) {
+      console.error('Error validating cart:', error);
       return {
-        valid: validItems,
-        invalid: invalidItems,
-        isValid: invalidItems.length === 0
+        isValid: false,
+        errors: ['Error validating cart'],
+        warnings: [],
+        validItems: [],
+        invalidItems: []
       };
-    } catch (error) {
-      console.error('Error validating cart items:', error);
-      throw error;
     }
   }
 
-  /**
-   * Remove invalid cart items
-   * @param {string} userId - User ID
-   * @returns {Promise<Array>} Removed items
-   */
-  async removeInvalidItems(userId) {
+  // Subscribe to user's cart count with real-time updates
+  subscribeToCartCount(userId, callback) {
     try {
-      const validation = await this.validateCartItems(userId);
-      
-      if (validation.invalid.length > 0) {
-        const removePromises = validation.invalid.map(item => 
-          this.removeFromCart(userId, item.id)
-        );
-        
-        await Promise.all(removePromises);
-      }
-      
-      return validation.invalid;
+      const q = query(
+        collection(db, this.collectionName),
+        where('userId', '==', userId)
+      );
+
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const count = querySnapshot.size;
+        callback(count);
+      }, (error) => {
+        console.error('Error in cart count subscription:', error);
+        // Call callback with 0 on error to prevent app crash
+        callback(0);
+      });
+
+      return unsubscribe;
     } catch (error) {
-      console.error('Error removing invalid cart items:', error);
-      throw error;
+      console.error('Error setting up cart count subscription:', error);
+      // Return a dummy unsubscribe function
+      return () => {};
     }
   }
 
-  // Legacy localStorage methods for backward compatibility
-  getUserCartKey(userId) {
-    return `cart_${userId}`;
+  // Subscribe to user's cart items with real-time updates (provides complete cart data)
+  subscribeToCartItems(userId, callback) {
+    try {
+      const q = query(
+        collection(db, this.collectionName),
+        where('userId', '==', userId)
+      );
+
+      const unsubscribe = onSnapshot(q, async (querySnapshot) => {
+        try {
+          const cartItems = [];
+
+          for (const docSnapshot of querySnapshot.docs) {
+            const cartData = { id: docSnapshot.id, ...docSnapshot.data() };
+            
+            // If cart item doesn't have structured data, get fresh data from gig
+            if (!cartData.gigData || !cartData.packageData || !cartData.freelancerData) {
+              try {
+                const gigDoc = await getDoc(doc(db, COLLECTIONS.GIGS, cartData.gigId));
+                if (gigDoc.exists()) {
+                  const gigData = gigDoc.data();
+                  const packageData = gigData.packages?.[cartData.packageType];
+                  
+                  // Get freelancer data
+                  const freelancerDoc = await getDoc(doc(db, COLLECTIONS.USERS, gigData.userId));
+                  let freelancerData = null;
+                  if (freelancerDoc.exists()) {
+                    const userData = freelancerDoc.data();
+                    const freelancerProfileDoc = await getDoc(doc(db, COLLECTIONS.FREELANCER_PROFILES, gigData.userId));
+                    const profileData = freelancerProfileDoc.exists() ? freelancerProfileDoc.data() : {};
+                    
+                    freelancerData = {
+                      id: gigData.userId,
+                      displayName: userData.displayName,
+                      profilePhoto: userData.profilePhoto,
+                      rating: profileData.rating || 0,
+                      totalReviews: profileData.totalReviews || 0
+                    };
+                  }
+                  
+                  // Update cart data with structured format
+                  cartData.gigData = {
+                    id: cartData.gigId,
+                    title: gigData.title,
+                    images: gigData.images || [],
+                    category: gigData.category
+                  };
+                  cartData.packageData = packageData;
+                  cartData.freelancerData = freelancerData;
+                  cartData.gigAvailable = true;
+                } else {
+                  cartData.gigAvailable = false;
+                }
+              } catch (error) {
+                console.error('Error checking gig availability:', error);
+                cartData.gigAvailable = false;
+              }
+            } else {
+              // For existing structured data, just check if gig is still available
+              try {
+                const gigDoc = await getDoc(doc(db, COLLECTIONS.GIGS, cartData.gigId));
+                if (gigDoc.exists()) {
+                  const gigData = gigDoc.data();
+                  const packageData = gigData.packages?.[cartData.packageType];
+                  
+                  // Update with fresh data if different
+                  if (packageData && packageData.price !== cartData.packageData.price) {
+                    cartData.packageData.currentPrice = packageData.price;
+                    cartData.priceChanged = true;
+                  }
+                  
+                  cartData.gigAvailable = true;
+                } else {
+                  cartData.gigAvailable = false;
+                }
+              } catch (error) {
+                console.error('Error checking gig availability:', error);
+                cartData.gigAvailable = false;
+              }
+            }
+            
+            cartItems.push(cartData);
+          }
+
+          callback(cartItems);
+        } catch (error) {
+          console.error('Error processing cart items snapshot:', error);
+          // Call callback with empty array on error to prevent app crash
+          callback([]);
+        }
+      }, (error) => {
+        console.error('Error in cart items subscription:', error);
+        // Call callback with empty array on error to prevent app crash
+        callback([]);
+      });
+
+      return unsubscribe;
+    } catch (error) {
+      console.error('Error setting up cart items subscription:', error);
+      // Return a dummy unsubscribe function
+      return () => {};
+    }
   }
 }
 
-const cartService = new CartService();
-export default cartService; 
+export default new CartService(); 

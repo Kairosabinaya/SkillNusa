@@ -49,159 +49,44 @@ export default function Home() {
     const loadGigs = async () => {
       setGigsLoading(true);
       try {
-        // Try to load from database first
-        const gigData = await gigService.getFeaturedGigs(50);
+        // Use same service as Browse page for consistency
+        const gigData = await gigService.getGigs({}, { limit: 50 });
+        
         if (gigData && gigData.length > 0) {
-          setGigs(gigData);
+          // Transform the data to match our component's expected format (same as Browse)
+          const transformedGigs = gigData.map(gig => ({
+            id: gig.id,
+            images: gig.images || [],
+            image: gig.images?.[0] || `https://picsum.photos/seed/${gig.id}/400/300`,
+            title: gig.title,
+            category: gig.category,
+            freelancer: {
+              name: gig.freelancer?.displayName || gig.freelancer?.name || 'Freelancer',
+              displayName: gig.freelancer?.displayName || gig.freelancer?.name || 'Freelancer',
+              avatar: gig.freelancer?.profilePhoto || gig.freelancer?.avatar,
+              profilePhoto: gig.freelancer?.profilePhoto || gig.freelancer?.avatar,
+              isVerified: gig.freelancer?.isVerified || false,
+              isTopRated: gig.freelancer?.isTopRated || false,
+              rating: gig.freelancer?.rating || 0,
+              totalReviews: gig.freelancer?.totalReviews || 0
+            },
+            rating: gig.freelancer?.rating || 0,
+            reviews: gig.freelancer?.totalReviews || 0,
+            totalReviews: gig.freelancer?.totalReviews || 0,
+            price: gig.packages?.basic?.price || 0,
+            startingPrice: gig.packages?.basic?.price || 0,
+            packages: gig.packages,
+            deliveryTime: gig.packages?.basic?.deliveryTime + ' days' || 'N/A',
+            location: gig.freelancer?.location || 'Unknown',
+            createdAt: gig.createdAt
+          }));
+          
+          setGigs(transformedGigs);
         } else {
-          // Fallback to mock data (same as Browse)
-          const mockGigs = [
-            {
-              id: '1',
-              images: ["https://picsum.photos/seed/gig1/400/300"],
-              image: "https://picsum.photos/seed/gig1/400/300",
-              title: "I will build shopify ecommerce website, redesign online store",
-              category: "Programming & Tech",
-              freelancer: {
-                name: "Fillinx Sol",
-                displayName: "Fillinx Sol",
-                avatar: "https://picsum.photos/seed/freelancer1/50/50",
-                profilePhoto: "https://picsum.photos/seed/freelancer1/50/50",
-                isVerified: true,
-                isTopRated: true
-              },
-              rating: 4.9,
-              reviews: 1234,
-              totalReviews: 1234,
-              price: 195000,
-              startingPrice: 195000,
-              packages: { basic: { price: 195000 } },
-              deliveryTime: "7 days",
-              location: "Pakistan",
-              createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24) // 1 day ago
-            },
-            {
-              id: '2',
-              images: ["https://picsum.photos/seed/logo1/400/300"],
-              image: "https://picsum.photos/seed/logo1/400/300",
-              title: "I will create professional logo design for your business",
-              category: "Design & Creative",
-              freelancer: {
-                name: "Maya Design",
-                displayName: "Maya Design",
-                avatar: "https://picsum.photos/seed/freelancer2/50/50",
-                profilePhoto: "https://picsum.photos/seed/freelancer2/50/50",
-                isVerified: true,
-                isTopRated: false
-              },
-              rating: 4.8,
-              reviews: 287,
-              totalReviews: 287,
-              price: 150000,
-              startingPrice: 150000,
-              packages: { basic: { price: 150000 } },
-              deliveryTime: "3 days",
-              location: "Indonesia",
-              createdAt: new Date(Date.now() - 1000 * 60 * 60 * 12) // 12 hours ago (newest)
-            },
-            {
-              id: '3',
-              image: "https://picsum.photos/seed/gig3/400/300",
-              title: "SEO Marketing dan Optimasi Website",
-              category: "Digital Marketing",
-              freelancer: {
-                name: "Putri Sari",
-                displayName: "Putri Sari",
-                avatar: "https://picsum.photos/seed/freelancer3/50/50",
-                profilePhoto: "https://picsum.photos/seed/freelancer3/50/50",
-                isVerified: true,
-                isTopRated: false
-              },
-              rating: 4.8,
-              reviews: 28,
-              totalReviews: 28,
-              price: 850000,
-              startingPrice: 850000,
-              packages: { basic: { price: 850000 } },
-              deliveryTime: "7 days",
-              location: "Indonesia",
-              createdAt: new Date(Date.now() - 1000 * 60 * 60 * 48) // 2 days ago
-            },
-            {
-              id: '4',
-              image: "https://picsum.photos/seed/gig4/400/300",
-              title: "Mobile App Development iOS & Android",
-              category: "Programming & Tech",
-              freelancer: {
-                name: "Farhan Ahmad",
-                displayName: "Farhan Ahmad", 
-                avatar: "https://picsum.photos/seed/freelancer4/50/50",
-                profilePhoto: "https://picsum.photos/seed/freelancer4/50/50",
-                isVerified: true,
-                isTopRated: true
-              },
-              rating: 5.0,
-              reviews: 32,
-              totalReviews: 32,
-              price: 5000000,
-              startingPrice: 5000000,
-              packages: { basic: { price: 5000000 } },
-              deliveryTime: "14 days",
-              location: "Indonesia",
-              createdAt: new Date(Date.now() - 1000 * 60 * 60 * 72) // 3 days ago
-            },
-            {
-              id: '5',
-              image: "https://picsum.photos/seed/gig5/400/300",
-              title: "Content Writing Services",
-              category: "Writing & Translation",
-              freelancer: {
-                name: "Elsa Putri",
-                displayName: "Elsa Putri",
-                avatar: "https://picsum.photos/seed/freelancer5/50/50",
-                profilePhoto: "https://picsum.photos/seed/freelancer5/50/50",
-                isVerified: true,
-                isTopRated: false
-              },
-              rating: 4.9,
-              reviews: 45,
-              totalReviews: 45,
-              price: 450000,
-              startingPrice: 450000,
-              packages: { basic: { price: 450000 } },
-              deliveryTime: "2 days",
-              location: "Indonesia",
-              createdAt: new Date(Date.now() - 1000 * 60 * 60 * 18) // 18 hours ago
-            },
-            {
-              id: '6',
-              image: "https://picsum.photos/seed/gig6/400/300",
-              title: "Business Plan Development",
-              category: "Business",
-              freelancer: {
-                name: "Gunawan Prawiro",
-                displayName: "Gunawan Prawiro",
-                avatar: "https://picsum.photos/seed/freelancer6/50/50",
-                profilePhoto: "https://picsum.photos/seed/freelancer6/50/50",
-                isVerified: true,
-                isTopRated: true
-              },
-              rating: 4.8,
-              reviews: 19,
-              totalReviews: 19,
-              price: 2000000,
-              startingPrice: 2000000,
-              packages: { basic: { price: 2000000 } },
-              deliveryTime: "10 days",
-              location: "Indonesia",
-              createdAt: new Date(Date.now() - 1000 * 60 * 60 * 96) // 4 days ago
-            }
-          ];
-          setGigs(mockGigs);
+          setGigs([]);
         }
       } catch (error) {
         console.error('Error loading gigs:', error);
-        // Set empty array if error
         setGigs([]);
       } finally {
         setGigsLoading(false);
@@ -213,12 +98,12 @@ export default function Home() {
 
   // Categories data
   const categories = [
-    { icon: "M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z", name: "Design & Creative" },
+    { icon: "M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z", name: "Graphics & Design" },
     { icon: "M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4", name: "Programming & Tech" },
     { icon: "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z", name: "Writing & Translation" },
     { icon: "M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z", name: "Digital Marketing" },
     { icon: "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10", name: "Business" },
-    { icon: "M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z", name: "Customer Support" },
+    { icon: "M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z", name: "Music & Audio" },
     { icon: "M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z", name: "Video & Animation" }
   ];
 
@@ -362,7 +247,7 @@ export default function Home() {
                   <h1 className="text-4xl md:text-5xl lg:text-8xl font-bold text-white lg:max-w-xl">
                     SkillNusa
                   </h1>
-                  <div className="text-xl sm:text-2xl lg:text-3xl text-gray-200 leading-relaxed mb-1 lg:max-w-xl h-32">
+                  <div className="text-l sm:text-xl lg:text-2xl text-gray-200 leading-relaxed mb-1 lg:max-w-xl h-32">
                     <TypeAnimation
                       sequence={[
                         'SkillNusa adalah sebuah marketplace yang menghubungkan freelancer berbakat Indonesia dengan klien yang mencari layanan berkualitas.',

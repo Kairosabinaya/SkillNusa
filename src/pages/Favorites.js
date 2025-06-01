@@ -168,10 +168,22 @@ export default function Favorites() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {favorites.map((favorite) => {
-                const gigData = favorite.gigData;
-                const freelancerData = favorite.freelancerData;
+                const gigData = favorite.gig;
+                const freelancerData = favorite.gig?.freelancer;
                 
-                if (!gigData) return null;
+                console.log('🎯 [Favorites] Rendering favorite:', {
+                  favoriteId: favorite.id,
+                  gigId: favorite.gigId,
+                  hasGigData: !!gigData,
+                  gigTitle: gigData?.title,
+                  hasFreelancerData: !!freelancerData,
+                  freelancerName: freelancerData?.displayName
+                });
+                
+                if (!gigData) {
+                  console.warn('⚠️ [Favorites] No gig data for favorite:', favorite.id);
+                  return null;
+                }
 
                 return (
                   <div key={favorite.id} className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow border border-gray-100">
@@ -197,7 +209,7 @@ export default function Favorites() {
                     <div className="p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <img 
-                          src={freelancerData?.profilePhoto || `https://picsum.photos/seed/${favorite.freelancerId}/32/32`} 
+                          src={freelancerData?.profilePhoto || `https://picsum.photos/seed/${favorite.gigId}/32/32`} 
                           alt={freelancerData?.displayName}
                           className="w-6 h-6 rounded-full"
                         />
@@ -217,10 +229,10 @@ export default function Favorites() {
                           <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
                         </svg>
                         <span className="text-sm font-medium text-gray-900">
-                          {gigData.rating || 5.0}
+                          {freelancerData?.rating || gigData.rating || 5.0}
                         </span>
                         <span className="text-sm text-gray-500">
-                          ({gigData.totalReviews || 0})
+                          ({freelancerData?.totalReviews || gigData.totalReviews || 0})
                         </span>
                       </div>
                       

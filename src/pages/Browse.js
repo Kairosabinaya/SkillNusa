@@ -35,12 +35,15 @@ export default function Browse() {
   // Categories for filter
   const categories = [
     "Programming & Tech",
-    "Design & Creative", 
+    "Graphics & Design", 
     "Digital Marketing",
     "Writing & Translation",
     "Video & Animation",
     "Music & Audio",
-    "Business"
+    "Business",
+    "Data",
+    "Photography",
+    "Lifestyle"
   ];
 
   // Load gigs data from database
@@ -56,7 +59,7 @@ export default function Browse() {
           const transformedGigs = gigData.map(gig => ({
             id: gig.id,
             images: gig.images || [],
-            image: gig.images?.[0] || 'https://via.placeholder.com/400x300',
+            image: gig.images?.[0] || `https://picsum.photos/seed/${gig.id}/400/300`,
             title: gig.title,
             category: gig.category,
             freelancer: {

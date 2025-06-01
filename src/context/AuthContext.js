@@ -1,7 +1,6 @@
 import { createContext, useState, useEffect, useContext } from 'react';
 import { 
   onAuthStateChanged, 
-  createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
   sendPasswordResetEmail,
@@ -20,6 +19,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
 import firebaseService from '../services/firebaseService';
+import registrationService from '../services/registrationService';
 import { getUserProfile } from '../services/userProfileService';
 import { COLLECTIONS, USER_ROLES } from '../utils/constants';
 import Logger from '../utils/logger';
@@ -80,50 +80,13 @@ export function AuthProvider({ children }) {
   const signup = async (email, password, username, role) => {
     setError(null);
     try {
-      const result = await createUserWithEmailAndPassword(auth, email, password);
-      const { user } = result;
-      
-      // Create user profile in Firestore with multi-role support
-      await createUserDocument(user.uid, {
-        uid: user.uid,
-        email,
-        username,
-        displayName: username,
-        // Multi-role architecture
-        roles: [role],
-        activeRole: role,
-        isFreelancer: role === USER_ROLES.FREELANCER,
-        profilePhoto: null,
-        bio: '',
-        isActive: true,
-        emailVerified: user.emailVerified
-      });
-      
-      // Create profile document (client profile by default)
-      await createProfileDocument(user.uid);
-      
-      // If user is a freelancer (in admin flow), create freelancer profile too
-      if (role === USER_ROLES.FREELANCER) {
-        await firebaseService.setDocument(COLLECTIONS.FREELANCER_PROFILES, user.uid, {
-          userId: user.uid,
-          skills: [],
-          experienceLevel: '',
-          bio: '',
-          portfolioLinks: [],
-          hourlyRate: 0,
-          availability: '',
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        });
-      }
-      
-      // Update auth profile
-      await updateProfile(user, { displayName: username });
-      
-      // Send verification email
-      await sendEmailVerification(user);
-      
-      return user;
+      // Use legacy registration method for backward compatibility
+      return await registrationService.legacyRegister(
+        email, 
+        password, 
+        username, 
+        role
+      );
     } catch (error) {
       setError(error.message);
       throw error;

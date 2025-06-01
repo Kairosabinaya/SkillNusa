@@ -1,5 +1,6 @@
 /**
  * Gig Service - Handles all gig-related database operations
+ * Updated to use new database structure with single source of truth
  */
 
 import { 
@@ -53,52 +54,12 @@ export const getGigs = async (filters = {}, options = {}) => {
       constraints.push(where('category', '==', category));
     }
     
-    // Freelancer filter - check both userId and freelancerId
+    // Freelancer filter - use userId only (standardized)
     if (freelancerId) {
-      // We need to run two separate queries for freelancerId and userId
-      const gigsQuery1 = query(
-        collection(db, COLLECTIONS.GIGS),
-        where('isActive', '==', true),
-        where('freelancerId', '==', freelancerId),
-        ...(category ? [where('category', '==', category)] : []),
-        firestoreLimit(limit)
-      );
-      
-      const gigsQuery2 = query(
-        collection(db, COLLECTIONS.GIGS),
-        where('isActive', '==', true),
-        where('userId', '==', freelancerId),
-        ...(category ? [where('category', '==', category)] : []),
-        firestoreLimit(limit)
-      );
-      
-      const [snapshot1, snapshot2] = await Promise.all([
-        getDocs(gigsQuery1),
-        getDocs(gigsQuery2)
-      ]);
-      
-      // Combine results and remove duplicates
-      const gigsMap = new Map();
-      
-      snapshot1.docs.forEach(doc => {
-        gigsMap.set(doc.id, { id: doc.id, ...doc.data() });
-      });
-      
-      snapshot2.docs.forEach(doc => {
-        if (!gigsMap.has(doc.id)) {
-          gigsMap.set(doc.id, { id: doc.id, ...doc.data() });
-        }
-      });
-      
-      let gigs = Array.from(gigsMap.values());
-      
-      // Apply client-side filters and add freelancer data
-      gigs = await applyFiltersAndSort(gigs, filters, options, freelancerId);
-      
-      return gigs;
+      constraints.push(where('userId', '==', freelancerId));
     }
     
-    // Add limit without orderBy to avoid index requirements
+    // Add limit
     constraints.push(firestoreLimit(limit));
     
     console.log('📊 Executing Firestore query with constraints:', constraints.length);
@@ -129,7 +90,7 @@ export const getGigs = async (filters = {}, options = {}) => {
 /**
  * Helper function to apply filters and sorting
  */
-const applyFiltersAndSort = async (gigs, filters, options, skipFreelancerFetch = null) => {
+const applyFiltersAndSort = async (gigs, filters, options) => {
   const { 
     priceMin, 
     priceMax, 
@@ -164,189 +125,141 @@ const applyFiltersAndSort = async (gigs, filters, options, skipFreelancerFetch =
     console.log(`📊 After priceMax filter: ${gigs.length}`);
   }
   
-  // Client-side rating filtering
-  if (rating) {
-    gigs = gigs.filter(gig => gig.rating >= rating);
-    console.log(`📊 After rating filter: ${gigs.length}`);
-  }
-  
   console.log('👥 Adding freelancer data to gigs...');
   
-  if (location) {
-    // Need to fetch freelancer data for location
-    const gigsWithLocation = await Promise.all(
-      gigs.map(async (gig) => {
-        const freelancerId = gig.freelancerId || gig.userId;
-        const freelancer = await getFreelancerData(freelancerId);
-        return {
-          ...gig,
-          freelancer: {
-            ...freelancer,
-            location: freelancer.location || 'Unknown'
-          }
-        };
-      })
-    );
-    
-    gigs = gigsWithLocation.filter(gig => 
-      gig.freelancer.location?.toLowerCase().includes(location.toLowerCase())
-    );
-    console.log(`📊 After location filter: ${gigs.length}`);
-  } else {
-    // Add freelancer data to each gig
-    gigs = await Promise.all(
-      gigs.map(async (gig) => {
-        const freelancerId = gig.freelancerId || gig.userId;
-        const freelancer = await getFreelancerData(freelancerId);
-        return {
-          ...gig,
-          freelancer
-        };
-      })
-    );
-  }
+  // Add freelancer data to each gig
+  gigs = await Promise.all(
+    gigs.map(async (gig) => {
+      const freelancerId = gig.userId; // Use standardized userId field
+      const freelancer = await getFreelancerData(freelancerId);
+      
+      // Apply rating filter using freelancer data (SINGLE SOURCE OF TRUTH)
+      if (rating && (!freelancer || freelancer.rating < rating)) {
+        return null; // Filter out this gig
+      }
+      
+      // Apply location filter using freelancer data
+      if (location && (!freelancer || !freelancer.location?.toLowerCase().includes(location.toLowerCase()))) {
+        return null; // Filter out this gig
+      }
+      
+      return {
+        ...gig,
+        freelancer
+      };
+    })
+  );
   
-  console.log('📊 After adding freelancer data:', gigs.length);
+  // Remove null entries (filtered out gigs)
+  gigs = gigs.filter(gig => gig !== null);
+  
+  console.log(`📊 After rating and location filters: ${gigs.length}`);
   
   // Client-side sorting
   gigs.sort((a, b) => {
     let aValue, bValue;
     
     switch (sortBy) {
-      case 'rating':
-        aValue = a.rating || 0;
-        bValue = b.rating || 0;
-        break;
       case 'price':
         aValue = a.packages?.basic?.price || 0;
         bValue = b.packages?.basic?.price || 0;
         break;
+      case 'rating':
+        aValue = a.freelancer?.rating || 0;
+        bValue = b.freelancer?.rating || 0;
+        break;
+      case 'totalOrders':
+        aValue = a.totalOrders || 0;
+        bValue = b.totalOrders || 0;
+        break;
       case 'createdAt':
       default:
-        // Handle both Date objects and Firestore Timestamps
-        aValue = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
-        bValue = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+        aValue = a.createdAt?.seconds || 0;
+        bValue = b.createdAt?.seconds || 0;
         break;
     }
     
-    if (sortOrder === 'desc') {
-      return bValue > aValue ? 1 : bValue < aValue ? -1 : 0;
-    } else {
-      return aValue > bValue ? 1 : aValue < bValue ? -1 : 0;
-    }
+    return sortOrder === 'desc' ? bValue - aValue : aValue - bValue;
   });
   
-  console.log('✅ Filter and sort completed, returning', gigs.length, 'gigs');
-  
+  console.log(`📊 Final gigs count: ${gigs.length}`);
   return gigs;
 };
 
 /**
- * Get featured gigs for homepage
+ * Get featured gigs (high-rated, popular gigs)
  */
 export const getFeaturedGigs = async (limit = 12) => {
   try {
-    console.log('🔍 getFeaturedGigs called with limit:', limit);
+    console.log('🌟 Getting featured gigs...');
     
-    // Get active gigs with a higher limit to filter from
+    // Get all active gigs first
     const gigsQuery = query(
       collection(db, COLLECTIONS.GIGS),
       where('isActive', '==', true),
-      firestoreLimit(Math.min(limit * 2, 50)) // Get more to filter from
+      firestoreLimit(50) // Get more to filter from
     );
     
     const gigsSnapshot = await getDocs(gigsQuery);
-    console.log(`📊 Found ${gigsSnapshot.size} gigs from Firestore`);
-    
     let gigs = gigsSnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     }));
     
-    // Add freelancer data to each gig
+    // Add freelancer data and filter for featured criteria
     gigs = await Promise.all(
       gigs.map(async (gig) => {
-        // Handle both userId and freelancerId fields
-        const freelancerId = gig.freelancerId || gig.userId;
-        const freelancer = await getFreelancerData(freelancerId);
+        const freelancer = await getFreelancerData(gig.userId);
         return {
           ...gig,
-          freelancer,
-          // Ensure we have the required fields for display
-          rating: gig.rating || 0,
-          totalReviews: gig.totalReviews || 0,
-          images: gig.images || [],
-          packages: gig.packages || {}
+          freelancer
         };
       })
     );
     
-    // Sort by newest first (createdAt in descending order)
+    // Filter for featured criteria (high rating, good order count)
+    gigs = gigs.filter(gig => 
+      gig.freelancer && 
+      gig.freelancer.rating >= 4.5 && 
+      gig.freelancer.totalOrders >= 5
+    );
+    
+    // Sort by rating and total orders
     gigs.sort((a, b) => {
-      // Handle cases where createdAt might be a Firestore Timestamp or Date object
-      let aDate, bDate;
-      
-      if (a.createdAt?.toDate) {
-        // Firestore Timestamp
-        aDate = a.createdAt.toDate();
-      } else if (a.createdAt instanceof Date) {
-        // JavaScript Date
-        aDate = a.createdAt;
-      } else if (typeof a.createdAt === 'string') {
-        // String date
-        aDate = new Date(a.createdAt);
-      } else {
-        // Fallback to epoch time for gigs without date
-        aDate = new Date(0);
-      }
-      
-      if (b.createdAt?.toDate) {
-        // Firestore Timestamp
-        bDate = b.createdAt.toDate();
-      } else if (b.createdAt instanceof Date) {
-        // JavaScript Date
-        bDate = b.createdAt;
-      } else if (typeof b.createdAt === 'string') {
-        // String date
-        bDate = new Date(b.createdAt);
-      } else {
-        // Fallback to epoch time for gigs without date
-        bDate = new Date(0);
-      }
-      
-      // Sort in descending order (newest first)
-      return bDate.getTime() - aDate.getTime();
+      const aScore = (a.freelancer.rating * 0.7) + (a.totalOrders * 0.3);
+      const bScore = (b.freelancer.rating * 0.7) + (b.totalOrders * 0.3);
+      return bScore - aScore;
     });
     
-    // Return only the requested number
     return gigs.slice(0, limit);
   } catch (error) {
     console.error('❌ Error getting featured gigs:', error);
-    return [];
+    throw new Error('Failed to fetch featured gigs');
   }
 };
 
 /**
- * Get gig by ID with full details
+ * Get gig by ID with complete details
  */
 export const getGigById = async (gigId) => {
   try {
+    console.log('🔍 Getting gig by ID:', gigId);
+    
     const gigDoc = await getDoc(doc(db, COLLECTIONS.GIGS, gigId));
     
     if (!gigDoc.exists()) {
       throw new Error('Gig not found');
     }
     
-    const gigData = {
-      id: gigDoc.id,
-      ...gigDoc.data()
-    };
+    const gigData = { id: gigDoc.id, ...gigDoc.data() };
     
     // Get freelancer data
-    const freelancer = await getFreelancerData(gigData.freelancerId);
+    const freelancer = await getFreelancerData(gigData.userId);
     
     // Get reviews for this gig
     const reviews = await getGigReviews(gigId);
+    
+    console.log('📊 GigService: Reviews loaded for gig:', reviews.length);
     
     return {
       ...gigData,
@@ -354,118 +267,158 @@ export const getGigById = async (gigId) => {
       reviews
     };
   } catch (error) {
-    console.error('Error getting gig by ID:', error);
+    console.error('❌ Error getting gig by ID:', error);
     throw error;
   }
 };
 
 /**
- * Get freelancer data for a gig
+ * Get freelancer data with performance metrics (SINGLE SOURCE OF TRUTH)
  */
 const getFreelancerData = async (freelancerId) => {
   try {
-    // Get user data
+    if (!freelancerId) return null;
+    
+    // Get user basic data
     const userDoc = await getDoc(doc(db, COLLECTIONS.USERS, freelancerId));
-    const userData = userDoc.exists() ? userDoc.data() : {};
+    if (!userDoc.exists()) return null;
     
-    // Get freelancer profile data
+    const userData = userDoc.data();
+    
+    // Get freelancer profile data (SINGLE SOURCE FOR RATINGS)
     const freelancerDoc = await getDoc(doc(db, COLLECTIONS.FREELANCER_PROFILES, freelancerId));
-    const freelancerData = freelancerDoc.exists() ? freelancerDoc.data() : {};
     
-    // Debug logging for education and certification data
-    console.log('🎓 Education data from freelancerProfiles:', freelancerData.education);
-    console.log('📜 Certification data from freelancerProfiles:', freelancerData.certifications);
-    console.log('👤 Full freelancer profile data:', freelancerData);
+    let freelancerData = {};
+    if (freelancerDoc.exists()) {
+      freelancerData = freelancerDoc.data();
+    }
     
     return {
       id: freelancerId,
-      name: userData.displayName || userData.username || 'Unknown',
-      displayName: userData.displayName || userData.username || 'Unknown',
-      avatar: userData.profilePhoto || null,
-      profilePhoto: userData.profilePhoto || null,
-      bio: userData.bio || '',
-      location: userData.location || 'Unknown',
-      isVerified: userData.emailVerified || false,
-      isTopRated: freelancerData.tier === 'platinum' || freelancerData.tier === 'gold',
-      tier: freelancerData.tier || 'bronze',
+      displayName: userData.displayName,
+      profilePhoto: userData.profilePhoto,
+      isVerified: userData.isVerified || false,
+      // Performance data from freelancer profile (SINGLE SOURCE)
       rating: freelancerData.rating || 0,
       totalReviews: freelancerData.totalReviews || 0,
+      totalOrders: freelancerData.totalOrders || 0,
       completedProjects: freelancerData.completedProjects || 0,
+      location: freelancerData.location || userData.location || 'Unknown',
+      // Professional info
+      bio: freelancerData.bio || '',
       skills: freelancerData.skills || [],
-      hourlyRate: freelancerData.hourlyRate || 0,
-      experienceLevel: freelancerData.experienceLevel || 'beginner',
       education: freelancerData.education || [],
-      certifications: freelancerData.certifications || []
+      certifications: freelancerData.certifications || [],
+      experienceLevel: freelancerData.experienceLevel || 'entry',
+      website: freelancerData.website || '',
+      languages: freelancerData.languages || []
     };
   } catch (error) {
-    console.error('Error getting freelancer data:', error);
-    return {
-      id: freelancerId,
-      name: 'Unknown Freelancer',
-      displayName: 'Unknown Freelancer',
-      avatar: null,
-      profilePhoto: null,
-      bio: '',
-      location: 'Unknown',
-      isVerified: false,
-      isTopRated: false,
-      tier: 'bronze',
-      rating: 0,
-      totalReviews: 0,
-      completedProjects: 0,
-      skills: [],
-      hourlyRate: 0,
-      experienceLevel: 'beginner',
-      education: [],
-      certifications: []
-    };
+    console.error('❌ Error getting freelancer data:', error);
+    return null;
   }
 };
 
 /**
- * Get reviews for a specific gig
+ * Get gig reviews (from reviews collection)
  */
 export const getGigReviews = async (gigId, options = {}) => {
   try {
-    const {
-      sortBy = 'createdAt',
-      sortOrder = 'desc',
-      limit = 20
-    } = options;
+    const { limit = 10, orderBy: orderField = 'createdAt' } = options;
     
-    const reviewsQuery = query(
-      collection(db, COLLECTIONS.REVIEWS),
-      where('gigId', '==', gigId),
-      orderBy(sortBy, sortOrder),
-      firestoreLimit(limit)
-    );
+    console.log('🔍 Getting reviews for gig:', gigId);
     
-    const reviewsSnapshot = await getDocs(reviewsQuery);
-    
-    const reviews = await Promise.all(
-      reviewsSnapshot.docs.map(async (doc) => {
-        const reviewData = {
+    // Try with composite index first
+    try {
+      const reviewsQuery = query(
+        collection(db, COLLECTIONS.REVIEWS),
+        where('gigId', '==', gigId),
+        where('status', '==', 'published'),
+        orderBy(orderField, 'desc'),
+        firestoreLimit(limit)
+      );
+      
+      const reviewsSnapshot = await getDocs(reviewsQuery);
+      const reviews = reviewsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      console.log('✅ Reviews loaded with composite index:', reviews.length);
+      
+      // Add client data to reviews
+      const reviewsWithClientData = await Promise.all(
+        reviews.map(async (review) => {
+          const clientDoc = await getDoc(doc(db, COLLECTIONS.USERS, review.clientId));
+          const clientData = clientDoc.exists() ? clientDoc.data() : {};
+          
+          return {
+            ...review,
+            client: {
+              id: review.clientId,
+              displayName: clientData.displayName || 'Anonymous',
+              profilePhoto: clientData.profilePhoto || `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop&crop=face&auto=format`
+            }
+          };
+        })
+      );
+      
+      return reviewsWithClientData;
+      
+    } catch (indexError) {
+      console.info('📋 Using fallback query for reviews (no composite index):', indexError.message);
+      
+      // Fallback: Load reviews without complex ordering
+      try {
+        const fallbackQuery = query(
+          collection(db, COLLECTIONS.REVIEWS),
+          where('gigId', '==', gigId),
+          firestoreLimit(limit)
+        );
+        
+        const fallbackSnapshot = await getDocs(fallbackQuery);
+        let reviews = fallbackSnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
-        };
+        }));
         
-        // Get client data for the review
-        const clientDoc = await getDoc(doc(db, COLLECTIONS.USERS, reviewData.clientId));
-        const clientData = clientDoc.exists() ? clientDoc.data() : {};
+        // Filter published reviews and sort manually
+        reviews = reviews.filter(review => review.status === 'published');
+        reviews.sort((a, b) => {
+          const aTime = a.createdAt?.seconds || 0;
+          const bTime = b.createdAt?.seconds || 0;
+          return bTime - aTime;
+        });
         
-        return {
-          ...reviewData,
-          client: {
-            name: clientData.displayName || clientData.username || 'Anonymous',
-            avatar: clientData.profilePhoto || null
-          }
-        };
-      })
-    );
+        console.log('✅ Reviews loaded with fallback query:', reviews.length);
+        
+        // Add client data to reviews
+        const reviewsWithClientData = await Promise.all(
+          reviews.map(async (review) => {
+            const clientDoc = await getDoc(doc(db, COLLECTIONS.USERS, review.clientId));
+            const clientData = clientDoc.exists() ? clientDoc.data() : {};
+            
+            return {
+              ...review,
+              client: {
+                id: review.clientId,
+                displayName: clientData.displayName || 'Anonymous',
+                profilePhoto: clientData.profilePhoto || `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop&crop=face&auto=format`
+              }
+            };
+          })
+        );
+        
+        return reviewsWithClientData;
+        
+      } catch (fallbackError) {
+        console.error('❌ Error with fallback reviews query:', fallbackError);
+        return [];
+      }
+    }
     
-    return reviews;
   } catch (error) {
-    console.error('Error getting gig reviews:', error);
+    console.error('❌ Error getting gig reviews:', error);
     return [];
   }
 };
@@ -477,8 +430,8 @@ export const getGigsByCategory = async (category, limit = 12) => {
   try {
     return await getGigs({ category }, { limit });
   } catch (error) {
-    console.error('Error getting gigs by category:', error);
-    return [];
+    console.error('❌ Error getting gigs by category:', error);
+    throw error;
   }
 };
 
@@ -487,13 +440,10 @@ export const getGigsByCategory = async (category, limit = 12) => {
  */
 export const searchGigs = async (searchTerm, filters = {}, options = {}) => {
   try {
-    return await getGigs(
-      { ...filters, search: searchTerm },
-      options
-    );
+    return await getGigs({ ...filters, search: searchTerm }, options);
   } catch (error) {
-    console.error('Error searching gigs:', error);
-    return [];
+    console.error('❌ Error searching gigs:', error);
+    throw error;
   }
 };
 
@@ -502,39 +452,22 @@ export const searchGigs = async (searchTerm, filters = {}, options = {}) => {
  */
 export const getGigStats = async (gigId) => {
   try {
-    const reviews = await getGigReviews(gigId);
-    
-    const totalReviews = reviews.length;
-    const averageRating = totalReviews > 0 
-      ? reviews.reduce((sum, review) => sum + review.rating, 0) / totalReviews 
-      : 0;
-    
-    // Rating distribution
-    const ratingDistribution = {
-      5: reviews.filter(r => r.rating === 5).length,
-      4: reviews.filter(r => r.rating === 4).length,
-      3: reviews.filter(r => r.rating === 3).length,
-      2: reviews.filter(r => r.rating === 2).length,
-      1: reviews.filter(r => r.rating === 1).length
-    };
+    const gig = await getGigById(gigId);
+    if (!gig) return null;
     
     return {
-      totalReviews,
-      averageRating: Math.round(averageRating * 10) / 10,
-      ratingDistribution
+      totalOrders: gig.totalOrders || 0,
+      inQueue: gig.inQueue || 0,
+      rating: gig.freelancer?.rating || 0,
+      totalReviews: gig.freelancer?.totalReviews || 0
     };
   } catch (error) {
-    console.error('Error getting gig stats:', error);
-    return {
-      totalReviews: 0,
-      averageRating: 0,
-      ratingDistribution: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
-    };
+    console.error('❌ Error getting gig stats:', error);
+    return null;
   }
 };
 
-// Export default object with all functions
-const gigService = {
+export default {
   getGigs,
   getFeaturedGigs,
   getGigById,
@@ -542,6 +475,4 @@ const gigService = {
   getGigsByCategory,
   searchGigs,
   getGigStats
-};
-
-export default gigService; 
+}; 

@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import orderService from '../services/orderService';
 import { formatPrice } from '../utils/helpers';
+import { db } from '../firebase/config';
+import { collection, addDoc, serverTimestamp, doc, updateDoc, getDocs, query, where } from 'firebase/firestore';
 
 export default function Transactions() {
   const { currentUser } = useAuth();
@@ -11,6 +13,13 @@ export default function Transactions() {
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('');
+
+  // Rating modal states
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [ratingOrderId, setRatingOrderId] = useState(null);
+  const [rating, setRating] = useState(0);
+  const [ratingComment, setRatingComment] = useState('');
+  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
 
   useEffect(() => {
     loadOrders();
@@ -63,6 +72,122 @@ export default function Transactions() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Handler untuk memberi rating
+  const handleGiveRating = (orderId) => {
+    setRatingOrderId(orderId);
+    setShowRatingModal(true);
+    setRating(0);
+    setRatingComment('');
+  };
+
+  // Handler untuk submit rating
+  const handleSubmitRating = async () => {
+    if (!ratingOrderId || rating === 0) {
+      alert('Silakan berikan rating terlebih dahulu!');
+      return;
+    }
+
+    setIsSubmittingRating(true);
+    try {
+      const order = orders.find(o => o.id === ratingOrderId);
+      if (!order) {
+        throw new Error('Order tidak ditemukan');
+      }
+
+      console.log('Creating review for order:', ratingOrderId);
+
+      // Create review using Firebase directly
+      const reviewData = {
+        orderId: ratingOrderId,
+        gigId: order.gigId,
+        freelancerId: order.freelancerId,
+        clientId: currentUser.uid,
+        rating: rating,
+        comment: ratingComment.trim(),
+        helpful: 0,
+        status: 'published',
+        isVisible: true,
+        isReported: false,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+
+      await addDoc(collection(db, 'reviews'), reviewData);
+      console.log('Review created successfully');
+
+      // Update aggregate data for gig and freelancer
+      await updateGigAndFreelancerStats(order.gigId, order.freelancerId);
+
+      // Update order with rating flag (without changing status)
+      const orderRef = doc(db, 'orders', ratingOrderId);
+      await updateDoc(orderRef, {
+        hasRating: true,
+        ratedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+
+      console.log('Order updated with rating flag');
+
+      // Update local state
+      setOrders(prev => prev.map(o => 
+        o.id === ratingOrderId 
+          ? { ...o, hasRating: true, ratedAt: new Date().toISOString() }
+          : o
+      ));
+
+      // Refresh reviews on gig detail page if open
+      if (window.refreshGigReviews) {
+        console.log('🔄 Refreshing gig reviews on detail page');
+        window.refreshGigReviews();
+      }
+
+      // Close modal and show success
+      setShowRatingModal(false);
+      alert('Rating berhasil diberikan! Terima kasih atas feedback Anda.');
+
+    } catch (error) {
+      console.error('Error submitting rating:', error);
+      alert('Gagal memberikan rating. Silakan coba lagi. Error: ' + (error.message || error));
+    } finally {
+      setIsSubmittingRating(false);
+    }
+  };
+
+  // Close rating modal
+  const closeRatingModal = () => {
+    setShowRatingModal(false);
+    setRatingOrderId(null);
+    setRating(0);
+    setRatingComment('');
+  };
+
+  // Render star rating
+  const renderStarRating = (currentRating, onRatingChange, readonly = false) => {
+    return (
+      <div className="flex items-center gap-1">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <button
+            key={star}
+            type="button"
+            disabled={readonly}
+            onClick={() => !readonly && onRatingChange(star)}
+            className={`h-8 w-8 ${readonly ? 'cursor-default' : 'cursor-pointer hover:scale-110'} transition-transform`}
+          >
+            <svg
+              className={`w-full h-full ${
+                star <= currentRating ? 'text-yellow-400' : 'text-gray-300'
+              }`}
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+            </svg>
+          </button>
+        ))}
+      </div>
+    );
   };
 
   const formatDate = (date) => {
@@ -143,6 +268,86 @@ export default function Transactions() {
     { id: 'completed', label: 'Selesai', count: statusCounts.completed },
     { id: 'cancelled', label: 'Dibatalkan', count: statusCounts.cancelled }
   ];
+
+  // Function to update gig and freelancer aggregate stats
+  const updateGigAndFreelancerStats = async (gigId, freelancerId) => {
+    try {
+      console.log('🔄 Updating aggregate stats for gig:', gigId, 'freelancer:', freelancerId);
+      
+      // Get all reviews for this gig
+      const reviewsQuery = query(
+        collection(db, 'reviews'),
+        where('gigId', '==', gigId),
+        where('status', '==', 'published')
+      );
+      const reviewsSnapshot = await getDocs(reviewsQuery);
+      
+      let totalRating = 0;
+      let reviewCount = 0;
+      
+      reviewsSnapshot.forEach((doc) => {
+        const review = doc.data();
+        totalRating += review.rating;
+        reviewCount++;
+      });
+      
+      const averageRating = reviewCount > 0 ? totalRating / reviewCount : 0;
+      
+      console.log('📊 Calculated stats:', {
+        gigId,
+        reviewCount,
+        averageRating: averageRating.toFixed(1)
+      });
+      
+      // Update gig document
+      const gigRef = doc(db, 'gigs', gigId);
+      await updateDoc(gigRef, {
+        rating: parseFloat(averageRating.toFixed(1)),
+        totalReviews: reviewCount,
+        updatedAt: serverTimestamp()
+      });
+      
+      console.log('✅ Updated gig stats');
+      
+      // Get all reviews for this freelancer (across all gigs)
+      const freelancerReviewsQuery = query(
+        collection(db, 'reviews'),
+        where('freelancerId', '==', freelancerId),
+        where('status', '==', 'published')
+      );
+      const freelancerReviewsSnapshot = await getDocs(freelancerReviewsQuery);
+      
+      let freelancerTotalRating = 0;
+      let freelancerReviewCount = 0;
+      
+      freelancerReviewsSnapshot.forEach((doc) => {
+        const review = doc.data();
+        freelancerTotalRating += review.rating;
+        freelancerReviewCount++;
+      });
+      
+      const freelancerAverageRating = freelancerReviewCount > 0 ? freelancerTotalRating / freelancerReviewCount : 0;
+      
+      console.log('📊 Calculated freelancer stats:', {
+        freelancerId,
+        reviewCount: freelancerReviewCount,
+        averageRating: freelancerAverageRating.toFixed(1)
+      });
+      
+      // Update freelancer profile document
+      const freelancerRef = doc(db, 'freelancerProfiles', freelancerId);
+      await updateDoc(freelancerRef, {
+        rating: parseFloat(freelancerAverageRating.toFixed(1)),
+        totalReviews: freelancerReviewCount,
+        updatedAt: serverTimestamp()
+      });
+      
+      console.log('✅ Updated freelancer stats');
+      
+    } catch (error) {
+      console.error('❌ Error updating aggregate stats:', error);
+    }
+  };
 
   if (loading) {
     return (
@@ -355,6 +560,33 @@ export default function Transactions() {
                               </Link>
                             )}
                             
+                            {/* Rating Button - for completed orders without rating */}
+                            {order.status === 'completed' && !order.hasRating && (
+                              <button
+                                onClick={() => handleGiveRating(order.id)}
+                                className="text-sm bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors text-center"
+                              >
+                                <div className="flex items-center justify-center gap-1">
+                                  <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                  </svg>
+                                  Beri Rating
+                                </div>
+                              </button>
+                            )}
+
+                            {/* Rating Status - for completed orders with rating */}
+                            {order.status === 'completed' && order.hasRating && (
+                              <div className="text-sm bg-green-100 text-green-800 px-4 py-2 rounded-lg text-center">
+                                <div className="flex items-center justify-center gap-1">
+                                  <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                  </svg>
+                                  Sudah Rating
+                                </div>
+                              </div>
+                            )}
+                            
                             {/* Buy Again Button - for completed orders */}
                             {order.status === 'completed' && (
                               <Link
@@ -408,6 +640,72 @@ export default function Transactions() {
           </div>
         )}
       </div>
+
+      {/* Rating Modal */}
+      {showRatingModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Berikan Rating & Ulasan
+              </h3>
+              
+              <div className="space-y-4">
+                {/* Star Rating */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Rating
+                  </label>
+                  {renderStarRating(rating, setRating)}
+                  <p className="text-xs text-gray-500 mt-1">
+                    {rating === 0 && 'Pilih rating'}
+                    {rating === 1 && 'Sangat Buruk'}
+                    {rating === 2 && 'Buruk'}
+                    {rating === 3 && 'Biasa'}
+                    {rating === 4 && 'Baik'}
+                    {rating === 5 && 'Sangat Baik'}
+                  </p>
+                </div>
+
+                {/* Comment */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Ulasan (Opsional)
+                  </label>
+                  <textarea
+                    value={ratingComment}
+                    onChange={(e) => setRatingComment(e.target.value)}
+                    rows={4}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
+                    placeholder="Bagikan pengalaman Anda dengan freelancer ini..."
+                    maxLength={500}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {ratingComment.length}/500 karakter
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={closeRatingModal}
+                  disabled={isSubmittingRating}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleSubmitRating}
+                  disabled={isSubmittingRating || rating === 0}
+                  className="flex-1 px-4 py-2 bg-[#010042] text-white rounded-lg hover:bg-[#0100a3] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSubmittingRating ? 'Menyimpan...' : 'Kirim Rating'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

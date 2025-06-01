@@ -22,12 +22,12 @@ if (existsSync('.env.local')) {
 
 // Initialize Firebase directly in the script
 const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.REACT_APP_FIREBASE_APP_ID,
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "AIzaSyBU5CpKkJfN-pGuQ8qxV3AG-Uj9LVeyCdM",
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || "skillnusa-fd614.firebaseapp.com",
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || "skillnusa-fd614",
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET || "skillnusa-fd614.firebasestorage.app",
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID || "706734048752",
+  appId: process.env.REACT_APP_FIREBASE_APP_ID || "1:706734048752:web:219c57edb47247ca92c935",
 };
 
 // Validate required configuration

@@ -21,37 +21,80 @@ export const USER_ROLES = {
 };
 
 /**
- * Firebase collections
+ * Firebase collections - Standardized naming (camelCase)
  */
 export const COLLECTIONS = {
   USERS: 'users',
-  // Tidak lagi menggunakan koleksi 'profiles' (legacy)
-  // PROFILES: 'profiles',
-  
-  // Menggunakan format yang konsisten sesuai dengan yang ada di Firestore
   CLIENT_PROFILES: 'clientProfiles',
   FREELANCER_PROFILES: 'freelancerProfiles',
-  PROJECTS: 'projects',
-  PROPOSALS: 'proposals',
-  MESSAGES: 'messages',
   GIGS: 'gigs',
   ORDERS: 'orders',
   REVIEWS: 'reviews',
-  CONVERSATIONS: 'conversations',
-  NOTIFICATIONS: 'notifications'
+  CHATS: 'chats',
+  MESSAGES: 'messages',
+  NOTIFICATIONS: 'notifications',
+  FAVORITES: 'favorites'
 };
 
-// Freelancer status constants removed - no longer using approval system
-
 /**
- * Project statuses
+ * Order statuses
  */
-export const PROJECT_STATUSES = {
-  DRAFT: 'draft',
-  OPEN: 'open',
-  IN_PROGRESS: 'in-progress',
+export const ORDER_STATUSES = {
+  PENDING: 'pending',
+  IN_PROGRESS: 'in_progress',
+  DELIVERED: 'delivered',
+  IN_REVISION: 'in_revision',
   COMPLETED: 'completed',
   CANCELLED: 'cancelled'
+};
+
+/**
+ * Payment statuses
+ */
+export const PAYMENT_STATUSES = {
+  PENDING: 'pending',
+  PAID: 'paid',
+  REFUNDED: 'refunded'
+};
+
+/**
+ * Gig statuses
+ */
+export const GIG_STATUSES = {
+  ACTIVE: 'active',
+  PAUSED: 'paused',
+  DRAFT: 'draft'
+};
+
+/**
+ * Review statuses
+ */
+export const REVIEW_STATUSES = {
+  PUBLISHED: 'published',
+  PENDING: 'pending',
+  HIDDEN: 'hidden'
+};
+
+/**
+ * Message types
+ */
+export const MESSAGE_TYPES = {
+  TEXT: 'text',
+  FILE: 'file',
+  ORDER_NOTIFICATION: 'order_notification',
+  ORDER_STATUS: 'order_status',
+  GIG_CONTEXT: 'gig_context'
+};
+
+/**
+ * Notification types
+ */
+export const NOTIFICATION_TYPES = {
+  ORDER_UPDATE: 'order_update',
+  ORDER_DELIVERED: 'order_delivered',
+  MESSAGE: 'message',
+  REVIEW: 'review',
+  SYSTEM: 'system'
 };
 
 /**
