@@ -13,20 +13,46 @@ class ReviewService {
    */
   async getGigReviews(gigId, options = {}) {
     try {
-      const queryOptions = {
-        filters: [{ field: 'gigId', operator: '==', value: gigId }],
-        orderByField: 'createdAt',
-        orderDirection: 'desc'
-      };
-      
-      if (options.limit) {
-        queryOptions.limitCount = options.limit;
+      // Try compound query first, fallback to simple query + client-side sorting
+      try {
+        const queryOptions = {
+          filters: [{ field: 'gigId', operator: '==', value: gigId }],
+          orderByField: 'createdAt',
+          orderDirection: 'desc'
+        };
+        
+        if (options.limit) {
+          queryOptions.limitCount = options.limit;
+        }
+        
+        return await firebaseService.getDocuments(COLLECTIONS.REVIEWS, queryOptions);
+      } catch (indexError) {
+        console.log('Index not available, using fallback query...');
+        
+        // Fallback: Simple query without orderBy
+        const queryOptions = {
+          filters: [{ field: 'gigId', operator: '==', value: gigId }]
+        };
+        
+        const reviews = await firebaseService.getDocuments(COLLECTIONS.REVIEWS, queryOptions);
+        
+        // Client-side sorting
+        reviews.sort((a, b) => {
+          const aDate = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+          const bDate = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+          return bDate - aDate; // desc order
+        });
+        
+        // Apply limit if specified
+        if (options.limit) {
+          return reviews.slice(0, options.limit);
+        }
+        
+        return reviews;
       }
-      
-      return await firebaseService.getDocuments(COLLECTIONS.REVIEWS, queryOptions);
     } catch (error) {
       console.error('Error getting gig reviews:', error);
-      throw error;
+      return []; // Return empty array instead of throwing
     }
   }
   
@@ -38,20 +64,46 @@ class ReviewService {
    */
   async getFreelancerReviews(freelancerId, options = {}) {
     try {
-      const queryOptions = {
-        filters: [{ field: 'freelancerId', operator: '==', value: freelancerId }],
-        orderByField: 'createdAt',
-        orderDirection: 'desc'
-      };
-      
-      if (options.limit) {
-        queryOptions.limitCount = options.limit;
+      // Try compound query first, fallback to simple query + client-side sorting
+      try {
+        const queryOptions = {
+          filters: [{ field: 'freelancerId', operator: '==', value: freelancerId }],
+          orderByField: 'createdAt',
+          orderDirection: 'desc'
+        };
+        
+        if (options.limit) {
+          queryOptions.limitCount = options.limit;
+        }
+        
+        return await firebaseService.getDocuments(COLLECTIONS.REVIEWS, queryOptions);
+      } catch (indexError) {
+        console.log('Index not available, using fallback query...');
+        
+        // Fallback: Simple query without orderBy
+        const queryOptions = {
+          filters: [{ field: 'freelancerId', operator: '==', value: freelancerId }]
+        };
+        
+        const reviews = await firebaseService.getDocuments(COLLECTIONS.REVIEWS, queryOptions);
+        
+        // Client-side sorting
+        reviews.sort((a, b) => {
+          const aDate = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+          const bDate = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+          return bDate - aDate; // desc order
+        });
+        
+        // Apply limit if specified
+        if (options.limit) {
+          return reviews.slice(0, options.limit);
+        }
+        
+        return reviews;
       }
-      
-      return await firebaseService.getDocuments(COLLECTIONS.REVIEWS, queryOptions);
     } catch (error) {
       console.error('Error getting freelancer reviews:', error);
-      throw error;
+      return []; // Return empty array instead of throwing
     }
   }
   
@@ -111,8 +163,10 @@ class ReviewService {
       
       reviews.forEach(review => {
         const rating = review.rating;
-        ratingBreakdown[rating]++;
-        totalRating += rating;
+        if (rating >= 1 && rating <= 5) {
+          ratingBreakdown[rating]++;
+          totalRating += rating;
+        }
       });
       
       const averageRating = Math.round((totalRating / reviews.length) * 10) / 10;
@@ -124,7 +178,11 @@ class ReviewService {
       };
     } catch (error) {
       console.error('Error calculating rating stats:', error);
-      throw error;
+      return {
+        averageRating: 0,
+        totalReviews: 0,
+        ratingBreakdown: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
+      };
     }
   }
   

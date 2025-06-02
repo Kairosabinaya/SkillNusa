@@ -38,6 +38,7 @@ import {
   UserIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
+import freelancerRatingService from '../../services/freelancerRatingService';
 
 export default function FreelancerDashboard() {
   const { currentUser, userProfile } = useAuth();
@@ -249,39 +250,10 @@ export default function FreelancerDashboard() {
           completedOrders 
         });
 
-        // Fetch reviews using the correct field names
-        const reviewsQueryPrimary = query(
-          collection(db, 'reviews'),
-          where('freelancerId', '==', currentUser.uid)
-        );
-        
-        const reviewsQueryFallback = query(
-          collection(db, 'reviews'),
-          where('sellerId', '==', currentUser.uid)
-        );
-        
-        const [reviewsSnapshotPrimary, reviewsSnapshotFallback] = await Promise.all([
-          getDocs(reviewsQueryPrimary),
-          getDocs(reviewsQueryFallback)
-        ]);
-        
-        let totalRating = 0;
-        let totalReviews = 0;
-        
-        // Process reviews from both queries to avoid duplicates
-        const processedReviewIds = new Set();
-        [reviewsSnapshotPrimary, reviewsSnapshotFallback].forEach(snapshot => {
-          snapshot.forEach(doc => {
-            if (!processedReviewIds.has(doc.id)) {
-              processedReviewIds.add(doc.id);
-              const review = doc.data();
-              totalRating += review.rating || 0;
-              totalReviews++;
-            }
-          });
-        });
-        
-        const averageRating = totalReviews > 0 ? totalRating / totalReviews : 0;
+        // Fetch reviews using the new freelancer rating service
+        const ratingStats = await freelancerRatingService.calculateFreelancerRatingStats(currentUser.uid);
+        const averageRating = ratingStats.averageRating;
+        const totalReviews = ratingStats.totalReviews;
 
         // Fetch gigs
         const gigsQueryPrimary = query(
@@ -314,6 +286,7 @@ export default function FreelancerDashboard() {
         
         console.log(`📊 FreelancerDashboard: Found ${gigsData.length} gigs for user ${currentUser.uid}`);
         console.log('Dashboard gigs data:', gigsData);
+        console.log('📊 Rating stats from new service:', ratingStats);
         
         setGigs(gigsData);
 

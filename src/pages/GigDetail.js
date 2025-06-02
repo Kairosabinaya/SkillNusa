@@ -30,6 +30,9 @@ export default function GigDetail() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  // Check if current user is the gig owner
+  const isOwnGig = currentUser && gig && currentUser.uid === gig.freelancerId;
+
   // Load gig data
   useEffect(() => {
     const loadGigData = async () => {
@@ -104,6 +107,12 @@ export default function GigDetail() {
 
     if (!gig) return;
 
+    // Prevent freelancer from adding own gig to cart
+    if (isOwnGig) {
+      setError('You cannot add your own gig to cart');
+      return;
+    }
+
     setCartLoading(true);
     try {
       await cartService.addToCart(currentUser.uid, {
@@ -138,6 +147,12 @@ export default function GigDetail() {
     }
     
     if (!gig) return;
+
+    // Prevent freelancer from checking out own gig
+    if (isOwnGig) {
+      setError('You cannot purchase your own gig');
+      return;
+    }
     
     const currentPackage = gig.packages[selectedPackage];
     navigate('/checkout', {
@@ -201,6 +216,12 @@ export default function GigDetail() {
   const handleContactFreelancer = async () => {
     if (!currentUser) {
       navigate('/login');
+      return;
+    }
+
+    // Prevent freelancer from contacting themselves
+    if (isOwnGig) {
+      setError('You cannot contact yourself');
       return;
     }
 
@@ -675,11 +696,24 @@ export default function GigDetail() {
                           </div>
                           <p className="text-gray-700 text-sm mb-2">{review.comment}</p>
                           <p className="text-gray-500 text-xs">
-                            {new Date(review.createdAt.seconds * 1000).toLocaleDateString('id-ID', {
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric'
-                            })}
+                            {(() => {
+                              let date;
+                              if (review.createdAt && review.createdAt.seconds) {
+                                // Firestore timestamp
+                                date = new Date(review.createdAt.seconds * 1000);
+                              } else if (review.createdAt) {
+                                // Regular date string or Date object
+                                date = new Date(review.createdAt);
+                              } else {
+                                date = new Date();
+                              }
+                              
+                              return date.toLocaleDateString('id-ID', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                              });
+                            })()}
                           </p>
                         </div>
                       </div>
@@ -757,64 +791,91 @@ export default function GigDetail() {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="space-y-3">
-                    <button
-                      onClick={handleDirectCheckout}
-                      className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-                    >
-                      Continue ({formatCurrency(currentPackage.price)})
-                    </button>
-                    
-                    <button
-                      onClick={handleAddToCart}
-                      disabled={cartLoading || isInCart}
-                      className="w-full bg-white text-gray-900 py-3 px-4 rounded-lg font-medium border border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {cartLoading ? 'Adding...' : isInCart ? 'Already in Cart' : 'Add to Cart'}
-                    </button>
-
-                    <button
-                      onClick={handleContactFreelancer}
-                      className="w-full bg-white text-blue-600 py-3 px-4 rounded-lg font-medium border border-blue-200 hover:bg-blue-50 transition-colors"
-                    >
-                      Contact Freelancer
-                    </button>
-
-                    {/* Add to Favorites Button */}
-                    <button
-                      onClick={handleFavoriteToggle}
-                      disabled={favoriteLoading}
-                      className={`w-full py-3 px-4 rounded-lg font-medium border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                        isFavorited
-                          ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'
-                          : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      {favoriteLoading ? (
-                        <div className="flex items-center justify-center">
-                          <div className="w-4 h-4 animate-spin rounded-full border-2 border-gray-300 border-t-current"></div>
-                          <span className="ml-2">Processing...</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center">
-                          <svg 
-                            className="w-5 h-5 mr-2" 
-                            fill={isFavorited ? 'currentColor' : 'none'} 
-                            stroke="currentColor" 
-                            viewBox="0 0 24 24"
+                  {isOwnGig ? (
+                    // Show different buttons for gig owner
+                    <div className="space-y-3">
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+                        <h4 className="font-medium text-blue-900 mb-2">This is your gig</h4>
+                        <p className="text-sm text-blue-700 mb-3">
+                          You can manage your gig from your dashboard
+                        </p>
+                        <div className="flex flex-col gap-2">
+                          <Link 
+                            to={`/dashboard/freelancer/gigs/edit/${gig.id}`}
+                            className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors text-center"
                           >
-                            <path 
-                              strokeLinecap="round" 
-                              strokeLinejoin="round" 
-                              strokeWidth={2} 
-                              d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" 
-                            />
-                          </svg>
-                          {isFavorited ? 'Go to Favorites' : 'Add to Favorites'}
+                            Edit Gig
+                          </Link>
+                          <Link 
+                            to="/dashboard/freelancer/gigs"
+                            className="w-full bg-white text-blue-600 py-2 px-4 rounded-lg font-medium border border-blue-200 hover:bg-blue-50 transition-colors text-center"
+                          >
+                            Manage Gigs
+                          </Link>
                         </div>
-                      )}
-                    </button>
-                  </div>
+                      </div>
+                    </div>
+                  ) : (
+                    // Show regular buttons for other users
+                    <div className="space-y-3">
+                      <button
+                        onClick={handleDirectCheckout}
+                        className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                      >
+                        Continue ({formatCurrency(currentPackage.price)})
+                      </button>
+                      
+                      <button
+                        onClick={handleAddToCart}
+                        disabled={cartLoading || isInCart}
+                        className="w-full bg-white text-gray-900 py-3 px-4 rounded-lg font-medium border border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {cartLoading ? 'Adding...' : isInCart ? 'Already in Cart' : 'Add to Cart'}
+                      </button>
+
+                      <button
+                        onClick={handleContactFreelancer}
+                        className="w-full bg-white text-blue-600 py-3 px-4 rounded-lg font-medium border border-blue-200 hover:bg-blue-50 transition-colors"
+                      >
+                        Contact Freelancer
+                      </button>
+
+                      {/* Add to Favorites Button */}
+                      <button
+                        onClick={handleFavoriteToggle}
+                        disabled={favoriteLoading}
+                        className={`w-full py-3 px-4 rounded-lg font-medium border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                          isFavorited
+                            ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'
+                            : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        {favoriteLoading ? (
+                          <div className="flex items-center justify-center">
+                            <div className="w-4 h-4 animate-spin rounded-full border-2 border-gray-300 border-t-current"></div>
+                            <span className="ml-2">Processing...</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center">
+                            <svg 
+                              className="w-5 h-5 mr-2" 
+                              fill={isFavorited ? 'currentColor' : 'none'} 
+                              stroke="currentColor" 
+                              viewBox="0 0 24 24"
+                            >
+                              <path 
+                                strokeLinecap="round" 
+                                strokeLinejoin="round" 
+                                strokeWidth={2} 
+                                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" 
+                              />
+                            </svg>
+                            {isFavorited ? 'Go to Favorites' : 'Add to Favorites'}
+                          </div>
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

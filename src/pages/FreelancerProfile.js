@@ -14,6 +14,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import chatService from '../services/chatService';
+import freelancerRatingService from '../services/freelancerRatingService';
 import {
   StarIcon,
   MapPinIcon,
@@ -60,7 +61,7 @@ export default function FreelancerProfile() {
       const userData = { id: userDoc.id, ...userDoc.data() };
       setFreelancerData(userData);
 
-      // Load freelancer profile
+      // Load freelancer profile with calculated rating
       const profileQuery = query(
         collection(db, 'freelancerProfiles'),
         where('userId', '==', freelancerId),
@@ -75,49 +76,85 @@ export default function FreelancerProfile() {
         profileData = { id: profileDoc.id, ...profileDoc.data() };
       }
       
-      setFreelancerProfile(profileData);
-
-      // Load freelancer gigs
-      const gigsQuery = query(
-        collection(db, 'gigs'),
-        where('freelancerId', '==', freelancerId),
-        where('isActive', '==', true),
-        orderBy('createdAt', 'desc')
-      );
+      // Get calculated rating stats from all gigs
+      const ratingStats = await freelancerRatingService.calculateFreelancerRatingStats(freelancerId);
       
-      const gigsSnapshot = await getDocs(gigsQuery);
-      const gigsData = [];
-      
-      gigsSnapshot.forEach((doc) => {
-        gigsData.push({ id: doc.id, ...doc.data() });
-      });
-      
-      setFreelancerGigs(gigsData);
-
-      // Load freelancer reviews
-      const reviewsQuery = query(
-        collection(db, 'reviews'),
-        where('freelancerId', '==', freelancerId),
-        orderBy('createdAt', 'desc'),
-        limit(10)
-      );
-      
-      const reviewsSnapshot = await getDocs(reviewsQuery);
-      const reviewsData = [];
-      
-      for (const reviewDoc of reviewsSnapshot.docs) {
-        const reviewData = reviewDoc.data();
-        
-        // Get client data for each review
-        const clientDoc = await getDoc(doc(db, 'users', reviewData.clientId));
-        if (clientDoc.exists()) {
-          reviewData.client = { id: clientDoc.id, ...clientDoc.data() };
-        }
-        
-        reviewsData.push({ id: reviewDoc.id, ...reviewData });
+      // Merge profile data with calculated rating stats
+      if (profileData) {
+        profileData = {
+          ...profileData,
+          rating: ratingStats.averageRating,
+          totalReviews: ratingStats.totalReviews
+        };
       }
       
-      setFreelancerReviews(reviewsData);
+      setFreelancerProfile(profileData);
+
+      // Load freelancer gigs with fallback query
+      try {
+        // Try compound query first
+        try {
+          const gigsQuery = query(
+            collection(db, 'gigs'),
+            where('freelancerId', '==', freelancerId),
+            where('isActive', '==', true),
+            orderBy('createdAt', 'desc')
+          );
+          
+          const gigsSnapshot = await getDocs(gigsQuery);
+          const gigsData = [];
+          
+          gigsSnapshot.forEach((doc) => {
+            gigsData.push({ id: doc.id, ...doc.data() });
+          });
+          
+          setFreelancerGigs(gigsData);
+        } catch (indexError) {
+          console.log('Index not available for gigs query, using fallback...');
+          
+          // Fallback: Simple query without orderBy
+          const gigsQuery = query(
+            collection(db, 'gigs'),
+            where('freelancerId', '==', freelancerId),
+            where('isActive', '==', true)
+          );
+          
+          const gigsSnapshot = await getDocs(gigsQuery);
+          const gigsData = [];
+          
+          gigsSnapshot.forEach((doc) => {
+            gigsData.push({ id: doc.id, ...doc.data() });
+          });
+          
+          // Client-side sorting by createdAt desc
+          gigsData.sort((a, b) => {
+            const aDate = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+            const bDate = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+            return bDate - aDate;
+          });
+          
+          setFreelancerGigs(gigsData);
+        }
+      } catch (error) {
+        console.error('Error loading freelancer gigs:', error);
+        setFreelancerGigs([]);
+      }
+
+      // Load all freelancer reviews from all gigs using new service
+      const allReviews = await freelancerRatingService.getAllFreelancerReviews(freelancerId, { limit: 10 });
+      
+      // Get client data for each review
+      const reviewsWithClientData = await Promise.all(
+        allReviews.map(async (review) => {
+          const clientDoc = await getDoc(doc(db, 'users', review.clientId));
+          if (clientDoc.exists()) {
+            review.client = { id: clientDoc.id, ...clientDoc.data() };
+          }
+          return review;
+        })
+      );
+      
+      setFreelancerReviews(reviewsWithClientData);
       
     } catch (error) {
       console.error('Error loading freelancer data:', error);
@@ -301,7 +338,7 @@ export default function FreelancerProfile() {
                     {freelancerData.location && (
                       <div className="flex items-center">
                         <MapPinIcon className="w-5 h-5 mr-2" />
-                        {freelancerData.location}
+                        {freelancerData.location.charAt(0).toUpperCase() + freelancerData.location.slice(1)}
                       </div>
                     )}
                     
@@ -421,14 +458,29 @@ export default function FreelancerProfile() {
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Skills</h3>
                     <div className="flex flex-wrap gap-2">
-                      {freelancerProfile.skills.map((skill, index) => (
-                        <span
-                          key={index}
-                          className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
-                        >
-                          {skill}
-                        </span>
-                      ))}
+                      {freelancerProfile.skills.map((skill, index) => {
+                        // Handle both string skills and object skills {skill, experienceLevel}
+                        let skillText = '';
+                        let expLevel = '';
+                        
+                        if (typeof skill === 'string') {
+                          skillText = skill;
+                        } else if (typeof skill === 'object' && skill !== null) {
+                          skillText = skill.skill || skill.name || skill.skillName || String(skill);
+                          expLevel = skill.experienceLevel ? ` (${skill.experienceLevel})` : '';
+                        } else {
+                          skillText = String(skill);
+                        }
+                        
+                        return (
+                          <span
+                            key={index}
+                            className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+                          >
+                            {skillText}{expLevel}
+                          </span>
+                        );
+                      })}
                     </div>
                   </div>
                 )}

@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { COLLECTIONS } from '../utils/constants';
+import freelancerRatingService from './freelancerRatingService';
 
 /**
  * Get all gigs with optional filters
@@ -372,10 +373,14 @@ const getFreelancerData = async (freelancerId) => {
     const freelancerDoc = await getDoc(doc(db, COLLECTIONS.FREELANCER_PROFILES, freelancerId));
     const freelancerData = freelancerDoc.exists() ? freelancerDoc.data() : {};
     
+    // Get calculated rating stats from all gigs
+    const ratingStats = await freelancerRatingService.calculateFreelancerRatingStats(freelancerId);
+    
     // Debug logging for education and certification data
     console.log('🎓 Education data from freelancerProfiles:', freelancerData.education);
     console.log('📜 Certification data from freelancerProfiles:', freelancerData.certifications);
     console.log('👤 Full freelancer profile data:', freelancerData);
+    console.log('📊 Calculated rating stats:', ratingStats);
     
     return {
       id: freelancerId,
@@ -388,8 +393,8 @@ const getFreelancerData = async (freelancerId) => {
       isVerified: userData.emailVerified || false,
       isTopRated: freelancerData.tier === 'platinum' || freelancerData.tier === 'gold',
       tier: freelancerData.tier || 'bronze',
-      rating: freelancerData.rating || 0,
-      totalReviews: freelancerData.totalReviews || 0,
+      rating: ratingStats.averageRating, // Use calculated rating
+      totalReviews: ratingStats.totalReviews, // Use calculated total reviews
       completedProjects: freelancerData.completedProjects || 0,
       skills: freelancerData.skills || [],
       hourlyRate: freelancerData.hourlyRate || 0,
@@ -429,51 +434,41 @@ export const getGigReviews = async (gigId, options = {}) => {
   try {
     console.log('🔍 getGigReviews called for gigId:', gigId);
     
-    const {
-      sortBy = 'createdAt',
-      sortOrder = 'desc',
-      limit = 20
-    } = options;
+    // Use reviewService which has fallback query logic
+    const reviewService = (await import('./reviewService')).default;
+    const reviews = await reviewService.getGigReviews(gigId, options);
     
-    const reviewsQuery = query(
-      collection(db, COLLECTIONS.REVIEWS),
-      where('gigId', '==', gigId),
-      orderBy(sortBy, sortOrder),
-      firestoreLimit(limit)
-    );
+    console.log(`📊 Found ${reviews.length} reviews from reviewService`);
     
-    console.log('📊 Executing reviews query...');
-    const reviewsSnapshot = await getDocs(reviewsQuery);
-    console.log(`📊 Found ${reviewsSnapshot.size} reviews`);
-    
-    const reviews = await Promise.all(
-      reviewsSnapshot.docs.map(async (doc) => {
-        const reviewData = {
-          id: doc.id,
-          ...doc.data()
-        };
+    // Add client data to each review if not already present
+    const reviewsWithClientData = await Promise.all(
+      reviews.map(async (review) => {
+        // Skip if client data already present
+        if (review.client) {
+          return review;
+        }
         
-        console.log('📝 Processing review:', reviewData);
+        console.log('📝 Processing review:', review.id);
         
         // Get client data for the review
-        const clientDoc = await getDoc(doc(db, COLLECTIONS.USERS, reviewData.clientId));
+        const clientDoc = await getDoc(doc(db, COLLECTIONS.USERS, review.clientId));
         const clientData = clientDoc.exists() ? clientDoc.data() : {};
         
         const processedReview = {
-          ...reviewData,
+          ...review,
           client: {
             name: clientData.displayName || clientData.username || 'Anonymous',
             avatar: clientData.profilePhoto || null
           }
         };
         
-        console.log('👤 Processed review with client data:', processedReview);
+        console.log('👤 Processed review with client data:', processedReview.id);
         return processedReview;
       })
     );
     
-    console.log('✅ Returning reviews:', reviews);
-    return reviews;
+    console.log('✅ Returning reviews with client data:', reviewsWithClientData.length);
+    return reviewsWithClientData;
   } catch (error) {
     console.error('❌ Error getting gig reviews:', error);
     return [];
