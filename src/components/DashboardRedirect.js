@@ -9,8 +9,15 @@ export default function DashboardRedirect() {
 
   useEffect(() => {
     if (!loading && userProfile) {
-      // Always redirect to client dashboard by default
-      navigate('/dashboard/client', { replace: true });
+      // Check if user has admin role and redirect accordingly
+      if (userProfile.roles?.includes('admin')) {
+        navigate('/dashboard/admin', { replace: true });
+      } else if (userProfile.isFreelancer) {
+        navigate('/dashboard/freelancer', { replace: true });
+      } else {
+        // Default to client dashboard
+        navigate('/dashboard/client', { replace: true });
+      }
     }
   }, [userProfile, loading, navigate]);
 

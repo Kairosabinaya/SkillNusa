@@ -25,7 +25,6 @@ import {
   AcademicCapIcon,
   BriefcaseIcon,
   TrophyIcon,
-  PhotoIcon,
   ArrowLeftIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
@@ -41,7 +40,6 @@ export default function FreelancerProfile() {
   const [freelancerReviews, setFreelancerReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('about');
-  const [portfolioLightbox, setPortfolioLightbox] = useState({ isOpen: false, imageIndex: 0 });
 
   useEffect(() => {
     loadFreelancerData();
@@ -199,14 +197,6 @@ export default function FreelancerProfile() {
     return 'Tidak tersedia';
   };
 
-  const openPortfolioLightbox = (index) => {
-    setPortfolioLightbox({ isOpen: true, imageIndex: index });
-  };
-
-  const closePortfolioLightbox = () => {
-    setPortfolioLightbox({ isOpen: false, imageIndex: 0 });
-  };
-
   const renderStars = (rating) => {
     const stars = [];
     for (let i = 1; i <= 5; i++) {
@@ -286,16 +276,6 @@ export default function FreelancerProfile() {
                   </div>
                 )}
               </div>
-              
-              {/* Online Status */}
-              <div className="flex items-center mt-4 text-sm">
-                <div className={`w-3 h-3 rounded-full mr-2 ${
-                  freelancerData.isOnline ? 'bg-green-500' : 'bg-gray-400'
-                }`}></div>
-                <span className="text-gray-600">
-                  {freelancerData.isOnline ? 'Online' : 'Offline'}
-                </span>
-              </div>
             </div>
 
             {/* Main Info */}
@@ -333,7 +313,7 @@ export default function FreelancerProfile() {
                     )}
                   </div>
 
-                  {/* Location and Languages */}
+                  {/* Location, Languages, and Portfolio Links */}
                   <div className="flex flex-wrap items-center gap-6 text-gray-600">
                     {freelancerData.location && (
                       <div className="flex items-center">
@@ -354,6 +334,26 @@ export default function FreelancerProfile() {
                       Response time: {getResponseTime(freelancerProfile)}
                     </div>
                   </div>
+
+                  {/* Portfolio/Website Links */}
+                  {(freelancerData.portfolioLinks || freelancerProfile?.portfolioLinks) && (
+                    <div className="mt-4">
+                      <div className="flex flex-wrap gap-3">
+                        {(freelancerData.portfolioLinks || freelancerProfile?.portfolioLinks || []).map((link, index) => (
+                          <a
+                            key={index}
+                            href={link.startsWith('http') ? link : `https://${link}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm hover:bg-blue-100 transition-colors"
+                          >
+                            <GlobeAltIcon className="w-4 h-4 mr-1.5" />
+                            Portfolio {index + 1}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Contact Button */}
@@ -413,8 +413,7 @@ export default function FreelancerProfile() {
               {[
                 { key: 'about', label: 'About', count: null },
                 { key: 'gigs', label: 'Gigs', count: freelancerGigs.length },
-                { key: 'reviews', label: 'Reviews', count: freelancerReviews.length },
-                { key: 'portfolio', label: 'Portfolio', count: freelancerProfile?.portfolio?.length || 0 }
+                { key: 'reviews', label: 'Reviews', count: freelancerReviews.length }
               ].map((tab) => (
                 <button
                   key={tab.key}
@@ -486,17 +485,23 @@ export default function FreelancerProfile() {
                 )}
 
                 {/* Education */}
-                {freelancerProfile?.education && freelancerProfile.education.length > 0 && (
+                {freelancerData?.education && freelancerData.education.length > 0 && (
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Education</h3>
                     <div className="space-y-4">
-                      {freelancerProfile.education.map((edu, index) => (
+                      {freelancerData.education.map((edu, index) => (
                         <div key={index} className="flex items-start">
                           <AcademicCapIcon className="w-6 h-6 text-gray-400 mr-3 mt-1" />
                           <div>
-                            <h4 className="font-medium text-gray-900">{edu.degree}</h4>
-                            <p className="text-gray-600">{edu.institution}</p>
-                            <p className="text-gray-500 text-sm">{edu.year}</p>
+                            <h4 className="font-medium text-gray-900">
+                              {edu.degree || edu.title || 'Unknown Degree'}
+                            </h4>
+                            <p className="text-gray-600">
+                              {edu.institution || edu.university || edu.school || 'Unknown Institution'}
+                            </p>
+                            <p className="text-gray-500 text-sm">
+                              {edu.year || edu.graduationYear || edu.endYear || 'Unknown Year'}
+                            </p>
                           </div>
                         </div>
                       ))}
@@ -505,11 +510,11 @@ export default function FreelancerProfile() {
                 )}
 
                 {/* Work Experience */}
-                {freelancerProfile?.workExperience && freelancerProfile.workExperience.length > 0 && (
+                {(freelancerProfile?.workExperience || freelancerData?.workExperience) && (freelancerProfile?.workExperience || freelancerData?.workExperience).length > 0 && (
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Work Experience</h3>
                     <div className="space-y-4">
-                      {freelancerProfile.workExperience.map((work, index) => (
+                      {(freelancerProfile?.workExperience || freelancerData?.workExperience || []).map((work, index) => (
                         <div key={index} className="flex items-start">
                           <BriefcaseIcon className="w-6 h-6 text-gray-400 mr-3 mt-1" />
                           <div>
@@ -527,17 +532,23 @@ export default function FreelancerProfile() {
                 )}
 
                 {/* Certifications */}
-                {freelancerProfile?.certifications && freelancerProfile.certifications.length > 0 && (
+                {freelancerData?.certifications && freelancerData.certifications.length > 0 && (
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Certifications</h3>
                     <div className="space-y-4">
-                      {freelancerProfile.certifications.map((cert, index) => (
+                      {freelancerData.certifications.map((cert, index) => (
                         <div key={index} className="flex items-start">
                           <TrophyIcon className="w-6 h-6 text-gray-400 mr-3 mt-1" />
                           <div>
-                            <h4 className="font-medium text-gray-900">{cert.name}</h4>
-                            <p className="text-gray-600">{cert.issuer}</p>
-                            <p className="text-gray-500 text-sm">{cert.year}</p>
+                            <h4 className="font-medium text-gray-900">
+                              {cert.name || cert.title || 'Unknown Certification'}
+                            </h4>
+                            <p className="text-gray-600">
+                              {cert.issuer || cert.issuedBy || cert.organization || 'Unknown Issuer'}
+                            </p>
+                            <p className="text-gray-500 text-sm">
+                              {cert.year || cert.issueYear || cert.date || 'Unknown Year'}
+                            </p>
                           </div>
                         </div>
                       ))}
@@ -643,91 +654,8 @@ export default function FreelancerProfile() {
                 )}
               </motion.div>
             )}
-
-            {/* Portfolio Tab */}
-            {activeTab === 'portfolio' && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
-                {freelancerProfile?.portfolio && freelancerProfile.portfolio.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {freelancerProfile.portfolio.map((item, index) => (
-                      <motion.div
-                        key={index}
-                        whileHover={{ y: -5 }}
-                        className="bg-gray-50 rounded-lg overflow-hidden hover:shadow-md transition-all duration-200 cursor-pointer"
-                        onClick={() => openPortfolioLightbox(index)}
-                      >
-                        <div className="relative group">
-                          <img
-                            src={item.imageUrl || 'https://picsum.photos/400/300'}
-                            alt={item.title}
-                            className="w-full h-48 object-cover"
-                          />
-                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
-                            <PhotoIcon className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-                          </div>
-                        </div>
-                        <div className="p-4">
-                          <h3 className="font-semibold text-gray-900 mb-2">
-                            {item.title}
-                          </h3>
-                          <p className="text-gray-600 text-sm line-clamp-2">
-                            {item.description}
-                          </p>
-                          {item.projectUrl && (
-                            <a
-                              href={item.projectUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center text-[#010042] hover:text-[#000030] text-sm mt-2"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <GlobeAltIcon className="w-4 h-4 mr-1" />
-                              View Project
-                            </a>
-                          )}
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <PhotoIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500">No portfolio items available.</p>
-                  </div>
-                )}
-              </motion.div>
-            )}
           </div>
         </motion.div>
-
-        {/* Portfolio Lightbox */}
-        {portfolioLightbox.isOpen && freelancerProfile?.portfolio && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4"
-            onClick={closePortfolioLightbox}
-          >
-            <div className="relative max-w-4xl max-h-full">
-              <img
-                src={freelancerProfile.portfolio[portfolioLightbox.imageIndex]?.imageUrl}
-                alt={freelancerProfile.portfolio[portfolioLightbox.imageIndex]?.title}
-                className="max-w-full max-h-full object-contain"
-                onClick={(e) => e.stopPropagation()}
-              />
-              <button
-                onClick={closePortfolioLightbox}
-                className="absolute top-4 right-4 text-white hover:text-gray-300 text-2xl"
-              >
-                ×
-              </button>
-            </div>
-          </motion.div>
-        )}
       </div>
     </div>
   );

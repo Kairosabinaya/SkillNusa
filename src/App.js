@@ -68,6 +68,11 @@ import FreelancerWallet from './pages/Dashboard/FreelancerWallet';
 import FreelancerSettings from './pages/Dashboard/FreelancerSettings';
 import FreelancerNotifications from './pages/Dashboard/FreelancerNotifications';
 
+// Admin Pages
+import AdminDashboard from './pages/Dashboard/AdminDashboard';
+import AdminUsers from './pages/Dashboard/AdminUsers';
+import AdminGigs from './pages/Dashboard/AdminGigs';
+
 // Settings page
 import Settings from './pages/Settings';
 
@@ -289,6 +294,32 @@ function App() {
             />
             
             {/* TODO: Add Admin Dashboard Routes */}
+            
+            {/* Admin Dashboard Routes */}
+            <Route 
+              path="admin" 
+              element={
+                <RoleRoute allowedRoles="admin">
+                  <AdminDashboard />
+                </RoleRoute>
+              } 
+            />
+            <Route 
+              path="admin/users" 
+              element={
+                <RoleRoute allowedRoles="admin">
+                  <AdminUsers />
+                </RoleRoute>
+              } 
+            />
+            <Route 
+              path="admin/gigs" 
+              element={
+                <RoleRoute allowedRoles="admin">
+                  <AdminGigs />
+                </RoleRoute>
+              } 
+            />
           </Route>
 
           {/* Settings Route - accessible by all authenticated users */}

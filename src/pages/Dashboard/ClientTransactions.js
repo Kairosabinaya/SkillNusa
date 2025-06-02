@@ -29,7 +29,22 @@ export default function ClientTransactions() {
     
     try {
       setLoading(true);
+      console.log('ClientTransactions - Loading orders for user:', currentUser.uid);
       const ordersWithDetails = await orderService.getOrdersWithDetails(currentUser.uid, 'client');
+      console.log('ClientTransactions - Orders loaded:', ordersWithDetails.map(order => ({
+        id: order.id,
+        title: order.title,
+        price: order.price,
+        totalPrice: order.totalPrice,
+        amount: order.amount,
+        totalAmount: order.totalAmount,
+        hasGig: !!order.gig,
+        gigPrice: order.gig ? {
+          basic: order.gig.packages?.basic?.price,
+          standard: order.gig.packages?.standard?.price,
+          premium: order.gig.packages?.premium?.price
+        } : null
+      })));
       setOrders(ordersWithDetails);
     } catch (error) {
       console.error('Error loading orders:', error);
@@ -50,6 +65,22 @@ export default function ClientTransactions() {
       currency: 'IDR',
       minimumFractionDigits: 0,
     }).format(numericPrice);
+  };
+
+  const getOrderPrice = (order) => {
+    // Try multiple possible price field names and return the first valid one
+    let price = order.price || order.totalPrice || order.amount || order.totalAmount;
+    
+    // If no valid price found in order and we have gig data, try to get price from gig packages
+    if (!price && order.gig && order.packageType) {
+      const packageData = order.gig.packages?.[order.packageType];
+      if (packageData && packageData.price) {
+        price = packageData.price;
+        console.log(`ClientTransactions - Using gig package price for order ${order.id}:`, price);
+      }
+    }
+    
+    return price || 0;
   };
 
   const formatDate = (date) => {
@@ -210,7 +241,7 @@ export default function ClientTransactions() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Harga:</span>
-                  <span className="font-medium">{formatPrice(selectedTransaction.price)}</span>
+                  <span className="font-medium">{formatPrice(getOrderPrice(selectedTransaction))}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Tanggal Pemesanan:</span>
@@ -441,7 +472,7 @@ export default function ClientTransactions() {
                     </div>
                     
                     <div className="text-lg font-bold text-[#010042]">
-                      {formatPrice(order.totalPrice)}
+                      {formatPrice(getOrderPrice(order))}
                     </div>
                   </div>
                   
