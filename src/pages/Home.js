@@ -2,6 +2,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { TypeAnimation } from 'react-type-animation';
 import { useAuth } from '../context/AuthContext';
 import { useState, useRef, useEffect } from 'react';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../firebase/config';
+import { COLLECTIONS } from '../utils/constants';
 import MeshGradientBackground from '../components/UI/MeshGradientBackground';
 import GigCard from '../components/common/GigCard';
 import gigService from '../services/gigService';
@@ -44,173 +47,6 @@ export default function Home() {
     }
   };
 
-  // Load gigs data (same as Browse page)
-  useEffect(() => {
-    const loadGigs = async () => {
-      setGigsLoading(true);
-      try {
-        // Try to load from database first
-        const gigData = await gigService.getFeaturedGigs(50);
-        if (gigData && gigData.length > 0) {
-          setGigs(gigData);
-        } else {
-          // Fallback to mock data (same as Browse)
-          const mockGigs = [
-            {
-              id: '1',
-              images: ["https://picsum.photos/seed/gig1/400/300"],
-              image: "https://picsum.photos/seed/gig1/400/300",
-              title: "I will build shopify ecommerce website, redesign online store",
-              category: "Programming & Tech",
-              freelancer: {
-                name: "Fillinx Sol",
-                displayName: "Fillinx Sol",
-                avatar: "https://picsum.photos/seed/freelancer1/50/50",
-                profilePhoto: "https://picsum.photos/seed/freelancer1/50/50",
-                isVerified: true,
-                isTopRated: true
-              },
-              rating: 4.9,
-              reviews: 1234,
-              totalReviews: 1234,
-              price: 195000,
-              startingPrice: 195000,
-              packages: { basic: { price: 195000 } },
-              deliveryTime: "7 days",
-              location: "Pakistan",
-              createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24) // 1 day ago
-            },
-            {
-              id: '2',
-              images: ["https://picsum.photos/seed/logo1/400/300"],
-              image: "https://picsum.photos/seed/logo1/400/300",
-              title: "I will create professional logo design for your business",
-              category: "Design & Creative",
-              freelancer: {
-                name: "Maya Design",
-                displayName: "Maya Design",
-                avatar: "https://picsum.photos/seed/freelancer2/50/50",
-                profilePhoto: "https://picsum.photos/seed/freelancer2/50/50",
-                isVerified: true,
-                isTopRated: false
-              },
-              rating: 4.8,
-              reviews: 287,
-              totalReviews: 287,
-              price: 150000,
-              startingPrice: 150000,
-              packages: { basic: { price: 150000 } },
-              deliveryTime: "3 days",
-              location: "Indonesia",
-              createdAt: new Date(Date.now() - 1000 * 60 * 60 * 12) // 12 hours ago (newest)
-            },
-            {
-              id: '3',
-              image: "https://picsum.photos/seed/gig3/400/300",
-              title: "SEO Marketing dan Optimasi Website",
-              category: "Digital Marketing",
-              freelancer: {
-                name: "Putri Sari",
-                displayName: "Putri Sari",
-                avatar: "https://picsum.photos/seed/freelancer3/50/50",
-                profilePhoto: "https://picsum.photos/seed/freelancer3/50/50",
-                isVerified: true,
-                isTopRated: false
-              },
-              rating: 4.8,
-              reviews: 28,
-              totalReviews: 28,
-              price: 850000,
-              startingPrice: 850000,
-              packages: { basic: { price: 850000 } },
-              deliveryTime: "7 days",
-              location: "Indonesia",
-              createdAt: new Date(Date.now() - 1000 * 60 * 60 * 48) // 2 days ago
-            },
-            {
-              id: '4',
-              image: "https://picsum.photos/seed/gig4/400/300",
-              title: "Mobile App Development iOS & Android",
-              category: "Programming & Tech",
-              freelancer: {
-                name: "Farhan Ahmad",
-                displayName: "Farhan Ahmad", 
-                avatar: "https://picsum.photos/seed/freelancer4/50/50",
-                profilePhoto: "https://picsum.photos/seed/freelancer4/50/50",
-                isVerified: true,
-                isTopRated: true
-              },
-              rating: 5.0,
-              reviews: 32,
-              totalReviews: 32,
-              price: 5000000,
-              startingPrice: 5000000,
-              packages: { basic: { price: 5000000 } },
-              deliveryTime: "14 days",
-              location: "Indonesia",
-              createdAt: new Date(Date.now() - 1000 * 60 * 60 * 72) // 3 days ago
-            },
-            {
-              id: '5',
-              image: "https://picsum.photos/seed/gig5/400/300",
-              title: "Content Writing Services",
-              category: "Writing & Translation",
-              freelancer: {
-                name: "Elsa Putri",
-                displayName: "Elsa Putri",
-                avatar: "https://picsum.photos/seed/freelancer5/50/50",
-                profilePhoto: "https://picsum.photos/seed/freelancer5/50/50",
-                isVerified: true,
-                isTopRated: false
-              },
-              rating: 4.9,
-              reviews: 45,
-              totalReviews: 45,
-              price: 450000,
-              startingPrice: 450000,
-              packages: { basic: { price: 450000 } },
-              deliveryTime: "2 days",
-              location: "Indonesia",
-              createdAt: new Date(Date.now() - 1000 * 60 * 60 * 18) // 18 hours ago
-            },
-            {
-              id: '6',
-              image: "https://picsum.photos/seed/gig6/400/300",
-              title: "Business Plan Development",
-              category: "Business",
-              freelancer: {
-                name: "Gunawan Prawiro",
-                displayName: "Gunawan Prawiro",
-                avatar: "https://picsum.photos/seed/freelancer6/50/50",
-                profilePhoto: "https://picsum.photos/seed/freelancer6/50/50",
-                isVerified: true,
-                isTopRated: true
-              },
-              rating: 4.8,
-              reviews: 19,
-              totalReviews: 19,
-              price: 2000000,
-              startingPrice: 2000000,
-              packages: { basic: { price: 2000000 } },
-              deliveryTime: "10 days",
-              location: "Indonesia",
-              createdAt: new Date(Date.now() - 1000 * 60 * 60 * 96) // 4 days ago
-            }
-          ];
-          setGigs(mockGigs);
-        }
-      } catch (error) {
-        console.error('Error loading gigs:', error);
-        // Set empty array if error
-        setGigs([]);
-      } finally {
-        setGigsLoading(false);
-      }
-    };
-
-    loadGigs();
-  }, []);
-
   // Categories data
   const categories = [
     { icon: "M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z", name: "Design & Creative" },
@@ -221,6 +57,66 @@ export default function Home() {
     { icon: "M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z", name: "Customer Support" },
     { icon: "M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z", name: "Video & Animation" }
   ];
+
+  // Fetch gigs and calculate reviews
+  useEffect(() => {
+    const fetchGigsAndReviews = async () => {
+      setGigsLoading(true);
+      try {
+        // Fetch gigs
+        const fetchedGigs = await gigService.getFeaturedGigs(12);
+        
+        // For each gig, fetch and calculate its reviews
+        const gigsWithReviews = await Promise.all(
+          fetchedGigs.map(async (gig) => {
+            // Query reviews for this specific gig
+            const reviewsQuery = query(
+              collection(db, COLLECTIONS.REVIEWS),
+              where('gigId', '==', gig.id)
+            );
+            const reviewsSnapshot = await getDocs(reviewsQuery);
+            
+            // Calculate average rating and total reviews
+            let totalRating = 0;
+            const reviews = [];
+            
+            reviewsSnapshot.forEach((doc) => {
+              const review = doc.data();
+              reviews.push({ id: doc.id, ...review });
+              totalRating += review.rating || 0;
+            });
+            
+            const totalReviews = reviews.length;
+            const averageRating = totalReviews > 0 ? totalRating / totalReviews : 0;
+            
+            // Calculate rating distribution
+            const ratingDistribution = {
+              5: reviews.filter(r => r.rating === 5).length,
+              4: reviews.filter(r => r.rating === 4).length,
+              3: reviews.filter(r => r.rating === 3).length,
+              2: reviews.filter(r => r.rating === 2).length,
+              1: reviews.filter(r => r.rating === 1).length
+            };
+            
+            return {
+              ...gig,
+              rating: averageRating,
+              totalReviews,
+              ratingDistribution
+            };
+          })
+        );
+        
+        setGigs(gigsWithReviews);
+      } catch (error) {
+        console.error('Error fetching gigs and reviews:', error);
+      } finally {
+        setGigsLoading(false);
+      }
+    };
+
+    fetchGigsAndReviews();
+  }, []);
 
   // Filter gigs based on selected category
   const filteredGigs = activeCategory === 'All' 

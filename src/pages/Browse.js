@@ -3,6 +3,9 @@ import { useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import gigService from '../services/gigService';
 import GigCard from '../components/common/GigCard';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../firebase/config.js';
+import { COLLECTIONS } from '../utils/constants';
 
 export default function Browse() {
   const { currentUser } = useAuth();
@@ -53,27 +56,45 @@ export default function Browse() {
         
         if (gigData && gigData.length > 0) {
           // Transform the data to match our component's expected format
-          const transformedGigs = gigData.map(gig => ({
-            id: gig.id,
-            images: gig.images || [],
-            image: gig.images?.[0] || 'https://via.placeholder.com/400x300',
-            title: gig.title,
-            category: gig.category,
-            freelancer: {
-              name: gig.freelancer.displayName || gig.freelancer.name,
-              displayName: gig.freelancer.displayName || gig.freelancer.name,
-              avatar: gig.freelancer.profilePhoto || gig.freelancer.avatar,
-              profilePhoto: gig.freelancer.profilePhoto || gig.freelancer.avatar,
-              isVerified: gig.freelancer.isVerified,
-              isTopRated: gig.freelancer.isTopRated
-            },
-            rating: gig.rating || 0,
-            reviews: gig.totalReviews || 0,
-            totalReviews: gig.totalReviews || 0,
-            price: gig.packages?.basic?.price || 0,
-            startingPrice: gig.packages?.basic?.price || 0,
-            deliveryTime: gig.packages?.basic?.deliveryTime + ' days' || 'N/A',
-            location: gig.freelancer.location || 'Unknown'
+          const transformedGigs = await Promise.all(gigData.map(async gig => {
+            // Get reviews for this gig
+            const reviewsQuery = query(
+              collection(db, COLLECTIONS.REVIEWS),
+              where('gigId', '==', gig.id)
+            );
+            const reviewsSnapshot = await getDocs(reviewsQuery);
+            
+            // Calculate average rating
+            let totalRating = 0;
+            let reviewCount = reviewsSnapshot.size;
+            
+            reviewsSnapshot.forEach(doc => {
+              const review = doc.data();
+              totalRating += review.rating || 0;
+            });
+            
+            const averageRating = reviewCount > 0 ? totalRating / reviewCount : 0;
+            
+            return {
+              id: gig.id,
+              images: gig.images || [],
+              image: gig.images?.[0] || 'https://via.placeholder.com/400x300',
+              title: gig.title,
+              category: gig.category,
+              freelancer: {
+                name: gig.freelancer.displayName || gig.freelancer.name,
+                displayName: gig.freelancer.displayName || gig.freelancer.name,
+                avatar: gig.freelancer.profilePhoto || gig.freelancer.avatar,
+                profilePhoto: gig.freelancer.profilePhoto || gig.freelancer.avatar,
+                isVerified: gig.freelancer.isVerified
+              },
+              rating: averageRating,
+              totalReviews: reviewCount,
+              price: gig.packages?.basic?.price || 0,
+              startingPrice: gig.packages?.basic?.price || 0,
+              deliveryTime: gig.packages?.basic?.deliveryTime + ' days' || 'N/A',
+              location: gig.freelancer.location || 'Unknown'
+            };
           }));
           
           setGigs(transformedGigs);
@@ -137,9 +158,7 @@ export default function Browse() {
     }
 
     // Apply location filter
-    if (filters.location) {
-      filtered = filtered.filter(gig => gig.location.toLowerCase().includes(filters.location.toLowerCase()));
-    }
+    
 
     // Apply sorting
     switch (sortBy) {
@@ -181,8 +200,7 @@ export default function Browse() {
       priceMin: '',
       priceMax: '',
       rating: '',
-      deliveryTime: '',
-      location: ''
+      deliveryTime: ''
     });
     setSearchQuery('');
     setCurrentPage(1);
@@ -333,17 +351,7 @@ export default function Browse() {
               </div>
             </div>
 
-            {/* Location Filter */}
-            <div className="mb-6">
-              <h4 className="font-medium text-gray-900 mb-3">Lokasi</h4>
-              <input
-                type="text"
-                placeholder="Cari lokasi..."
-                value={filters.location}
-                onChange={(e) => handleFilterChange('location', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#010042]"
-              />
-            </div>
+            
           </div>
 
           {/* Main Content */}

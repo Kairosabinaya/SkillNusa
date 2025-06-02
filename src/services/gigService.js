@@ -427,6 +427,8 @@ const getFreelancerData = async (freelancerId) => {
  */
 export const getGigReviews = async (gigId, options = {}) => {
   try {
+    console.log('🔍 getGigReviews called for gigId:', gigId);
+    
     const {
       sortBy = 'createdAt',
       sortOrder = 'desc',
@@ -440,7 +442,9 @@ export const getGigReviews = async (gigId, options = {}) => {
       firestoreLimit(limit)
     );
     
+    console.log('📊 Executing reviews query...');
     const reviewsSnapshot = await getDocs(reviewsQuery);
+    console.log(`📊 Found ${reviewsSnapshot.size} reviews`);
     
     const reviews = await Promise.all(
       reviewsSnapshot.docs.map(async (doc) => {
@@ -449,23 +453,29 @@ export const getGigReviews = async (gigId, options = {}) => {
           ...doc.data()
         };
         
+        console.log('📝 Processing review:', reviewData);
+        
         // Get client data for the review
         const clientDoc = await getDoc(doc(db, COLLECTIONS.USERS, reviewData.clientId));
         const clientData = clientDoc.exists() ? clientDoc.data() : {};
         
-        return {
+        const processedReview = {
           ...reviewData,
           client: {
             name: clientData.displayName || clientData.username || 'Anonymous',
             avatar: clientData.profilePhoto || null
           }
         };
+        
+        console.log('👤 Processed review with client data:', processedReview);
+        return processedReview;
       })
     );
     
+    console.log('✅ Returning reviews:', reviews);
     return reviews;
   } catch (error) {
-    console.error('Error getting gig reviews:', error);
+    console.error('❌ Error getting gig reviews:', error);
     return [];
   }
 };
