@@ -38,7 +38,8 @@ export const COLLECTIONS = {
   ORDERS: 'orders',
   REVIEWS: 'reviews',
   CONVERSATIONS: 'conversations',
-  NOTIFICATIONS: 'notifications'
+  NOTIFICATIONS: 'notifications',
+  SKILLBOT_CONVERSATIONS: 'skillbotConversations'
 };
 
 // Freelancer status constants removed - no longer using approval system

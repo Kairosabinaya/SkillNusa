@@ -9,6 +9,7 @@ import cartService from '../services/cartService';
 import chatService from '../services/chatService';
 import ErrorPopup from '../components/common/ErrorPopup';
 import SuccessPopup from '../components/common/SuccessPopup';
+import GigAnalysisChat from '../components/SkillBot/GigAnalysisChat';
 
 export default function GigDetail() {
   const { gigId } = useParams();
@@ -29,6 +30,7 @@ export default function GigDetail() {
   const [isInCart, setIsInCart] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showSkillBotChat, setShowSkillBotChat] = useState(false);
 
   // Check if current user is the gig owner
   const isOwnGig = currentUser && gig && currentUser.uid === gig.freelancerId;
@@ -251,22 +253,26 @@ export default function GigDetail() {
 
     setFavoriteLoading(true);
     try {
-      const result = await favoriteService.toggleFavorite(currentUser.uid, gig.id);
-      setIsFavorited(result.isFavorited);
-      
-      // Replace alerts with success state
-      if (result.isFavorited) {
-        setSuccess('Ditambahkan ke favorit!');
+      if (isFavorited) {
+        await favoriteService.removeFavorite(currentUser.uid, gig.id);
+        setIsFavorited(false);
+        setSuccess('Removed from favorites');
       } else {
-        setSuccess('Dihapus dari favorit!');
+        await favoriteService.addFavorite(currentUser.uid, gig.id);
+        setIsFavorited(true);
+        setSuccess('Added to favorites');
       }
     } catch (error) {
       console.error('Error toggling favorite:', error);
-      // Replace alert with error state
-      setError('Gagal memproses favorit. Silakan coba lagi.');
+      setError('Failed to update favorites. Please try again.');
     } finally {
       setFavoriteLoading(false);
     }
+  };
+
+  // Handle SkillBot toggle
+  const handleSkillBotToggle = () => {
+    setShowSkillBotChat(!showSkillBotChat);
   };
 
   // Loading state
@@ -726,7 +732,7 @@ export default function GigDetail() {
 
           {/* Right Column - Package Selection */}
           <div className="lg:col-span-1">
-            <div className="sticky top-24">
+            <div className="sticky top-24 space-y-6">
               <div className="bg-white rounded-lg shadow-sm p-6">
                 
                 {/* 3. Package Selection */}
@@ -878,6 +884,61 @@ export default function GigDetail() {
                   )}
                 </div>
               </div>
+
+              {/* SkillBot AI Assistant Card */}
+              {currentUser && !isOwnGig && (
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+                  {!showSkillBotChat ? (
+                    <div className="p-6">
+                      <div className="flex items-center space-x-3 mb-4">
+                        <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900">SkillBot AI</h3>
+                          <p className="text-sm text-gray-500">Analisis Layanan Cerdas</p>
+                        </div>
+                      </div>
+                      
+                      <p className="text-gray-600 text-sm mb-4">
+                        Tanyakan apapun tentang layanan ini kepada AI assistant kami. Dapatkan insights, rekomendasi package, dan tips untuk project Anda.
+                      </p>
+                      
+                      <div className="space-y-2 mb-4">
+                        <div className="flex items-start space-x-2">
+                          <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
+                          <p className="text-xs text-gray-600">Analisis kesesuaian dengan project Anda</p>
+                        </div>
+                        <div className="flex items-start space-x-2">
+                          <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
+                          <p className="text-xs text-gray-600">Rekomendasi package terbaik</p>
+                        </div>
+                        <div className="flex items-start space-x-2">
+                          <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
+                          <p className="text-xs text-gray-600">Tips persiapan sebelum memesan</p>
+                        </div>
+                      </div>
+                      
+                      <button
+                        onClick={handleSkillBotToggle}
+                        className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 px-4 rounded-lg font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 flex items-center justify-center space-x-2"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
+                        </svg>
+                        <span>Tanya SkillBot AI</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <GigAnalysisChat 
+                      gig={gig} 
+                      onClose={handleSkillBotToggle}
+                    />
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
