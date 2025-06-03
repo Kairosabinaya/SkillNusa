@@ -290,28 +290,42 @@ class SkillBotService {
   // Handle project discussion and gig recommendations
   async handleProjectDiscussion(userMessage, conversationHistory, context) {
     try {
-      // First, analyze the project requirements
-      const projectAnalysis = await geminiService.analyzeProjectRequirements(userMessage, conversationHistory);
-      
       // Extract potential keywords for gig search
       const searchKeywords = this.extractSearchKeywords(userMessage);
       
       // Search for relevant gigs
       const relevantGigs = await this.findRelevantGigs(searchKeywords, userMessage);
       
-      if (relevantGigs.length > 0) {
-        // Generate recommendations with available gigs
-        const recommendations = await geminiService.recommendGigs(userMessage, relevantGigs);
-        
-        // Create a comprehensive response
-        return `${projectAnalysis}\n\n${recommendations}`;
-      } else {
-        // No relevant gigs found
-        return `${projectAnalysis}\n\n❌ Maaf, saat ini belum ada gigs yang sesuai dengan kebutuhan project Anda. Namun, Anda bisa:\n\n1. Posting project request di platform\n2. Menunggu freelancer baru yang sesuai\n3. Memodifikasi requirement agar lebih fleksibel\n\nApakah ada aspek lain dari project yang bisa saya bantu analisis?`;
-      }
+      // Create conversation context for the AI
+      const conversationContext = conversationHistory.length > 0 
+        ? `\n\nPercakapan sebelumnya:\n${conversationHistory.slice(-2).map(msg => `${msg.sender}: ${msg.content}`).join('\n')}`
+        : '';
+
+      // Prepare gigs context if any are found
+      const gigsContext = relevantGigs.length > 0 
+        ? `\n\nGigs tersedia yang relevan:\n${relevantGigs.slice(0, 5).map(gig => 
+            `- ${gig.title} (Rp ${gig.packages?.basic?.price?.toLocaleString('id-ID')}) - ${gig.packages?.basic?.deliveryTime} hari`
+          ).join('\n')}`
+        : '\n\nBelum ada gigs tersedia yang sesuai.';
+
+      // Create a comprehensive prompt for a single API call
+      const comprehensivePrompt = `${geminiService.systemPrompts.projectAnalysis}
+
+User bilang: "${userMessage}"${conversationContext}${gigsContext}
+
+${relevantGigs.length > 0 ? 
+  'Analisis projectnya secara SINGKAT, lalu rekomendasikan 2-3 gigs terbaik yang paling relevan. Fokus pada yang paling cocok saja. Maksimal 4 kalimat total.' :
+  'Analisis projectnya secara SINGKAT dan tanya 1-2 hal yang paling penting aja untuk membantu cari freelancer yang tepat. Maksimal 3 kalimat.'
+}`;
+
+      // Make a single API call to get comprehensive response
+      const result = await geminiService.model.generateContent(comprehensivePrompt);
+      const response = await result.response;
+      return response.text();
+      
     } catch (error) {
       console.error('Error handling project discussion:', error);
-      return await geminiService.getFallbackProjectAnalysis();
+      return geminiService.getFallbackProjectAnalysis();
     }
   }
 

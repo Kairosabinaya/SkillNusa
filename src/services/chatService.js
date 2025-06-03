@@ -229,10 +229,13 @@ class ChatService {
   async sendOrderStatusMessage(chatId, senderId, orderId, newStatus, additionalInfo = '') {
     try {
       const statusMessages = {
+        'active': '🚀 Pesanan Diterima\n\nFreelancer telah menerima pesanan dan akan segera memulai pengerjaan.',
         'confirmed': '✅ Pesanan Dikonfirmasi\n\nFreelancer telah mengkonfirmasi pesanan Anda dan akan segera memulai pengerjaan.',
         'in_progress': '🚀 Pengerjaan Dimulai\n\nFreelancer telah memulai mengerjakan pesanan Anda.',
+        'delivered': '📦 Pekerjaan Dikirim\n\nFreelancer telah mengirimkan hasil pekerjaan. Silakan review dan berikan feedback.',
         'in_review': '👀 Menunggu Review\n\nPekerjaan telah diselesaikan dan menunggu review dari client.',
-        'completed': '🎊 Pesanan Selesai\n\nPesanan telah selesai dikerjakan dan diserahkan.',
+        'in_revision': '🔄 Revisi Diminta\n\nClient meminta revisi pada pekerjaan. Freelancer akan melakukan perbaikan.',
+        'completed': '🎊 Pesanan Selesai\n\nPesanan telah selesai dikerjakan dan diterima oleh client.',
         'cancelled': '❌ Pesanan Dibatalkan\n\nPesanan telah dibatalkan.',
         'revision_requested': '🔄 Revisi Diminta\n\nClient meminta revisi pada pekerjaan.'
       };

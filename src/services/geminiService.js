@@ -12,8 +12,17 @@ class GeminiService {
       console.warn('📝 To get a Gemini API key:');
       console.warn('   1. Go to https://makersuite.google.com/app/apikey');
       console.warn('   2. Create a new API key');
-      console.warn('   3. Add REACT_APP_GEMINI_API_KEY=your-key-here to your .env file');
-      console.warn('   4. Restart the development server');
+      console.warn('   3. Create a .env file in your project root');
+      console.warn('   4. Add REACT_APP_GEMINI_API_KEY=your-key-here to the .env file');
+      console.warn('   5. Restart the development server (npm start)');
+      console.warn('📁 Make sure the .env file is in the same directory as package.json');
+      this.isAvailable = false;
+      return;
+    }
+    
+    // Validate API key format (basic check)
+    if (this.apiKey.length < 30) {
+      console.warn('⚠️ API key seems too short. Please verify your REACT_APP_GEMINI_API_KEY');
       this.isAvailable = false;
       return;
     }
@@ -23,6 +32,7 @@ class GeminiService {
       this.model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       this.isAvailable = true;
       console.log('✅ GeminiService: Successfully initialized with gemini-1.5-flash model');
+      console.log('🌐 GeminiService: Ready to handle AI requests');
     } catch (error) {
       console.error('❌ GeminiService: Failed to initialize:', error);
       this.isAvailable = false;
@@ -214,54 +224,92 @@ INGAT: Respons maksimal 3-4 kalimat saja!`;
       return this.getFallbackResponse();
     }
 
-    try {
-      const { conversationHistory = [], currentGig = null, availableGigs = [] } = context;
-      
-      let systemPrompt = this.systemPrompts.projectAnalysis;
-      let contextInfo = '';
+    // Add retry logic for connection issues
+    let lastError;
+    const maxRetries = 3;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const { conversationHistory = [], currentGig = null, availableGigs = [] } = context;
+        
+        let systemPrompt = this.systemPrompts.projectAnalysis;
+        let contextInfo = '';
 
-      if (currentGig) {
-        systemPrompt = this.systemPrompts.gigAnalysis;
-        contextInfo = `\n\nKontext: User sedang lihat gig "${currentGig.title}"`;
-      }
+        if (currentGig) {
+          systemPrompt = this.systemPrompts.gigAnalysis;
+          contextInfo = `\n\nKontext: User sedang lihat gig "${currentGig.title}"`;
+        }
 
-      if (conversationHistory.length > 0) {
-        contextInfo += `\n\nPercakapan terakhir:\n${conversationHistory.slice(-3).map(msg => 
-          `${msg.senderId === 'skillbot' ? 'SkillBot' : 'User'}: ${msg.content}`
-        ).join('\n')}`;
-      }
+        if (conversationHistory.length > 0) {
+          contextInfo += `\n\nPercakapan terakhir:\n${conversationHistory.slice(-3).map(msg => 
+            `${msg.senderId === 'skillbot' ? 'SkillBot' : 'User'}: ${msg.content}`
+          ).join('\n')}`;
+        }
 
-      const prompt = `${systemPrompt}
+        const prompt = `${systemPrompt}
 
 User bilang: "${userMessage}"${contextInfo}
 
 Balas dengan SINGKAT dan NATURAL seperti ngobrol biasa. Maksimal 2-3 kalimat. Hindari format daftar atau analisis panjang.`;
 
-      console.log('🤖 GeminiService: Sending request to Gemini API...');
-      const result = await this.model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
-      
-      console.log('✅ GeminiService: Successfully generated response');
-      return text;
-    } catch (error) {
-      console.error('❌ GeminiService: Error generating response:', error);
-      
-      // Enhanced error logging for debugging
-      if (error.message) {
-        if (error.message.includes('API_KEY') || error.message.includes('API key')) {
-          console.error('❌ API Key Error: Please check REACT_APP_GEMINI_API_KEY environment variable');
-        } else if (error.message.includes('quota')) {
-          console.error('❌ Quota Error: API usage limit exceeded');
-        } else if (error.message.includes('blocked')) {
-          console.error('❌ Content Policy Error: Message may have been blocked by content policy');
-        } else {
-          console.error('❌ Unknown API Error:', error.message);
+        console.log(`🤖 GeminiService: Sending request to Gemini API (attempt ${attempt}/${maxRetries})...`);
+        
+        // Add timeout and connection handling
+        const result = await Promise.race([
+          this.model.generateContent(prompt),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Request timeout after 30 seconds')), 30000)
+          )
+        ]);
+        
+        const response = await result.response;
+        const text = response.text();
+        
+        console.log('✅ GeminiService: Successfully generated response');
+        return text;
+        
+      } catch (error) {
+        lastError = error;
+        console.error(`❌ GeminiService: Error on attempt ${attempt}/${maxRetries}:`, error);
+        
+        // Check for specific error types
+        if (error.message) {
+          if (error.message.includes('API_KEY') || error.message.includes('API key')) {
+            console.error('❌ API Key Error: Please check REACT_APP_GEMINI_API_KEY environment variable');
+            break; // Don't retry for API key errors
+          } else if (error.message.includes('quota') || error.message.includes('limit')) {
+            console.error('❌ Quota Error: API usage limit exceeded');
+            break; // Don't retry for quota errors
+          } else if (error.message.includes('blocked')) {
+            console.error('❌ Content Policy Error: Message may have been blocked by content policy');
+            break; // Don't retry for content policy errors
+          } else if (error.message.includes('ERR_CONNECTION_CLOSED') || 
+                     error.message.includes('Failed to fetch') ||
+                     error.message.includes('network') ||
+                     error.message.includes('timeout')) {
+            console.error(`❌ Network Error (attempt ${attempt}): Connection issue, will retry...`);
+            
+            if (attempt < maxRetries) {
+              // Wait before retrying (exponential backoff)
+              const delay = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
+              console.log(`⏳ Waiting ${delay}ms before retry...`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+              continue;
+            }
+          } else {
+            console.error('❌ Unknown API Error:', error.message);
+          }
+        }
+        
+        // If this is the last attempt, break out of retry loop
+        if (attempt === maxRetries) {
+          break;
         }
       }
-      
-      return this.getFallbackResponse();
     }
+    
+    console.error('❌ All retry attempts failed, using fallback response');
+    return this.getFallbackResponse();
   }
 
   // Fallback messages when API is not available

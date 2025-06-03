@@ -233,6 +233,7 @@ class OrderService {
       // Update progress
       const progress = { ...order.progress };
       switch (newStatus) {
+        case 'active':
         case 'in_progress':
           progress.percentage = 25;
           progress.currentPhase = 'in_progress';
@@ -241,11 +242,19 @@ class OrderService {
           progress.phases[1].completed = true;
           progress.phases[1].date = new Date();
           break;
+        case 'delivered':
         case 'in_review':
           progress.percentage = 75;
           progress.currentPhase = 'in_review';
           progress.phases[2].completed = true;
           progress.phases[2].date = new Date();
+          break;
+        case 'in_revision':
+          progress.percentage = 50;
+          progress.currentPhase = 'in_revision';
+          // Reset delivery phase
+          progress.phases[2].completed = false;
+          progress.phases[2].date = null;
           break;
         case 'completed':
           progress.percentage = 100;
@@ -288,9 +297,12 @@ class OrderService {
   // Get valid status transitions
   getValidStatusTransitions(currentStatus) {
     const transitions = {
-      'pending': ['in_progress', 'cancelled'],
-      'in_progress': ['in_review', 'cancelled'],
-      'in_review': ['completed', 'in_progress', 'cancelled'], // Can go back to in_progress for revisions
+      'pending': ['active', 'cancelled'],
+      'active': ['delivered', 'cancelled'],
+      'delivered': ['completed', 'in_revision', 'cancelled'],
+      'in_revision': ['delivered', 'cancelled'],
+      'in_progress': ['delivered', 'cancelled'], // Legacy status support
+      'in_review': ['completed', 'in_revision', 'cancelled'], // Legacy status support
       'completed': [], // Final state
       'cancelled': [] // Final state
     };

@@ -12,6 +12,9 @@ export default function ClientTransactions() {
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [success, setSuccess] = useState('');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     loadOrders();
@@ -23,6 +26,20 @@ export default function ClientTransactions() {
       setSelectedTransaction(transaction);
     }
   }, [transactionId, orders]);
+
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => setSuccess(''), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [success]);
+
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(''), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
 
   const loadOrders = async () => {
     if (!currentUser) return;
@@ -161,6 +178,81 @@ export default function ClientTransactions() {
     { id: 'completed', label: 'Selesai', count: statusCounts.completed },
     { id: 'cancelled', label: 'Dibatalkan', count: statusCounts.cancelled }
   ];
+
+  const completeOrder = async (orderId) => {
+    try {
+      setIsUpdating(true);
+      console.log('Completing order:', orderId);
+      
+      await orderService.updateOrderStatus(orderId, 'completed', currentUser.uid, {
+        statusMessage: 'Pekerjaan diterima oleh client'
+      });
+      
+      // Update local state
+      setOrders(prevOrders => 
+        prevOrders.map(order => 
+          order.id === orderId 
+            ? { ...order, status: 'completed', completedAt: new Date() }
+            : order
+        )
+      );
+      
+      // Update selected transaction if it's the current one
+      if (selectedTransaction?.id === orderId) {
+        setSelectedTransaction(prev => ({ 
+          ...prev, 
+          status: 'completed',
+          completedAt: new Date()
+        }));
+      }
+      
+      setSuccess('Pesanan berhasil diselesaikan!');
+      // Refresh orders to get updated data
+      loadOrders();
+    } catch (error) {
+      console.error('Error completing order:', error);
+      setError('Gagal menyelesaikan pesanan. Silakan coba lagi.');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const requestRevision = async (orderId) => {
+    try {
+      setIsUpdating(true);
+      console.log('Requesting revision for order:', orderId);
+      
+      await orderService.updateOrderStatus(orderId, 'in_revision', currentUser.uid, {
+        statusMessage: 'Client meminta revisi'
+      });
+      
+      // Update local state
+      setOrders(prevOrders => 
+        prevOrders.map(order => 
+          order.id === orderId 
+            ? { ...order, status: 'in_revision' }
+            : order
+        )
+      );
+      
+      // Update selected transaction if it's the current one
+      if (selectedTransaction?.id === orderId) {
+        setSelectedTransaction(prev => ({ 
+          ...prev, 
+          status: 'in_revision'
+        }));
+      }
+      
+      setSuccess('Permintaan revisi berhasil dikirim!');
+      // Refresh orders to get updated data
+      loadOrders();
+    } catch (error) {
+      console.error('Error requesting revision:', error);
+      setError('Gagal meminta revisi. Silakan coba lagi.');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -311,6 +403,19 @@ export default function ClientTransactions() {
             {/* Quick Actions */}
             <div className="bg-white rounded-lg shadow p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Aksi Cepat</h3>
+              
+              {/* Success/Error Messages */}
+              {success && (
+                <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
+                  {success}
+                </div>
+              )}
+              {error && (
+                <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+                  {error}
+                </div>
+              )}
+              
               <div className="space-y-2">
                 {selectedTransaction.status === 'completed' && (
                   <Link
@@ -325,20 +430,41 @@ export default function ClientTransactions() {
                 )}
                 
                 {selectedTransaction.status === 'delivered' && (
-                  <button className="w-full flex items-center gap-2 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700">
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Terima Pekerjaan
-                  </button>
+                  <>
+                    <button 
+                      onClick={() => completeOrder(selectedTransaction.id)}
+                      disabled={isUpdating}
+                      className="w-full flex items-center gap-2 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      {isUpdating ? 'Memproses...' : 'Terima Pekerjaan'}
+                    </button>
+                    
+                    <button 
+                      onClick={() => requestRevision(selectedTransaction.id)}
+                      disabled={isUpdating}
+                      className="w-full flex items-center gap-2 bg-orange-600 text-white py-2 px-4 rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      {isUpdating ? 'Memproses...' : 'Minta Revisi'}
+                    </button>
+                  </>
                 )}
                 
-                {['active', 'in_progress', 'delivered'].includes(selectedTransaction.status) && (
-                  <button className="w-full flex items-center gap-2 bg-orange-600 text-white py-2 px-4 rounded-lg hover:bg-orange-700">
+                {['active', 'in_progress', 'in_revision'].includes(selectedTransaction.status) && (
+                  <button 
+                    onClick={() => requestRevision(selectedTransaction.id)}
+                    disabled={isUpdating}
+                    className="w-full flex items-center gap-2 bg-orange-600 text-white py-2 px-4 rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    Minta Revisi
+                    {isUpdating ? 'Memproses...' : 'Minta Revisi'}
                   </button>
                 )}
               </div>

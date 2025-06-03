@@ -143,25 +143,9 @@ export default function FreelancerOrders() {
     try {
       console.log('🔄 [FreelancerOrders] Updating order status:', { orderId, newStatus, message });
       
-      await updateDoc(doc(db, 'orders', orderId), {
-        status: newStatus,
-        updatedAt: serverTimestamp(),
-        ...(message && { statusMessage: message })
+      await orderService.updateOrderStatus(orderId, newStatus, currentUser.uid, {
+        statusMessage: message
       });
-
-      // Find the order to get clientId
-      const order = orders.find(o => o.id === orderId);
-      if (order) {
-        // Send notification to client (not buyer)
-        await addDoc(collection(db, 'notifications'), {
-          userId: order.clientId,
-          type: 'order_update',
-          message: `Status pesanan ${orderId.slice(-8)} diubah menjadi ${getStatusText(newStatus)}`,
-          orderId: orderId,
-          createdAt: serverTimestamp(),
-          read: false
-        });
-      }
 
       // Update local state
       setOrders(prevOrders => 
@@ -202,10 +186,8 @@ export default function FreelancerOrders() {
       
       // Prepare delivery data
       const deliveryData = {
-        status: 'delivered',
         deliveryMessage: deliveryMessage,
-        deliveredAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        deliveredAt: serverTimestamp()
       };
       
       // Add file information if files are attached
@@ -219,16 +201,10 @@ export default function FreelancerOrders() {
         deliveryData.hasAttachments = true;
       }
 
-      await updateDoc(doc(db, 'orders', selectedOrder.id), deliveryData);
-
-      // Send notification to client
-      await addDoc(collection(db, 'notifications'), {
-        userId: selectedOrder.clientId,
-        type: 'order_delivered',
-        message: `Pesanan ${selectedOrder.id.slice(-8)} telah dikirim${attachedFiles.length > 0 ? ` dengan ${attachedFiles.length} file lampiran` : ''}`,
-        orderId: selectedOrder.id,
-        createdAt: serverTimestamp(),
-        read: false
+      // Update order status to delivered using orderService
+      await orderService.updateOrderStatus(selectedOrder.id, 'delivered', currentUser.uid, {
+        statusMessage: deliveryMessage,
+        ...deliveryData
       });
 
       // Reset form
@@ -623,14 +599,48 @@ export default function FreelancerOrders() {
                   </>
                 )}
                 
+                {selectedOrder.status === 'active' && (
+                  <div className="text-center p-4 bg-blue-50 rounded-lg">
+                    <div className="text-blue-800 font-medium mb-2">
+                      Pesanan Sedang Dikerjakan
+                    </div>
+                    <p className="text-sm text-blue-600">
+                      Silakan kerjakan pesanan dan kirim hasil melalui form delivery di bawah.
+                    </p>
+                  </div>
+                )}
+                
                 {selectedOrder.status === 'delivered' && (
-                  <button 
-                    onClick={() => updateOrderStatus(selectedOrder.id, 'in_revision')}
-                    className="w-full flex items-center gap-2 bg-orange-600 text-white py-2 px-4 rounded-lg hover:bg-orange-700"
-                  >
-                    <ExclamationTriangleIcon className="h-5 w-5" />
-                    Minta Revisi
-                  </button>
+                  <div className="text-center p-4 bg-green-50 rounded-lg">
+                    <div className="text-green-800 font-medium mb-2">
+                      Pesanan Telah Dikirim
+                    </div>
+                    <p className="text-sm text-green-600">
+                      Menunggu review dari client. Client dapat menerima pekerjaan atau meminta revisi.
+                    </p>
+                  </div>
+                )}
+                
+                {selectedOrder.status === 'in_revision' && (
+                  <div className="text-center p-4 bg-orange-50 rounded-lg">
+                    <div className="text-orange-800 font-medium mb-2">
+                      Revisi Diminta
+                    </div>
+                    <p className="text-sm text-orange-600">
+                      Client meminta revisi. Silakan perbaiki pekerjaan dan kirim ulang.
+                    </p>
+                  </div>
+                )}
+                
+                {selectedOrder.status === 'completed' && (
+                  <div className="text-center p-4 bg-green-50 rounded-lg">
+                    <div className="text-green-800 font-medium mb-2">
+                      Pesanan Selesai
+                    </div>
+                    <p className="text-sm text-green-600">
+                      Pekerjaan telah diterima oleh client. Terima kasih!
+                    </p>
+                  </div>
                 )}
               </div>
             </motion.div>
