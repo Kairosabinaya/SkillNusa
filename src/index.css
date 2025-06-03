@@ -34,3 +34,50 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Markdown Styles for Chat Messages */
+.markdown-content strong {
+  font-weight: 600;
+  color: inherit;
+}
+
+.markdown-content em {
+  font-style: italic;
+  color: inherit;
+}
+
+.markdown-content a {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.markdown-content a:hover {
+  color: #1d4ed8;
+}
+
+.skillbot-message .markdown-content strong {
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+.skillbot-message .markdown-content a {
+  color: #3b82f6;
+}
+
+.skillbot-message .markdown-content {
+  line-height: 1.6;
+}
+
+/* Enhanced SkillBot Message Styling */
+.skillbot-message {
+  box-shadow: 0 1px 3px rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.2) !important;
+}
+
+.skillbot-message .markdown-content p {
+  margin-bottom: 0.5rem;
+}
+
+.skillbot-message .markdown-content p:last-child {
+  margin-bottom: 0;
+}

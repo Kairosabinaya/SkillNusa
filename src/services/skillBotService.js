@@ -3,13 +3,15 @@ import {
   doc, 
   addDoc, 
   updateDoc, 
+  setDoc,
   getDoc, 
   getDocs, 
   query, 
   where, 
   orderBy, 
   serverTimestamp,
-  writeBatch
+  writeBatch,
+  onSnapshot
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { COLLECTIONS } from '../utils/constants';
@@ -44,28 +46,18 @@ class SkillBotService {
         }
       ];
 
-      // Save to SkillBot conversations collection
+      // Save to SkillBot conversations collection - Use setDoc to ensure document is created
       const conversationRef = doc(db, COLLECTIONS.SKILLBOT_CONVERSATIONS, conversationId);
-      await updateDoc(conversationRef, {
+      await setDoc(conversationRef, {
+        id: conversationId,
         userId,
         botId: SKILLBOT_ID,
         messages: welcomeMessages,
         lastMessageTime: new Date(),
         isActive: true,
+        createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
-      }).catch(async () => {
-        // If document doesn't exist, create it
-        await addDoc(collection(db, COLLECTIONS.SKILLBOT_CONVERSATIONS), {
-          id: conversationId,
-          userId,
-          botId: SKILLBOT_ID,
-          messages: welcomeMessages,
-          lastMessageTime: new Date(),
-          isActive: true,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        });
-      });
+      }, { merge: true });
 
       // Also create/update entry in regular chats collection for notification system
       await this.createOrUpdateChatEntry(userId, welcomeMessage);
@@ -89,68 +81,43 @@ class SkillBotService {
       
       const chatDoc = await getDoc(chatRef);
       
-      if (!chatDoc.exists()) {
-        // Create new chat entry
-        await updateDoc(chatRef, {
-          id: chatId,
-          participants: [userId, SKILLBOT_ID],
-          participantDetails: {
-            [userId]: {
-              displayName: 'User',
-              profilePhoto: null,
-              role: 'client'
-            },
-            [SKILLBOT_ID]: {
-              displayName: 'SkillBot AI',
-              profilePhoto: '/images/robot.png',
-              role: 'bot'
-            }
+      const chatData = {
+        id: chatId,
+        participants: [userId, SKILLBOT_ID],
+        participantDetails: {
+          [userId]: {
+            displayName: 'User',
+            profilePhoto: null,
+            role: 'client'
           },
-          lastMessage: lastMessage,
-          lastMessageTime: serverTimestamp(),
-          lastMessageSender: SKILLBOT_ID,
+          [SKILLBOT_ID]: {
+            displayName: 'SkillBot AI',
+            profilePhoto: '/images/robot.png',
+            role: 'bot'
+          }
+        },
+        lastMessage: lastMessage,
+        lastMessageTime: serverTimestamp(),
+        lastMessageSender: SKILLBOT_ID,
+        isActive: true,
+        isSkillBot: true,
+        updatedAt: serverTimestamp()
+      };
+
+      if (!chatDoc.exists()) {
+        // Create new chat entry using setDoc
+        await setDoc(chatRef, {
+          ...chatData,
           unreadCount: {
-            [userId]: incrementUnread ? 1 : 0, // Only mark as unread if specified
+            [userId]: incrementUnread ? 1 : 0,
             [SKILLBOT_ID]: 0
           },
-          isActive: true,
-          isSkillBot: true,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        }).catch(async () => {
-          // If document doesn't exist, create it
-          await addDoc(collection(db, 'chats'), {
-            id: chatId,
-            participants: [userId, SKILLBOT_ID],
-            participantDetails: {
-              [userId]: {
-                displayName: 'User',
-                profilePhoto: null,
-                role: 'client'
-              },
-              [SKILLBOT_ID]: {
-                displayName: 'SkillBot AI',
-                profilePhoto: '/images/robot.png',
-                role: 'bot'
-              }
-            },
-            lastMessage: lastMessage,
-            lastMessageTime: serverTimestamp(),
-            lastMessageSender: SKILLBOT_ID,
-            unreadCount: {
-              [userId]: incrementUnread ? 1 : 0, // Only mark as unread if specified
-              [SKILLBOT_ID]: 0
-            },
-            isActive: true,
-            isSkillBot: true,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp()
-          });
+          createdAt: serverTimestamp()
         });
       } else {
         // Update existing chat entry
-        const chatData = chatDoc.data();
-        const newUnreadCount = { ...chatData.unreadCount };
+        const existingData = chatDoc.data();
+        const newUnreadCount = { ...existingData.unreadCount };
         
         if (incrementUnread) {
           newUnreadCount[userId] = (newUnreadCount[userId] || 0) + 1;
@@ -166,6 +133,7 @@ class SkillBotService {
       }
     } catch (error) {
       console.error('Error creating/updating chat entry:', error);
+      throw error; // Re-throw to handle upstream
     }
   }
 
@@ -238,45 +206,52 @@ class SkillBotService {
       // Get conversation history for context
       const conversationHistory = conversation.messages || [];
       
-      // Generate AI response based on message content and context
-      let aiResponse;
-      const lowercaseMessage = userMessage.toLowerCase();
-      
-      if (this.isProjectDiscussion(lowercaseMessage)) {
-        // Project analysis and recommendation
-        aiResponse = await this.handleProjectDiscussion(userMessage, conversationHistory, context);
-      } else if (context.currentGig) {
-        // Gig-specific analysis
-        aiResponse = await geminiService.analyzeGig(context.currentGig, userMessage);
-      } else {
-        // General conversation
-        aiResponse = await geminiService.generateResponse(userMessage, {
-          conversationHistory,
-          availableGigs: context.availableGigs || []
-        });
-      }
+      // Generate AI response in parallel with database operations
+      const aiResponsePromise = this.generateAIResponse(userMessage, conversationHistory, context);
 
       // Create bot response message
       const botMessageObj = {
-        id: `bot-${Date.now()}`,
-        content: aiResponse,
+        id: `bot-${Date.now() + 1}`,
+        content: '', // Will be filled after AI response
         senderId: SKILLBOT_ID,
         createdAt: new Date(Date.now() + 1000),
         messageType: 'response'
       };
 
-      // Update conversation in SkillBot collection
+      // Wait for AI response
+      const aiResponse = await aiResponsePromise;
+      botMessageObj.content = aiResponse;
+
+      // Update conversation in SkillBot collection with batch operation
       const updatedMessages = [...conversationHistory, userMessageObj, botMessageObj];
       
+      // Use batch write for better performance
+      const batch = writeBatch(db);
+      
+      // Update SkillBot conversation
       const conversationRef = doc(db, COLLECTIONS.SKILLBOT_CONVERSATIONS, conversationId);
-      await updateDoc(conversationRef, {
+      batch.set(conversationRef, {
+        id: conversationId,
+        userId,
+        botId: SKILLBOT_ID,
         messages: updatedMessages,
         lastMessageTime: new Date(),
+        isActive: true,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+
+      // Update chat entry for notifications
+      const chatId = `${userId}_${SKILLBOT_ID}`;
+      const chatRef = doc(db, 'chats', chatId);
+      batch.update(chatRef, {
+        lastMessage: aiResponse,
+        lastMessageTime: serverTimestamp(),
+        lastMessageSender: SKILLBOT_ID,
         updatedAt: serverTimestamp()
       });
 
-      // Update chat entry for notifications - don't increment unread since user is actively chatting
-      await this.createOrUpdateChatEntry(userId, aiResponse, false);
+      // Commit batch
+      await batch.commit();
 
       return {
         userMessage: userMessageObj,
@@ -285,6 +260,30 @@ class SkillBotService {
     } catch (error) {
       console.error('Error sending message to SkillBot:', error);
       throw error;
+    }
+  }
+
+  // Extract AI response generation to separate method for better performance
+  async generateAIResponse(userMessage, conversationHistory, context) {
+    try {
+      const lowercaseMessage = userMessage.toLowerCase();
+      
+      if (this.isProjectDiscussion(lowercaseMessage)) {
+        // Project analysis and recommendation
+        return await this.handleProjectDiscussion(userMessage, conversationHistory, context);
+      } else if (context.currentGig) {
+        // Gig-specific analysis
+        return await geminiService.analyzeGig(context.currentGig, userMessage);
+      } else {
+        // General conversation
+        return await geminiService.generateResponse(userMessage, {
+          conversationHistory,
+          availableGigs: context.availableGigs || []
+        });
+      }
+    } catch (error) {
+      console.error('Error generating AI response:', error);
+      return 'Maaf, saya sedang mengalami gangguan teknis. Silakan coba lagi dalam beberapa saat.';
     }
   }
 
@@ -475,6 +474,32 @@ class SkillBotService {
     } catch (error) {
       console.error('Error auto-sending welcome message:', error);
       return false;
+    }
+  }
+
+  // Subscribe to SkillBot conversation changes (real-time)
+  subscribeToSkillBotConversation(conversationId, callback) {
+    try {
+      const conversationRef = doc(db, COLLECTIONS.SKILLBOT_CONVERSATIONS, conversationId);
+      
+      return onSnapshot(conversationRef, (docSnapshot) => {
+        if (docSnapshot.exists()) {
+          const conversationData = {
+            id: docSnapshot.id,
+            ...docSnapshot.data()
+          };
+          callback(conversationData);
+        } else {
+          // Document doesn't exist, return null
+          callback(null);
+        }
+      }, (error) => {
+        console.error('Error in SkillBot conversation subscription:', error);
+        callback(null);
+      });
+    } catch (error) {
+      console.error('Error setting up SkillBot conversation subscription:', error);
+      return () => {}; // Return empty unsubscribe function
     }
   }
 }

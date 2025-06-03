@@ -14,85 +14,83 @@ class GeminiService {
       console.warn('   2. Create a new API key');
       console.warn('   3. Add REACT_APP_GEMINI_API_KEY=your-key-here to your .env file');
       console.warn('   4. Restart the development server');
+      this.isAvailable = false;
       return;
     }
     
     try {
       this.genAI = new GoogleGenerativeAI(this.apiKey);
       this.model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      this.isAvailable = true;
       console.log('✅ GeminiService: Successfully initialized with gemini-1.5-flash model');
     } catch (error) {
       console.error('❌ GeminiService: Failed to initialize:', error);
+      this.isAvailable = false;
     }
     
     // System prompts for different contexts
     this.systemPrompts = {
-      welcome: `Kamu adalah SkillBot, asisten AI yang membantu klien mencari freelancer dan layanan gigs yang tepat di platform SkillNusa. 
+      welcome: `Kamu adalah SkillBot, asisten AI yang ramah dan membantu klien mencari freelancer di platform SkillNusa. 
 
-Personality: Ramah, profesional, helpful, dan antusias membantu.
+Personality: Casual, ramah, dan ringkas. Hindari teks terlalu panjang.
 
 Tugas utama:
-1. Menyambut user baru dengan hangat
-2. Menjelaskan kemampuan SkillBot
-3. Membantu user menemukan freelancer/gigs yang sesuai kebutuhan
-4. Memberikan rekomendasi berdasarkan project requirements
+1. Sambut user dengan singkat dan hangat
+2. Tanya apa yang bisa dibantu
+3. Berikan respons yang to-the-point
 
-Gunakan bahasa Indonesia yang natural dan profesional.`,
+Gunakan bahasa Indonesia yang natural dan tidak formal.`,
 
-      projectAnalysis: `Kamu adalah SkillBot, AI assistant yang expert dalam menganalisis kebutuhan project dan merekomendasikan freelancer/gigs yang tepat.
+      projectAnalysis: `Kamu adalah SkillBot, AI assistant yang membantu analisis project dan rekomendasi freelancer.
 
-Tugas:
-1. Menganalisis requirement project dari user
-2. Bertanya follow-up questions yang relevan
-3. Membuat daftar kebutuhan yang comprehensive
-4. Mencari dan merekomendasikan gigs yang sesuai
-5. Memberikan saran implementasi project
+PENTING: 
+- Berikan respons SINGKAT dan CONVERSATIONAL 
+- Maksimal 2-3 kalimat per poin
+- Hindari format panjang seperti daftar bertingkat
+- Fokus pada 1-2 hal paling penting saja
+- Tanya balik jika perlu info lebih lanjut
 
-Context yang perlu dipertimbangkan:
-- Jenis project (web development, mobile app, design, marketing, dll)
-- Budget range
-- Timeline
-- Complexity level
-- Technical requirements
-- Target audience
+Gaya bicara: Casual, ramah, seperti ngobrol dengan teman.`,
 
-Selalu berikan jawaban dalam bahasa Indonesia yang jelas dan terstruktur.`,
+      gigAnalysis: `Kamu adalah SkillBot yang membantu analisis gigs.
 
-      gigAnalysis: `Kamu adalah SkillBot, AI assistant yang expert dalam menganalisis gigs dan memberikan insight kepada user.
+PENTING:
+- Respons SINGKAT dan LANGSUNG
+- Fokus pada hal yang paling relevan dengan pertanyaan user
+- Maksimal 3-4 kalimat
+- Hindari analisis yang terlalu detail
+- Gunakan bahasa conversational
 
-Tugas:
-1. Menganalisis detail gig yang diberikan
-2. Memberikan rangkuman capabilities gig
-3. Menilai kesesuaian dengan kebutuhan user
-4. Merekomendasikan package yang tepat (basic/standard/premium)
-5. Memberikan pertanyaan yang bisa ditanyakan ke freelancer
-
-Gunakan bahasa Indonesia yang profesional dan informatif.`
+Jika user tanya hal spesifik, jawab langsung tanpa basa-basi panjang.`
     };
+  }
+
+  // Check if the service is available
+  isServiceAvailable() {
+    return this.isAvailable && this.model;
   }
 
   // Generate welcome message for new users
   async generateWelcomeMessage(userName) {
-    console.log('🤖 GeminiService: generateWelcomeMessage called for user:', userName);
+    console.log('🤖 GeminiService: generateWelcomeMessage called for:', userName);
     
-    if (!this.model) {
-      console.log('🤖 GeminiService: Model not available, using fallback');
+    if (!this.isServiceAvailable()) {
+      console.log('🤖 GeminiService: Service not available, using fallback');
       return this.getFallbackWelcomeMessage(userName);
     }
 
     try {
-      console.log('🤖 GeminiService: Sending request to Gemini API...');
       const prompt = `${this.systemPrompts.welcome}
 
-User baru bernama ${userName} baru saja bergabung di platform SkillNusa. Buatkan pesan sambutan yang:
-1. Menyapa dengan nama
-2. Memperkenalkan diri sebagai SkillBot
-3. Menjelaskan apa yang bisa dibantu SkillBot
-4. Mengajak user untuk menceritakan project yang dibutuhkan
+Buat welcome message singkat untuk user bernama ${userName}. 
 
-Buat dalam 2-3 paragraf yang engaging dan tidak terlalu panjang.`;
+PENTING: 
+- Maksimal 2 kalimat 
+- Langsung tanya ada project apa
+- Casual dan ramah
+- Jangan berlebihan dengan emoji`;
 
-      console.log('🤖 GeminiService: Prompt length:', prompt.length);
+      console.log('🤖 GeminiService: Sending welcome message request to Gemini API...');
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
       const text = response.text();
@@ -109,8 +107,13 @@ Buat dalam 2-3 paragraf yang engaging dan tidak terlalu panjang.`;
       });
       
       // Check if it's an API key issue
-      if (error.message && error.message.includes('API_KEY')) {
-        console.error('❌ GeminiService: API Key issue detected');
+      if (error.message && (error.message.includes('API_KEY') || error.message.includes('API key'))) {
+        console.error('❌ GeminiService: API Key issue detected - please check your REACT_APP_GEMINI_API_KEY');
+      }
+      
+      // Check if it's a quota issue
+      if (error.message && error.message.includes('quota')) {
+        console.error('❌ GeminiService: API quota exceeded - please check your usage limits');
       }
       
       return this.getFallbackWelcomeMessage(userName);
@@ -123,25 +126,14 @@ Buat dalam 2-3 paragraf yang engaging dan tidak terlalu panjang.`;
 
     try {
       const conversationContext = conversationHistory.length > 0 
-        ? `\n\nKontext percakapan sebelumnya:\n${conversationHistory.map(msg => `${msg.sender}: ${msg.content}`).join('\n')}`
+        ? `\n\nPercakapan sebelumnya:\n${conversationHistory.slice(-2).map(msg => `${msg.sender}: ${msg.content}`).join('\n')}`
         : '';
 
       const prompt = `${this.systemPrompts.projectAnalysis}
 
-User mengirim pesan: "${userMessage}"${conversationContext}
+User bilang: "${userMessage}"${conversationContext}
 
-Tugasmu:
-1. Analisis kebutuhan project dari pesan user
-2. Identifikasi informasi yang masih kurang
-3. Buat 2-3 follow-up questions yang spesifik dan helpful
-4. Berikan estimasi jenis layanan/gigs yang mungkin dibutuhkan
-
-Format response:
-- Berikan understanding terhadap kebutuhan user
-- Ajukan pertanyaan follow-up yang tepat
-- Jika sudah cukup info, berikan rekomendasi awal
-
-Gunakan tone yang conversational dan helpful.`;
+Analisis projectnya secara SINGKAT dan tanya 1-2 hal yang paling penting aja. Maksimal 3 kalimat.`;
 
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
@@ -158,24 +150,16 @@ Gunakan tone yang conversational dan helpful.`;
 
     try {
       const gigsContext = availableGigs.length > 0 
-        ? `\n\nGigs yang tersedia:\n${availableGigs.map(gig => 
-            `- ${gig.title} (${gig.category}) - Rp ${gig.packages?.basic?.price?.toLocaleString('id-ID')} - ${gig.packages?.basic?.deliveryTime} hari`
+        ? `\n\nGigs tersedia:\n${availableGigs.slice(0, 5).map(gig => 
+            `- ${gig.title} (Rp ${gig.packages?.basic?.price?.toLocaleString('id-ID')})`
           ).join('\n')}`
-        : '\n\nBelum ada gigs yang tersedia untuk dianalisis.';
+        : '\n\nBelum ada gigs tersedia.';
 
       const prompt = `${this.systemPrompts.projectAnalysis}
 
-Kebutuhan project user: ${projectRequirements}${gigsContext}
+Project: ${projectRequirements}${gigsContext}
 
-Tugasmu:
-1. Analisis kesesuaian antara kebutuhan user dengan gigs yang tersedia
-2. Ranking gigs berdasarkan relevansi
-3. Berikan rekomendasi 3-5 gigs terbaik (jika ada)
-4. Jelaskan mengapa gigs tersebut cocok
-5. Berikan saran package (basic/standard/premium) untuk masing-masing
-6. Jika tidak ada gigs yang sesuai, jelaskan kenapa dan beri saran alternatif
-
-Format response dengan struktur yang jelas dan actionable.`;
+Rekomendasikan 2-3 gigs terbaik secara SINGKAT. Fokus pada yang paling relevan aja. Maksimal 4 kalimat.`;
 
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
@@ -194,32 +178,21 @@ Format response dengan struktur yang jelas dan actionable.`;
       const gigInfo = `
 Judul: ${gigData.title}
 Kategori: ${gigData.category}
-Deskripsi: ${gigData.description}
-Tags: ${gigData.tags?.join(', ') || 'Tidak ada'}
-Packages:
-- Basic: Rp ${gigData.packages?.basic?.price?.toLocaleString('id-ID')} - ${gigData.packages?.basic?.deliveryTime} hari
-  Features: ${gigData.packages?.basic?.features?.join(', ') || 'Tidak disebutkan'}
-- Standard: Rp ${gigData.packages?.standard?.price?.toLocaleString('id-ID')} - ${gigData.packages?.standard?.deliveryTime} hari
-  Features: ${gigData.packages?.standard?.features?.join(', ') || 'Tidak disebutkan'}
-- Premium: Rp ${gigData.packages?.premium?.price?.toLocaleString('id-ID')} - ${gigData.packages?.premium?.deliveryTime} hari
-  Features: ${gigData.packages?.premium?.features?.join(', ') || 'Tidak disebutkan'}
+Basic: Rp ${gigData.packages?.basic?.price?.toLocaleString('id-ID')} - ${gigData.packages?.basic?.deliveryTime} hari
+Standard: Rp ${gigData.packages?.standard?.price?.toLocaleString('id-ID')} - ${gigData.packages?.standard?.deliveryTime} hari  
+Premium: Rp ${gigData.packages?.premium?.price?.toLocaleString('id-ID')} - ${gigData.packages?.premium?.deliveryTime} hari
 Rating: ${gigData.rating || 'Belum ada rating'}
 `;
 
-      const userContext = userQuery ? `\n\nPertanyaan spesifik user: "${userQuery}"` : '';
+      const userContext = userQuery ? `\n\nPertanyaan user: "${userQuery}"` : '';
 
       const prompt = `${this.systemPrompts.gigAnalysis}
 
-Analisis gig berikut:${gigInfo}${userContext}
+Info gig: ${gigInfo}${userContext}
 
-Tugasmu:
-1. Berikan rangkuman singkat tentang layanan ini
-2. Analisis value proposition dari masing-masing package
-3. Rekomendasikan package yang tepat berdasarkan kebutuhan umum
-4. ${userQuery ? 'Jawab pertanyaan spesifik user' : 'Berikan insights tentang kualitas dan kesesuaian gig'}
-5. Saran pertanyaan yang bisa ditanyakan ke freelancer
+${userQuery ? `Jawab pertanyaan user secara SINGKAT dan LANGSUNG. Jangan berikan analisis panjang.` : `Berikan comment singkat (maksimal 2-3 kalimat) tentang gig ini. Tanya ada yang mau ditanyakan lebih lanjut?`}
 
-Berikan response yang informatif dan actionable.`;
+INGAT: Respons maksimal 3-4 kalimat saja!`;
 
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
@@ -236,8 +209,8 @@ Berikan response yang informatif dan actionable.`;
     console.log('🤖 GeminiService: User message:', userMessage);
     console.log('🤖 GeminiService: Context keys:', Object.keys(context));
     
-    if (!this.model) {
-      console.log('🤖 GeminiService: Model not available, using fallback');
+    if (!this.isServiceAvailable()) {
+      console.log('🤖 GeminiService: Service not available, using fallback');
       return this.getFallbackResponse();
     }
 
@@ -249,20 +222,20 @@ Berikan response yang informatif dan actionable.`;
 
       if (currentGig) {
         systemPrompt = this.systemPrompts.gigAnalysis;
-        contextInfo = `\n\nKontext: User sedang melihat gig "${currentGig.title}" di kategori ${currentGig.category}`;
+        contextInfo = `\n\nKontext: User sedang lihat gig "${currentGig.title}"`;
       }
 
       if (conversationHistory.length > 0) {
-        contextInfo += `\n\nRiwayat percakapan:\n${conversationHistory.slice(-5).map(msg => 
+        contextInfo += `\n\nPercakapan terakhir:\n${conversationHistory.slice(-3).map(msg => 
           `${msg.senderId === 'skillbot' ? 'SkillBot' : 'User'}: ${msg.content}`
         ).join('\n')}`;
       }
 
       const prompt = `${systemPrompt}
 
-User mengirim pesan: "${userMessage}"${contextInfo}
+User bilang: "${userMessage}"${contextInfo}
 
-Berikan response yang helpful, natural, dan sesuai konteks percakapan. Jika user bertanya tentang gig tertentu, fokus pada analisis gig. Jika user menjelaskan project requirements, bantu analisis dan beri rekomendasi.`;
+Balas dengan SINGKAT dan NATURAL seperti ngobrol biasa. Maksimal 2-3 kalimat. Hindari format daftar atau analisis panjang.`;
 
       console.log('🤖 GeminiService: Sending request to Gemini API...');
       const result = await this.model.generateContent(prompt);
@@ -273,63 +246,46 @@ Berikan response yang helpful, natural, dan sesuai konteks percakapan. Jika user
       return text;
     } catch (error) {
       console.error('❌ GeminiService: Error generating response:', error);
+      
+      // Enhanced error logging for debugging
+      if (error.message) {
+        if (error.message.includes('API_KEY') || error.message.includes('API key')) {
+          console.error('❌ API Key Error: Please check REACT_APP_GEMINI_API_KEY environment variable');
+        } else if (error.message.includes('quota')) {
+          console.error('❌ Quota Error: API usage limit exceeded');
+        } else if (error.message.includes('blocked')) {
+          console.error('❌ Content Policy Error: Message may have been blocked by content policy');
+        } else {
+          console.error('❌ Unknown API Error:', error.message);
+        }
+      }
+      
       return this.getFallbackResponse();
     }
   }
 
   // Fallback messages when API is not available
   getFallbackWelcomeMessage(userName) {
-    return `Hai ${userName}! 👋 
-
-Selamat datang di SkillNusa! Saya SkillBot, asisten AI yang akan membantu Anda menemukan freelancer dan layanan yang tepat untuk project Anda.
-
-Saya bisa membantu Anda:
-🎯 Menganalisis kebutuhan project
-🔍 Mencari freelancer terbaik yang sesuai
-💡 Memberikan rekomendasi layanan
-📋 Menyusun requirement yang detail
-
-Ceritakan tentang project yang Anda butuhkan, dan saya akan membantu menemukan solusi terbaik!`;
+    return `Hai ${userName}! 👋 Saya SkillBot, siap bantu cari freelancer terbaik buat project kamu. Ada project apa yang lagi direncanakan?`;
   }
 
   getFallbackProjectAnalysis() {
-    return `Terima kasih sudah menceritakan tentang project Anda! Saya sedang menganalisis kebutuhan Anda dan akan segera memberikan rekomendasi freelancer terbaik.
-
-Untuk memberikan rekomendasi yang lebih akurat, bisa tolong jelaskan lebih detail tentang:
-- Timeline project yang diharapkan
-- Budget range yang tersedia  
-- Fitur-fitur spesifik yang dibutuhkan
-
-Saya akan membantu menemukan freelancer yang paling sesuai dengan kebutuhan Anda! 🚀`;
+    return `Oke, lagi butuh bantuan analisis project ya? Cerita aja detail projectnya, nanti saya bantu cariin freelancer yang cocok! 😊`;
   }
 
   getFallbackGigRecommendation() {
-    return `Berdasarkan kebutuhan project Anda, saya sedang menganalisis gigs yang tersedia di platform. Mohon tunggu sebentar sementara saya menyiapkan rekomendasi terbaik untuk Anda.
-
-Saya akan mempertimbangkan faktor-faktor seperti:
-✅ Kesesuaian dengan requirement
-✅ Rating dan review freelancer
-✅ Timeline dan budget
-✅ Portfolio dan pengalaman
-
-Rekomendasi akan segera ditampilkan!`;
+    return `Lagi nyari gigs yang pas ya? Coba kasih tau kebutuhan projectnya lebih detail, biar saya bisa rekomendasi yang tepat!`;
   }
 
   getFallbackGigAnalysis(gigData) {
-    return `Layanan "${gigData?.title || 'ini'}" terlihat menarik! 
-
-Berdasarkan analisis awal:
-📋 Kategori: ${gigData?.category || 'Tidak disebutkan'}
-💰 Harga mulai dari: Rp ${gigData?.packages?.basic?.price?.toLocaleString('id-ID') || 'Tidak disebutkan'}
-⏱️ Delivery time: ${gigData?.packages?.basic?.deliveryTime || 'Tidak disebutkan'} hari
-
-Untuk membantu Anda lebih baik, bisa ceritakan tentang project spesifik yang Anda kerjakan? Saya akan memberikan rekomendasi package yang paling sesuai!`;
+    if (gigData?.title) {
+      return `Gig "${gigData.title}" ini terlihat menarik! Harga mulai dari Rp ${gigData?.packages?.basic?.price?.toLocaleString('id-ID') || '???'}. Ada yang mau ditanyakan tentang layanan ini?`;
+    }
+    return `Layanan ini cukup bagus kok. Ada pertanyaan spesifik yang mau ditanyakan?`;
   }
 
   getFallbackResponse() {
-    return `Terima kasih atas pertanyaannya! Saya sedang memproses informasi Anda dan akan memberikan rekomendasi terbaik. 
-
-Jika Anda memiliki pertanyaan spesifik tentang layanan atau ingin mencari freelancer tertentu, silakan jelaskan lebih detail dan saya akan membantu!`;
+    return `Hmm, lagi ada gangguan teknis nih. Coba tanya lagi ya, atau kasih tau apa yang bisa saya bantu! 😅`;
   }
 }
 

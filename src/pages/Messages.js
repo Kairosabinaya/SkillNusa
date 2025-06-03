@@ -3,6 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import chatService from '../services/chatService';
 import skillBotService from '../services/skillBotService';
+import { MarkdownText } from '../utils/markdownUtils';
 
 // Constants for SkillBot
 const SKILLBOT_ID = 'skillbot';
@@ -21,6 +22,10 @@ export default function Messages() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [skillBotTyping, setSkillBotTyping] = useState(false);
+  
+  // Real-time listeners cleanup functions
+  const [chatsUnsubscribe, setChatsUnsubscribe] = useState(null);
+  const [messagesUnsubscribe, setMessagesUnsubscribe] = useState(null);
 
   // Load user chats and initialize SkillBot if needed
   useEffect(() => {
@@ -34,29 +39,48 @@ export default function Messages() {
           currentUser.displayName || 'User'
         );
         
-        // Get all user chats (including SkillBot which is now in the database)
-        const userChats = await chatService.getUserChats(currentUser.uid);
-        setChats(userChats);
-        
-        // If chatId is provided, select that chat
-        if (chatId) {
-          if (chatId === SKILLBOT_ID) {
-            // Find SkillBot chat in the loaded chats
-            const skillBotChat = userChats.find(chat => 
-              chat.id.includes(SKILLBOT_ID) || chat.isSkillBot
-            );
-            if (skillBotChat) {
-              setSelectedChat(skillBotChat);
-              await loadSkillBotMessages();
-            }
-          } else {
-            const chat = userChats.find(c => c.id === chatId);
-            if (chat) {
-              setSelectedChat(chat);
-              loadChatMessages(chatId);
+        // Set up real-time listener for chats
+        const unsubscribe = chatService.subscribeToUserChats(currentUser.uid, (userChats) => {
+          setChats(userChats);
+          
+          // If chatId is provided and chat hasn't been selected yet, select it
+          if (chatId && !selectedChat) {
+            // Handle SkillBot chatId - support both 'skillbot' and 'userId_skillbot' formats
+            const isSkillBotChat = chatId === SKILLBOT_ID || chatId.includes(SKILLBOT_ID);
+            
+            if (isSkillBotChat) {
+              // Find SkillBot chat in the loaded chats
+              const skillBotChat = userChats.find(chat => 
+                chat.id.includes(SKILLBOT_ID) || chat.isSkillBot
+              );
+              if (skillBotChat) {
+                setSelectedChat(skillBotChat);
+                loadSkillBotMessages();
+              } else {
+                // Create a virtual SkillBot chat if not found in list
+                const virtualSkillBotChat = {
+                  id: `${currentUser.uid}_${SKILLBOT_ID}`,
+                  isSkillBot: true,
+                  otherParticipant: {
+                    displayName: 'SkillBot AI',
+                    profilePhoto: '/images/robot.png'
+                  }
+                };
+                setSelectedChat(virtualSkillBotChat);
+                loadSkillBotMessages();
+              }
+            } else {
+              const chat = userChats.find(c => c.id === chatId);
+              if (chat) {
+                setSelectedChat(chat);
+                loadChatMessages(chatId);
+              }
             }
           }
-        }
+        });
+        
+        setChatsUnsubscribe(() => unsubscribe);
+        
       } catch (error) {
         console.error('Error loading chats:', error);
       } finally {
@@ -65,11 +89,27 @@ export default function Messages() {
     };
 
     loadChats();
+
+    // Cleanup on component unmount
+    return () => {
+      if (chatsUnsubscribe) {
+        chatsUnsubscribe();
+      }
+      if (messagesUnsubscribe) {
+        messagesUnsubscribe();
+      }
+    };
   }, [currentUser, chatId]);
 
-  // Load SkillBot messages
+  // Load SkillBot messages with real-time updates
   const loadSkillBotMessages = async () => {
     try {
+      // Clean up existing message listener
+      if (messagesUnsubscribe) {
+        messagesUnsubscribe();
+        setMessagesUnsubscribe(null);
+      }
+
       const conversation = await skillBotService.getSkillBotConversation(currentUser.uid);
       if (conversation && conversation.messages) {
         setMessages(conversation.messages);
@@ -84,6 +124,17 @@ export default function Messages() {
       
       // Mark SkillBot messages as read
       await skillBotService.markSkillBotAsRead(currentUser.uid);
+      
+      // Set up real-time listener for SkillBot conversation
+      const conversationId = `${currentUser.uid}_${SKILLBOT_ID}`;
+      const unsubscribe = skillBotService.subscribeToSkillBotConversation(conversationId, (conversationData) => {
+        if (conversationData && conversationData.messages) {
+          setMessages(conversationData.messages);
+        }
+      });
+      
+      setMessagesUnsubscribe(() => unsubscribe);
+      
     } catch (error) {
       console.error('Error loading SkillBot messages:', error);
       // Fallback to welcome message
@@ -98,16 +149,29 @@ export default function Messages() {
     }
   };
 
-  // Load messages for selected chat
+  // Load messages for selected chat with real-time updates
   const loadChatMessages = async (chatId) => {
-    if (chatId === SKILLBOT_ID) {
+    // Check if this is a SkillBot chat (support both 'skillbot' and 'userId_skillbot' formats)
+    const isSkillBotChat = chatId === SKILLBOT_ID || chatId.includes(SKILLBOT_ID);
+    
+    if (isSkillBotChat) {
       await loadSkillBotMessages();
       return;
     }
 
     try {
-      const chatMessages = await chatService.getChatMessages(chatId);
-      setMessages(chatMessages);
+      // Clean up existing message listener
+      if (messagesUnsubscribe) {
+        messagesUnsubscribe();
+        setMessagesUnsubscribe(null);
+      }
+
+      // Set up real-time listener for regular chat messages
+      const unsubscribe = chatService.subscribeToChatMessages(chatId, (chatMessages) => {
+        setMessages(chatMessages);
+      });
+      
+      setMessagesUnsubscribe(() => unsubscribe);
       
       // Mark messages as read
       await chatService.markMessagesAsRead(chatId, currentUser.uid);
@@ -119,7 +183,15 @@ export default function Messages() {
   // Handle chat selection
   const handleChatSelect = (chat) => {
     setSelectedChat(chat);
-    navigate(`/messages?chatId=${chat.id}`);
+    
+    // Use consistent chatId format for navigation
+    let navigationChatId = chat.id;
+    if (chat.isSkillBot || chat.id.includes(SKILLBOT_ID)) {
+      // Always use simple 'skillbot' format for URL navigation
+      navigationChatId = SKILLBOT_ID;
+    }
+    
+    navigate(`/messages?chatId=${navigationChatId}`);
     loadChatMessages(chat.id);
     
     // Mark SkillBot as read if selecting SkillBot chat
@@ -134,16 +206,31 @@ export default function Messages() {
     if (!newMessage.trim() || !selectedChat || sending) return;
 
     setSending(true);
+    const messageContent = newMessage.trim();
+    setNewMessage(''); // Clear input immediately
     
     try {
-      if (selectedChat.isSkillBot || selectedChat.id.includes(SKILLBOT_ID)) {
-        // Handle SkillBot chat with real AI
+      // Check if this is SkillBot chat (support both formats)
+      const isSkillBotChat = selectedChat.isSkillBot || selectedChat.id.includes(SKILLBOT_ID);
+      
+      if (isSkillBotChat) {
+        // Optimistic update: Add user message immediately to UI
+        const userMessage = {
+          id: `user-${Date.now()}`,
+          content: messageContent,
+          senderId: currentUser.uid,
+          createdAt: new Date(),
+          messageType: 'user'
+        };
+        
+        setMessages(prev => [...prev, userMessage]);
         setSkillBotTyping(true);
         
         try {
+          // Handle SkillBot chat with real AI
           const result = await skillBotService.sendMessageToSkillBot(
             currentUser.uid,
-            newMessage.trim(),
+            messageContent,
             {
               // Add any context that might be helpful
               availableGigs: [], // Could fetch relevant gigs based on message
@@ -151,29 +238,25 @@ export default function Messages() {
             }
           );
           
-          // Update messages with both user message and bot response
-          setMessages(prev => [...prev, result.userMessage, result.botResponse]);
+          // Messages will be updated automatically through real-time listener
+          // The optimistic user message will be replaced by the real one from database
           
         } catch (error) {
           console.error('Error sending message to SkillBot:', error);
-          // Fallback response
-          const userMessage = {
-            id: `user-${Date.now()}`,
-            content: newMessage.trim(),
-            senderId: currentUser.uid,
-            createdAt: new Date(),
-            messageType: 'user'
-          };
           
-          const botResponse = {
-            id: `bot-${Date.now()}`,
-            content: "Maaf, saya sedang mengalami gangguan teknis. Silakan coba lagi dalam beberapa saat atau hubungi support jika masalah berlanjut.",
+          // Remove optimistic message and show error
+          setMessages(prev => prev.filter(msg => msg.id !== userMessage.id));
+          
+          // Add error response
+          const errorMessage = {
+            id: `error-${Date.now()}`,
+            content: "Maaf, saya sedang mengalami gangguan teknis. Silakan coba lagi dalam beberapa saat.",
             senderId: SKILLBOT_ID,
-            createdAt: new Date(Date.now() + 1000),
+            createdAt: new Date(),
             messageType: 'error'
           };
           
-          setMessages(prev => [...prev, userMessage, botResponse]);
+          setMessages(prev => [...prev, userMessage, errorMessage]);
         } finally {
           setSkillBotTyping(false);
         }
@@ -182,12 +265,11 @@ export default function Messages() {
         await chatService.sendMessage(
           selectedChat.id,
           currentUser.uid,
-          newMessage.trim()
+          messageContent
         );
-        loadChatMessages(selectedChat.id);
+        // Messages will be updated automatically through real-time listener
       }
       
-      setNewMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
     } finally {
@@ -317,7 +399,7 @@ export default function Messages() {
                           isCurrentUser 
                             ? 'bg-[#010042] text-white' 
                             : isSkillBot 
-                            ? 'bg-blue-50 text-gray-900 border border-blue-200'
+                            ? 'bg-blue-50 text-gray-900 border border-blue-200 skillbot-message'
                             : 'bg-gray-100 text-gray-900'
                         }`}>
                           {isSkillBot && (
@@ -326,7 +408,13 @@ export default function Messages() {
                               <span className="text-xs font-medium text-blue-600">SkillBot AI</span>
                             </div>
                           )}
-                          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                          {isSkillBot ? (
+                            <MarkdownText className="text-sm">
+                              {message.content}
+                            </MarkdownText>
+                          ) : (
+                            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                          )}
                           <p className={`text-xs mt-1 ${
                             isCurrentUser ? 'text-white/70' : 'text-gray-500'
                           }`}>

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import skillBotService from '../../services/skillBotService';
 import geminiService from '../../services/geminiService';
+import { MarkdownText } from '../../utils/markdownUtils';
 
 export default function GigAnalysisChat({ gig, onClose }) {
   const { currentUser } = useAuth();
@@ -34,11 +35,9 @@ export default function GigAnalysisChat({ gig, onClose }) {
         // Create initial messages
         const welcomeMessage = {
           id: `gig-welcome-${Date.now()}`,
-          content: `Hai! Saya akan membantu menganalisis layanan "${gig.title}" untuk Anda. Berikut analisis awal:
+          content: `Hai! Saya lihat layanan "${gig.title}" ini. ${gigAnalysis}
 
-${gigAnalysis}
-
-Ada pertanyaan spesifik tentang layanan ini yang ingin Anda tanyakan?`,
+Ada yang mau ditanyakan tentang layanan ini?`,
           senderId: 'skillbot',
           createdAt: new Date(),
           messageType: 'gig_analysis'
@@ -50,13 +49,7 @@ Ada pertanyaan spesifik tentang layanan ini yang ingin Anda tanyakan?`,
         // Fallback message
         const fallbackMessage = {
           id: `gig-fallback-${Date.now()}`,
-          content: `Hai! Saya siap membantu menganalisis layanan "${gig.title}". 
-
-Silakan tanyakan hal-hal seperti:
-• Apakah layanan ini sesuai dengan project saya?
-• Package mana yang terbaik untuk kebutuhan saya?
-• Apa saja yang perlu saya persiapkan sebelum memesan?
-• Berapa estimasi waktu pengerjaan total?`,
+          content: `Hai! Saya lihat layanan "${gig.title}" ini. Terlihat menarik! Ada yang mau ditanyakan?`,
           senderId: 'skillbot',
           createdAt: new Date(),
           messageType: 'welcome'
@@ -76,24 +69,24 @@ Silakan tanyakan hal-hal seperti:
     if (!newMessage.trim() || sending) return;
 
     setSending(true);
-    setSkillBotTyping(true);
+    const messageContent = newMessage.trim();
+    setNewMessage(''); // Clear input immediately
 
-    // Add user message immediately
+    // Optimistic update: Add user message immediately to UI
     const userMessage = {
       id: `user-${Date.now()}`,
-      content: newMessage.trim(),
+      content: messageContent,
       senderId: currentUser.uid,
       createdAt: new Date(),
       messageType: 'user'
     };
 
     setMessages(prev => [...prev, userMessage]);
-    const userQuery = newMessage.trim();
-    setNewMessage('');
+    setSkillBotTyping(true);
 
     try {
       // Get AI response with gig context
-      const aiResponse = await geminiService.analyzeGig(gig, userQuery);
+      const aiResponse = await geminiService.analyzeGig(gig, messageContent);
       
       // Create bot response message
       const botMessage = {
@@ -107,16 +100,20 @@ Silakan tanyakan hal-hal seperti:
       setMessages(prev => [...prev, botMessage]);
     } catch (error) {
       console.error('Error getting SkillBot response:', error);
-      // Fallback response
+      
+      // Remove optimistic message on error
+      setMessages(prev => prev.filter(msg => msg.id !== userMessage.id));
+      
+      // Add error response
       const errorMessage = {
         id: `error-${Date.now()}`,
         content: 'Maaf, saya sedang mengalami gangguan teknis. Silakan coba lagi dalam beberapa saat.',
         senderId: 'skillbot',
-        createdAt: new Date(Date.now() + 1000),
+        createdAt: new Date(),
         messageType: 'error'
       };
 
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages(prev => [...prev, userMessage, errorMessage]);
     } finally {
       setSending(false);
       setSkillBotTyping(false);
@@ -125,11 +122,11 @@ Silakan tanyakan hal-hal seperti:
 
   // Quick question buttons
   const quickQuestions = [
-    "Apakah layanan ini sesuai untuk project saya?",
-    "Package mana yang terbaik untuk saya?",
-    "Apa saja yang perlu saya persiapkan?",
-    "Berapa total waktu pengerjaan?",
-    "Bagaimana kualitas hasil kerja freelancer ini?"
+    "Cocok buat project saya?",
+    "Package mana yang bagus?", 
+    "Berapa lama totalnya?",
+    "Freelancernya gimana?",
+    "Ada yang perlu disiapkan?"
   ];
 
   const handleQuickQuestion = (question) => {
@@ -147,7 +144,7 @@ Silakan tanyakan hal-hal seperti:
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-lg border border-gray-200 h-96 flex items-center justify-center">
+      <div className="bg-white rounded-lg shadow-lg border border-gray-200 min-h-[600px] flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
           <p className="mt-2 text-gray-600">Menganalisis layanan...</p>
@@ -157,9 +154,9 @@ Silakan tanyakan hal-hal seperti:
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-lg border border-gray-200 h-96 flex flex-col">
+    <div className="bg-white rounded-lg shadow-lg border border-gray-200 min-h-[600px] max-h-[800px] flex flex-col">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+      <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center space-x-2">
           <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
@@ -184,28 +181,34 @@ Silakan tanyakan hal-hal seperti:
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="flex-1 overflow-y-auto p-6 space-y-4">
         {messages.map((message) => {
           const isSkillBot = message.senderId === 'skillbot';
           const isCurrentUser = message.senderId === currentUser.uid;
           
           return (
             <div key={message.id} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-xs px-3 py-2 rounded-lg text-sm ${
+              <div className={`max-w-sm px-4 py-3 rounded-lg text-sm ${
                 isCurrentUser 
                   ? 'bg-blue-500 text-white' 
                   : isSkillBot 
-                  ? 'bg-gray-100 text-gray-900'
+                  ? 'bg-gray-100 text-gray-900 skillbot-message'
                   : 'bg-gray-200 text-gray-900'
               }`}>
                 {isSkillBot && (
-                  <div className="flex items-center space-x-1 mb-1">
+                  <div className="flex items-center space-x-2 mb-2">
                     <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
                     <span className="text-xs font-medium text-blue-600">SkillBot</span>
                   </div>
                 )}
-                <p className="whitespace-pre-wrap">{message.content}</p>
-                <p className={`text-xs mt-1 ${
+                {isSkillBot ? (
+                  <MarkdownText className="text-sm leading-relaxed">
+                    {message.content}
+                  </MarkdownText>
+                ) : (
+                  <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                )}
+                <p className={`text-xs mt-2 ${
                   isCurrentUser ? 'text-blue-100' : 'text-gray-500'
                 }`}>
                   {formatTime(message.createdAt)}
@@ -217,8 +220,8 @@ Silakan tanyakan hal-hal seperti:
         
         {skillBotTyping && (
           <div className="flex justify-start">
-            <div className="bg-gray-100 px-3 py-2 rounded-lg">
-              <div className="flex items-center space-x-1 mb-1">
+            <div className="bg-gray-100 px-4 py-3 rounded-lg">
+              <div className="flex items-center space-x-2 mb-2">
                 <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
                 <span className="text-xs font-medium text-blue-600">SkillBot</span>
               </div>
@@ -236,7 +239,7 @@ Silakan tanyakan hal-hal seperti:
 
       {/* Quick Questions */}
       {messages.length === 1 && (
-        <div className="px-4 py-2 border-t border-gray-100">
+        <div className="px-4 py-2 border-t border-gray-100 flex-shrink-0">
           <p className="text-xs text-gray-500 mb-2">Pertanyaan cepat:</p>
           <div className="flex flex-wrap gap-1">
             {quickQuestions.slice(0, 3).map((question, index) => (
@@ -253,7 +256,7 @@ Silakan tanyakan hal-hal seperti:
       )}
 
       {/* Message Input */}
-      <div className="px-4 py-3 border-t border-gray-200">
+      <div className="px-4 py-3 border-t border-gray-200 flex-shrink-0">
         <form onSubmit={handleSendMessage} className="flex space-x-2">
           <input
             type="text"
