@@ -2,7 +2,10 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import orderService from '../services/orderService';
+import reviewService from '../services/reviewService';
+import freelancerRatingService from '../services/freelancerRatingService';
 import { formatPrice } from '../utils/helpers';
+import RatingModal from '../components/RatingModal';
 
 export default function Transactions() {
   const { currentUser } = useAuth();
@@ -11,10 +14,33 @@ export default function Transactions() {
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('');
+  const [orderRatingStatus, setOrderRatingStatus] = useState({});
+  
+  // Rating modal state
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [pendingRatingOrder, setPendingRatingOrder] = useState(null);
+  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
+  const [success, setSuccess] = useState('');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     loadOrders();
   }, [currentUser]);
+
+  // Clear success/error messages
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => setSuccess(''), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [success]);
+
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(''), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
 
   const loadOrders = async () => {
     console.log('🔍 [Transactions] loadOrders called with currentUser:', currentUser?.uid);
@@ -53,6 +79,22 @@ export default function Transactions() {
             freelancer: order.freelancer
           });
         });
+
+        // Check rating status for each order
+        const ratingStatusMap = {};
+        for (const order of ordersWithDetails) {
+          try {
+            const existingReviews = await reviewService.getGigReviews(order.gigId);
+            const userReview = existingReviews.find(review => 
+              review.clientId === currentUser.uid && review.orderId === order.id
+            );
+            ratingStatusMap[order.id] = !!userReview;
+          } catch (error) {
+            console.error('Error checking rating status for order:', order.id, error);
+            ratingStatusMap[order.id] = false;
+          }
+        }
+        setOrderRatingStatus(ratingStatusMap);
       } else {
         console.log('⚠️ [Transactions] No orders data received or empty array');
       }
@@ -63,6 +105,68 @@ export default function Transactions() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRateOrder = async (orderId) => {
+    setPendingRatingOrder(orderId);
+    setShowRatingModal(true);
+  };
+
+  const handleRatingSubmit = async (ratingData) => {
+    if (!pendingRatingOrder) return;
+    
+    const order = orders.find(o => o.id === pendingRatingOrder);
+    if (!order) {
+      setError('Data pesanan tidak ditemukan');
+      return;
+    }
+
+    try {
+      setIsSubmittingRating(true);
+
+      // Create review
+      const reviewData = {
+        gigId: order.gigId,
+        freelancerId: order.freelancerId,
+        clientId: currentUser.uid,
+        orderId: pendingRatingOrder,
+        rating: ratingData.rating,
+        comment: ratingData.comment || '',
+        createdAt: new Date(),
+        status: 'published'
+      };
+
+      await reviewService.createReview(reviewData);
+
+      // Update freelancer rating stats
+      try {
+        await freelancerRatingService.updateFreelancerRatingInProfile(order.freelancerId);
+      } catch (ratingError) {
+        console.error('Error updating freelancer rating:', ratingError);
+        // Don't block completion if rating update fails
+      }
+
+      // Update rating status
+      setOrderRatingStatus(prev => ({
+        ...prev,
+        [pendingRatingOrder]: true
+      }));
+
+      setSuccess('Terima kasih atas rating Anda!');
+      setShowRatingModal(false);
+      setPendingRatingOrder(null);
+      
+    } catch (error) {
+      console.error('Error submitting rating:', error);
+      setError('Gagal mengirim rating. Silakan coba lagi.');
+    } finally {
+      setIsSubmittingRating(false);
+    }
+  };
+
+  const handleRatingSkip = () => {
+    setShowRatingModal(false);
+    setPendingRatingOrder(null);
   };
 
   const formatDate = (date) => {
@@ -357,12 +461,31 @@ export default function Transactions() {
                             
                             {/* Buy Again Button - for completed orders */}
                             {order.status === 'completed' && (
-                              <Link
-                                to={`/gig/${order.gigId}`}
-                                className="text-sm border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors text-center"
-                              >
-                                Beli Lagi
-                              </Link>
+                              <>
+                                <Link
+                                  to={`/gig/${order.gigId}`}
+                                  className="text-sm border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors text-center"
+                                >
+                                  Beli Lagi
+                                </Link>
+                                
+                                {/* Rating button for completed orders */}
+                                {!orderRatingStatus[order.id] ? (
+                                  <button
+                                    onClick={() => handleRateOrder(order.id)}
+                                    className="text-sm bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors text-center"
+                                  >
+                                    Beri Rating
+                                  </button>
+                                ) : (
+                                  <div className="text-sm border border-gray-300 text-gray-500 px-4 py-2 rounded-lg text-center bg-gray-50 flex items-center justify-center gap-1">
+                                    <svg className="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 24 24">
+                                      <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                                    </svg>
+                                    Sudah Rating
+                                  </div>
+                                )}
+                              </>
                             )}
                           </div>
                         </div>
@@ -407,6 +530,28 @@ export default function Transactions() {
             </div>
           </div>
         )}
+
+        {/* Success/Error Messages */}
+        {success && (
+          <div className="fixed top-4 right-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded z-50 shadow-lg">
+            {success}
+          </div>
+        )}
+        {error && (
+          <div className="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded z-50 shadow-lg">
+            {error}
+          </div>
+        )}
+
+        {/* Rating Modal */}
+        <RatingModal
+          isOpen={showRatingModal}
+          onClose={handleRatingSkip}
+          onSubmit={handleRatingSubmit}
+          freelancerName={orders.find(o => o.id === pendingRatingOrder)?.freelancer?.displayName || 'Freelancer'}
+          gigTitle={orders.find(o => o.id === pendingRatingOrder)?.title || ''}
+          isSubmitting={isSubmittingRating}
+        />
       </div>
     </div>
   );
