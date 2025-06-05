@@ -56,7 +56,6 @@ const BecomeFreelancerStep4 = ({ formikProps }) => {
         <h4 className="text-sm font-medium text-blue-800 mb-2">Proses Selanjutnya</h4>
         <ul className="list-disc pl-5 text-sm text-blue-700 space-y-1">
           <li>Setelah mendaftar, Anda langsung dapat bekerja sebagai freelancer</li>
-          <li>Anda dapat beralih antara peran Client dan Freelancer kapan saja</li>
           <li>Lengkapi profil Anda untuk meningkatkan peluang mendapatkan project</li>
         </ul>
       </div>

@@ -512,7 +512,7 @@ class ChatService {
     });
   }
 
-  // Subscribe to user chats (real-time)
+  // Subscribe to user chats (real-time) - OPTIMIZED to reduce reads
   subscribeToUserChats(userId, callback) {
     const q = query(
       collection(db, this.chatsCollection),
@@ -522,34 +522,64 @@ class ChatService {
     return onSnapshot(q, async (querySnapshot) => {
       const chats = [];
       
-      for (const docSnapshot of querySnapshot.docs) {
+      // Batch user fetches to reduce reads
+      const userIdsToFetch = new Set();
+      const chatDataArray = [];
+      
+      querySnapshot.docs.forEach(docSnapshot => {
         const chatData = { id: docSnapshot.id, ...docSnapshot.data() };
         
         // Check if participants array exists and is valid
         if (!chatData.participants || !Array.isArray(chatData.participants)) {
           console.error('Chat participants array is missing or invalid for chat:', chatData.id, chatData.participants);
-          continue; // Skip this chat
+          return; // Skip this chat
         }
         
-        // Get other participant details
         const otherParticipantId = chatData.participants.find(id => id !== userId);
         if (otherParticipantId) {
+          // Check if we have cached participant details
+          if (chatData.participantDetails && chatData.participantDetails[otherParticipantId]) {
+            chatData.otherParticipant = {
+              id: otherParticipantId,
+              ...chatData.participantDetails[otherParticipantId]
+            };
+          } else {
+            // Mark for batch fetch
+            userIdsToFetch.add(otherParticipantId);
+          }
+        }
+        
+        chatDataArray.push(chatData);
+      });
+      
+      // Batch fetch user details if needed
+      const userDetailsMap = new Map();
+      if (userIdsToFetch.size > 0) {
+        console.log(`🔄 [ChatService] Batch fetching ${userIdsToFetch.size} user details`);
+        
+        // Fetch users in parallel to reduce total time
+        const userFetchPromises = Array.from(userIdsToFetch).map(async (userId) => {
           try {
-            // Use cached participant details if available
-            if (chatData.participantDetails && chatData.participantDetails[otherParticipantId]) {
-              chatData.otherParticipant = {
-                id: otherParticipantId,
-                ...chatData.participantDetails[otherParticipantId]
-              };
-            } else {
-              // Fallback to fetching user details
-              const userDoc = await getDoc(doc(db, 'users', otherParticipantId));
-              if (userDoc.exists()) {
-                chatData.otherParticipant = { id: userDoc.id, ...userDoc.data() };
-              }
+            const userDoc = await getDoc(doc(db, 'users', userId));
+            if (userDoc.exists()) {
+              userDetailsMap.set(userId, { id: userDoc.id, ...userDoc.data() });
             }
           } catch (error) {
-            console.error(`Error getting user details for ${otherParticipantId}:`, error);
+            console.error(`Error fetching user ${userId}:`, error);
+          }
+        });
+        
+        await Promise.all(userFetchPromises);
+      }
+      
+      // Process chats with fetched user details
+      for (const chatData of chatDataArray) {
+        const otherParticipantId = chatData.participants.find(id => id !== userId);
+        
+        if (otherParticipantId && !chatData.otherParticipant) {
+          const userDetails = userDetailsMap.get(otherParticipantId);
+          if (userDetails) {
+            chatData.otherParticipant = userDetails;
           }
         }
         

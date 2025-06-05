@@ -1,11 +1,15 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import NavigationRoleHandler from './components/NavigationRoleHandler';
 import { AuthProvider } from './context/AuthContext';
+import { SubscriptionProvider } from './context/SubscriptionContext';
 import { ROUTES } from './routes';
 import ErrorBoundary from './components/common/ErrorBoundary';
 
 // Debug utilities (available in console as window.debugFirestore)
 import './utils/debugFirestore';
+
+// Firebase read monitoring (available in console)
+import './scripts/monitorFirebaseReads';
 
 // Layouts
 import PublicLayout from './components/Layout/PublicLayout';
@@ -80,8 +84,9 @@ function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <Router>
-          <NavigationRoleHandler>
+        <SubscriptionProvider>
+          <Router>
+            <NavigationRoleHandler>
             <Routes>
           {/* Public Routes */}
           <Route path={ROUTES.HOME} element={<PublicLayout />}>
@@ -426,10 +431,11 @@ function App() {
 
           {/* Catch all - 404 */}
           <Route path="*" element={<NotFound />} />
-            </Routes>
+                        </Routes>
           </NavigationRoleHandler>
         </Router>
-    </AuthProvider>
+        </SubscriptionProvider>
+      </AuthProvider>
     </ErrorBoundary>
   );
 }

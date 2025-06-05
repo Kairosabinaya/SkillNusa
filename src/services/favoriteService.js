@@ -13,6 +13,7 @@ import {
   orderBy
 } from 'firebase/firestore';
 import { Favorite } from '../models/Favorite';
+import firebaseMonitor from '../utils/firebaseMonitor';
 
 class FavoriteService {
   constructor() {
@@ -141,7 +142,13 @@ class FavoriteService {
         query: 'userId == userId (sorted in JavaScript)'
       });
       
-      return onSnapshot(q, (snapshot) => {
+      // Track subscription creation
+      const subscriptionId = `favorites_${userId}_${Date.now()}`;
+      firebaseMonitor.trackSubscription(subscriptionId, this.collectionName, userId);
+      
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        // Track reads
+        firebaseMonitor.trackRead('subscribeToUserFavorites', this.collectionName, snapshot.size);
         console.log('📥 [FavoriteService] Firestore snapshot received:', {
           size: snapshot.size,
           empty: snapshot.empty,
@@ -188,6 +195,12 @@ class FavoriteService {
         console.error('💥 [FavoriteService] Error in favorites subscription:', error);
         callback([]);
       });
+      
+      // Return enhanced unsubscribe function that tracks cleanup
+      return () => {
+        firebaseMonitor.trackSubscriptionCleanup(subscriptionId);
+        unsubscribe();
+      };
     } catch (error) {
       console.error('💥 [FavoriteService] Error subscribing to favorites:', error);
       callback([]);

@@ -700,7 +700,7 @@ export default function GigDetail() {
                               ))}
                             </div>
                           </div>
-                          <p className="text-gray-700 text-sm mb-2">{review.comment}</p>
+                          <p className="text-gray-700 text-sm mb-2 whitespace-pre-wrap">{review.comment}</p>
                           <p className="text-gray-500 text-xs">
                             {(() => {
                               let date;

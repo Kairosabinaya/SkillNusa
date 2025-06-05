@@ -636,11 +636,11 @@ export default function FreelancerProfile() {
                               </div>
                             </div>
                           </div>
-                          <p className="text-gray-600">{review.comment}</p>
+                          <p className="text-gray-600 whitespace-pre-wrap">{review.comment}</p>
                           {review.response && (
                             <div className="mt-3 p-3 bg-gray-50 rounded-lg">
                               <p className="text-sm text-gray-600 font-medium mb-1">Freelancer response:</p>
-                              <p className="text-gray-700">{review.response}</p>
+                              <p className="text-gray-700 whitespace-pre-wrap">{review.response}</p>
                             </div>
                           )}
                         </div>

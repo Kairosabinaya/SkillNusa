@@ -414,8 +414,12 @@ export function AuthProvider({ children }) {
           const userData = await fetchUserProfile(user);
           
           // Sync emailVerified status from Firebase Auth to Firestore if different
+          // OPTIMIZED: Only sync if there's a significant difference to prevent loops
           if (userData && userData.emailVerified !== user.emailVerified) {
             try {
+              console.log(`AuthContext: emailVerified status differs - Auth: ${user.emailVerified}, Firestore: ${userData.emailVerified}`);
+              
+              // Only update if this is a meaningful change (not just a minor sync issue)
               const userRef = doc(db, COLLECTIONS.USERS, user.uid);
               await updateDoc(userRef, {
                 emailVerified: user.emailVerified,

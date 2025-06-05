@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useSubscriptions } from '../../context/SubscriptionContext';
 import { motion } from 'framer-motion';
 import LoadingSpinner from '../../components/UI/LoadingSpinner';
 import FreelancerCTA from '../../components/UI/FreelancerCTA';
@@ -11,12 +12,10 @@ import { uploadProfilePhoto as uploadToCloudinary } from '../../services/cloudin
 import { getUserProfile, updateUserProfile } from '../../services/userProfileService';
 import { getIndonesianCities } from '../../services/profileService';
 import orderService from '../../services/orderService';
-import favoriteService from '../../services/favoriteService';
-import cartService from '../../services/cartService';
-import chatService from '../../services/chatService';
 
 export default function ClientDashboard() {
   const { userProfile, currentUser, loading: authLoading } = useAuth();
+  const { counts } = useSubscriptions(); // Use centralized subscription context
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [combinedUserData, setCombinedUserData] = useState(null);
@@ -32,66 +31,25 @@ export default function ClientDashboard() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   
-  // Dashboard stats state with real-time updates
+  // Dashboard stats state - now using centralized subscription for counts
   const [stats, setStats] = useState({
-    totalTransactions: 0,
-    totalFavorites: 0,
-    totalMessages: 0,
-    totalCart: 0
+    totalTransactions: 0
   });
   const [statsLoading, setStatsLoading] = useState(true);
 
-  // Set up real-time subscriptions for stats
+  // Load orders count (one-time fetch since it's less frequently updated)
   useEffect(() => {
     if (!currentUser) {
-      setStats({
-        totalTransactions: 0,
-        totalFavorites: 0,
-        totalMessages: 0,
-        totalCart: 0
-      });
+      setStats({ totalTransactions: 0 });
       setStatsLoading(false);
       return;
     }
 
-    console.log('ClientDashboard - Setting up real-time subscriptions for user:', currentUser.uid);
-
-    // Real-time favorites count subscription
-    const favoritesUnsubscribe = favoriteService.subscribeToFavoritesCount(currentUser.uid, (count) => {
-      console.log('ClientDashboard - Real-time favorites count update:', count);
-      setStats(prevStats => ({
-        ...prevStats,
-        totalFavorites: count
-      }));
-    });
-
-    // Real-time cart count subscription
-    const cartUnsubscribe = cartService.subscribeToCartCount(currentUser.uid, (count) => {
-      console.log('ClientDashboard - Real-time cart count update:', count);
-      setStats(prevStats => ({
-        ...prevStats,
-        totalCart: count
-      }));
-    });
-
-    // Real-time unread messages count subscription
-    const messagesUnsubscribe = chatService.subscribeToUnreadCount(currentUser.uid, (count) => {
-      console.log('ClientDashboard - Real-time messages count update:', count);
-      setStats(prevStats => ({
-        ...prevStats,
-        totalMessages: count
-      }));
-    });
-
-    // Load orders count (one-time fetch since it's less frequently updated)
     const loadOrdersCount = async () => {
       try {
         const clientStats = await orderService.getClientStats(currentUser.uid);
         console.log('ClientDashboard - Orders count loaded:', clientStats.total);
-        setStats(prevStats => ({
-          ...prevStats,
-          totalTransactions: clientStats.total
-        }));
+        setStats({ totalTransactions: clientStats.total });
       } catch (error) {
         console.error('Error loading orders count:', error);
       } finally {
@@ -100,14 +58,6 @@ export default function ClientDashboard() {
     };
 
     loadOrdersCount();
-
-    // Cleanup subscriptions on unmount
-    return () => {
-      console.log('ClientDashboard - Cleaning up real-time subscriptions');
-      if (favoritesUnsubscribe) favoritesUnsubscribe();
-      if (cartUnsubscribe) cartUnsubscribe();
-      if (messagesUnsubscribe) messagesUnsubscribe();
-    };
   }, [currentUser]);
 
   // Function to manually refresh orders count (for when orders are created/updated)
@@ -435,7 +385,7 @@ export default function ClientDashboard() {
     },
     {
       title: 'Favorit',
-      value: statsLoading ? '-' : stats.totalFavorites,
+                  value: statsLoading ? '-' : counts.favorites,
       icon: (
         <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
@@ -449,7 +399,7 @@ export default function ClientDashboard() {
     },
     {
       title: 'Pesan',
-      value: statsLoading ? '-' : stats.totalMessages,
+                  value: statsLoading ? '-' : counts.messages,
       icon: (
         <svg className="h-6 w-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -463,7 +413,7 @@ export default function ClientDashboard() {
     },
     {
       title: 'Keranjang',
-      value: statsLoading ? '-' : stats.totalCart,
+                  value: statsLoading ? '-' : counts.cart,
       icon: (
         <svg className="h-6 w-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l-1 7a2 2 0 01-2 2H8a2 2 0 01-2-2L5 9z" />

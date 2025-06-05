@@ -181,13 +181,6 @@ export default function VerifyEmail() {
           >
             {loading ? 'Mengirim...' : 'Kirim Ulang Email Verifikasi'}
           </button>
-          
-          <button
-            onClick={handleLoginClick}
-            className="text-center w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#010042] hover:bg-[#0100a3] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#010042]"
-          >
-            Kembali ke Halaman Login
-          </button>
         </div>
         
         <div className="mt-4 text-center">
