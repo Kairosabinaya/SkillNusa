@@ -370,7 +370,7 @@ export default function ClientDashboard() {
 
   const statsData = [
     {
-      title: 'Total Transaksi',
+      title: 'Transaksi',
       value: statsLoading ? '-' : stats.totalTransactions,
       icon: (
         <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -385,7 +385,7 @@ export default function ClientDashboard() {
     },
     {
       title: 'Favorit',
-                  value: statsLoading ? '-' : counts.favorites,
+      value: statsLoading ? '-' : counts.favorites,
       icon: (
         <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
@@ -398,22 +398,8 @@ export default function ClientDashboard() {
       link: '/dashboard/client/favorites'
     },
     {
-      title: 'Pesan',
-                  value: statsLoading ? '-' : counts.messages,
-      icon: (
-        <svg className="h-6 w-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-        </svg>
-      ),
-      bgColor: 'bg-purple-50',
-      borderColor: 'border-purple-100',
-      hoverBg: 'hover:bg-purple-100',
-      iconBg: 'bg-purple-100',
-      link: '/dashboard/client/messages'
-    },
-    {
       title: 'Keranjang',
-                  value: statsLoading ? '-' : counts.cart,
+      value: statsLoading ? '-' : counts.cart,
       icon: (
         <svg className="h-6 w-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l-1 7a2 2 0 01-2 2H8a2 2 0 01-2-2L5 9z" />
@@ -456,7 +442,7 @@ export default function ClientDashboard() {
 
       {/* Quick Stats */}
       <motion.div 
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8"
         variants={containerVariants}
       >
         {statsData.map((stat, index) => (

@@ -26,6 +26,7 @@ export default class FreelancerProfile extends BaseModel {
     this.bio = data.bio || '';
     this.profilePhoto = data.profilePhoto || null;
     this.completedProjects = data.completedProjects || 0;
+    this.orderCount = data.orderCount || 0;
     this.rating = data.rating || 0;
     this.reviews = data.reviews || [];
     this.location = data.location || '';

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import chatService from '../services/chatService';
@@ -26,11 +26,33 @@ export default function Messages() {
   // Real-time listeners cleanup functions
   const [chatsUnsubscribe, setChatsUnsubscribe] = useState(null);
   const [messagesUnsubscribe, setMessagesUnsubscribe] = useState(null);
+  
+  // Flag to prevent StrictMode double-mounting issues
+  const isInitialized = useRef(false);
 
   // Load user chats and initialize SkillBot if needed
   useEffect(() => {
     if (!currentUser) return;
 
+    // Prevent StrictMode double-mounting and multiple instances
+    if (isInitialized.current) {
+      console.log('⚠️ [Messages] Already initialized, skipping (likely StrictMode double-mount)');
+      return;
+    }
+    
+    // Check if there's already an active subscription for this user (global check)
+    const existingSubscriptionCount = window.firebaseMonitor?.getSubscriptionStats?.()?.active || 0;
+    if (existingSubscriptionCount >= 5) {
+      console.error('🚨 [Messages] Too many active subscriptions detected, aborting initialization');
+      console.log('🚨 [Messages] Current subscription count:', existingSubscriptionCount);
+      return;
+    }
+    
+    isInitialized.current = true;
+    console.log('✅ [Messages] Initializing with subscription count:', existingSubscriptionCount);
+
+    let isMounted = true; // Flag to prevent state updates on unmounted component
+    
     const loadChats = async () => {
       try {
         // Auto-send welcome message for new users
@@ -39,8 +61,16 @@ export default function Messages() {
           currentUser.displayName || 'User'
         );
         
+        // Clean up any existing subscription before creating new one
+        if (chatsUnsubscribe) {
+          chatsUnsubscribe();
+          setChatsUnsubscribe(null);
+        }
+        
         // Set up real-time listener for chats
         const unsubscribe = chatService.subscribeToUserChats(currentUser.uid, (userChats) => {
+          if (!isMounted) return; // Prevent state update if component is unmounted
+          
           setChats(userChats);
           
           // If chatId is provided and chat hasn't been selected yet, select it
@@ -84,28 +114,77 @@ export default function Messages() {
       } catch (error) {
         console.error('Error loading chats:', error);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     loadChats();
 
-    // Cleanup on component unmount
+    // Cleanup on component unmount or dependency change
     return () => {
+      isMounted = false;
+      isInitialized.current = false; // Reset for potential re-initialization
+      
+      console.log('🧹 [Messages] Cleaning up subscriptions...');
+      
       if (chatsUnsubscribe) {
+        console.log('🧹 [Messages] Cleaning up chats subscription');
         chatsUnsubscribe();
+        setChatsUnsubscribe(null);
       }
       if (messagesUnsubscribe) {
+        console.log('🧹 [Messages] Cleaning up messages subscription');
         messagesUnsubscribe();
+        setMessagesUnsubscribe(null);
       }
     };
-  }, [currentUser, chatId]);
+  }, [currentUser?.uid]); // Only depend on user ID, not chatId or selectedChat
+
+  // Separate effect for handling chatId changes
+  useEffect(() => {
+    if (!currentUser || !chatId || chats.length === 0) return;
+    
+    // Handle SkillBot chatId - support both 'skillbot' and 'userId_skillbot' formats
+    const isSkillBotChat = chatId === SKILLBOT_ID || chatId.includes(SKILLBOT_ID);
+    
+    if (isSkillBotChat) {
+      // Find SkillBot chat in the loaded chats
+      const skillBotChat = chats.find(chat => 
+        chat.id.includes(SKILLBOT_ID) || chat.isSkillBot
+      );
+      if (skillBotChat && skillBotChat.id !== selectedChat?.id) {
+        setSelectedChat(skillBotChat);
+        loadSkillBotMessages();
+      } else if (!skillBotChat && (!selectedChat || !selectedChat.isSkillBot)) {
+        // Create a virtual SkillBot chat if not found in list
+        const virtualSkillBotChat = {
+          id: `${currentUser.uid}_${SKILLBOT_ID}`,
+          isSkillBot: true,
+          otherParticipant: {
+            displayName: 'SkillBot AI',
+            profilePhoto: '/images/robot.png'
+          }
+        };
+        setSelectedChat(virtualSkillBotChat);
+        loadSkillBotMessages();
+      }
+    } else {
+      const chat = chats.find(c => c.id === chatId);
+      if (chat && chat.id !== selectedChat?.id) {
+        setSelectedChat(chat);
+        loadChatMessages(chatId);
+      }
+    }
+  }, [chatId, chats, currentUser?.uid]); // Don't include selectedChat to prevent loops
 
   // Load SkillBot messages with real-time updates
   const loadSkillBotMessages = async () => {
     try {
-      // Clean up existing message listener
+      // Clean up existing message listener first
       if (messagesUnsubscribe) {
+        console.log('🧹 [Messages] Cleaning up existing SkillBot subscription');
         messagesUnsubscribe();
         setMessagesUnsubscribe(null);
       }
@@ -127,6 +206,8 @@ export default function Messages() {
       
       // Set up real-time listener for SkillBot conversation
       const conversationId = `${currentUser.uid}_${SKILLBOT_ID}`;
+      console.log('📡 [Messages] Setting up SkillBot subscription for:', conversationId);
+      
       const unsubscribe = skillBotService.subscribeToSkillBotConversation(conversationId, (conversationData) => {
         if (conversationData && conversationData.messages) {
           setMessages(conversationData.messages);
@@ -160,11 +241,14 @@ export default function Messages() {
     }
 
     try {
-      // Clean up existing message listener
+      // Clean up existing message listener first
       if (messagesUnsubscribe) {
+        console.log('🧹 [Messages] Cleaning up existing chat subscription');
         messagesUnsubscribe();
         setMessagesUnsubscribe(null);
       }
+
+      console.log('📡 [Messages] Setting up chat subscription for:', chatId);
 
       // Set up real-time listener for regular chat messages
       const unsubscribe = chatService.subscribeToChatMessages(chatId, (chatMessages) => {
@@ -333,22 +417,30 @@ export default function Messages() {
                   }`}
                 >
                   <div className="flex items-center space-x-3">
-                    <div className="flex-shrink-0">
-                      <img
-                        src={chat.otherParticipant?.profilePhoto || '/images/default-avatar.png'}
-                        alt={chat.otherParticipant?.displayName}
-                        className="w-10 h-10 rounded-full object-cover"
-                      />
-                      {(chat.isSkillBot || chat.id.includes(SKILLBOT_ID)) && (
-                        <div className="absolute -mt-2 -mr-2 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
+                    <div className="flex-shrink-0 relative">
+                      {(chat.isSkillBot || chat.id.includes(SKILLBOT_ID)) ? (
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-md">
+                          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                          </svg>
+                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
+                            <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                          </div>
+                        </div>
+                      ) : (
+                        <img
+                          src={chat.otherParticipant?.profilePhoto || '/images/default-avatar.png'}
+                          alt={chat.otherParticipant?.displayName}
+                          className="w-10 h-10 rounded-full object-cover"
+                        />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">
                         {chat.otherParticipant?.displayName}
                         {(chat.isSkillBot || chat.id.includes(SKILLBOT_ID)) && (
-                          <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                            AI Assistant
+                          <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gradient-to-r from-blue-100 to-purple-100 text-blue-800">
+                            🤖 AI Assistant
                           </span>
                         )}
                       </p>
@@ -369,11 +461,24 @@ export default function Messages() {
                 {/* Chat Header */}
                 <div className="p-4 border-b border-gray-200 bg-white">
                   <div className="flex items-center space-x-3">
-                    <img
-                      src={selectedChat.otherParticipant?.profilePhoto || '/images/default-avatar.png'}
-                      alt={selectedChat.otherParticipant?.displayName}
-                      className="w-10 h-10 rounded-full object-cover"
-                    />
+                    <div className="flex-shrink-0 relative">
+                      {(selectedChat.isSkillBot || selectedChat.id.includes(SKILLBOT_ID)) ? (
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-md">
+                          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                          </svg>
+                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
+                            <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                          </div>
+                        </div>
+                      ) : (
+                        <img
+                          src={selectedChat.otherParticipant?.profilePhoto || '/images/default-avatar.png'}
+                          alt={selectedChat.otherParticipant?.displayName}
+                          className="w-10 h-10 rounded-full object-cover"
+                        />
+                      )}
+                    </div>
                     <div>
                       <h3 className="text-lg font-medium text-gray-900">
                         {selectedChat.otherParticipant?.displayName}
@@ -399,13 +504,17 @@ export default function Messages() {
                           isCurrentUser 
                             ? 'bg-[#010042] text-white' 
                             : isSkillBot 
-                            ? 'bg-blue-50 text-gray-900 border border-blue-200 skillbot-message'
+                            ? 'bg-gradient-to-br from-blue-50 to-purple-50 text-gray-900 border border-blue-200 skillbot-message shadow-md'
                             : 'bg-gray-100 text-gray-900'
                         }`}>
                           {isSkillBot && (
                             <div className="flex items-center space-x-2 mb-2">
-                              <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
-                              <span className="text-xs font-medium text-blue-600">SkillBot AI</span>
+                              <div className="w-4 h-4 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                                <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                                </svg>
+                              </div>
+                              <span className="text-xs font-medium bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">SkillBot AI</span>
                             </div>
                           )}
                           {isSkillBot ? (
@@ -427,15 +536,19 @@ export default function Messages() {
                   
                   {skillBotTyping && (
                     <div className="flex justify-start">
-                      <div className="bg-blue-50 border border-blue-200 px-4 py-2 rounded-lg">
+                      <div className="bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-200 px-4 py-2 rounded-lg shadow-md">
                         <div className="flex items-center space-x-2">
-                          <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
-                          <span className="text-xs font-medium text-blue-600">SkillBot AI</span>
+                          <div className="w-4 h-4 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                            <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                            </svg>
+                          </div>
+                          <span className="text-xs font-medium bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">SkillBot AI</span>
                         </div>
                         <div className="flex space-x-1 mt-2">
-                          <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
-                          <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                          <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                          <div className="w-2 h-2 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full animate-bounce"></div>
+                          <div className="w-2 h-2 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                          <div className="w-2 h-2 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
                         </div>
                       </div>
                     </div>

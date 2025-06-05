@@ -17,39 +17,26 @@ export const createUserProfile = async (userId, profileData) => {
   }
   
   try {
-    // Update user document with basic info and multi-role fields
+    // Update user document with only the 15 required fields
     await firebaseService.updateDocument(COLLECTIONS.USERS, userId, {
-      // Basic info
+      // Basic info - only include the 15 required fields
       displayName: profileData.displayName,
       username: profileData.username,
-      // Multi-role architecture fields
+      phoneNumber: profileData.phoneNumber || '',
+      gender: profileData.gender || '',
+      dateOfBirth: profileData.dateOfBirth || '',
+      location: profileData.location || '',
       roles: profileData.roles || ['client'],
-      activeRole: profileData.activeRole || (profileData.roles && profileData.roles[0]) || 'client',
       isFreelancer: profileData.isFreelancer || false,
-      // Profile data
+      hasInteractedWithSkillBot: profileData.hasInteractedWithSkillBot || false,
       profilePhoto: profileData.profilePhoto,
-      phoneNumber: profileData.phoneNumber,
-      dateOfBirth: profileData.dateOfBirth,
-      gender: profileData.gender,
-      location: profileData.location,
-      bio: profileData.bio,
       updatedAt: serverTimestamp()
     });
     
-    // Create client profile for the new multi-role architecture
+    // Create client profile with only the 4 required fields
     await firebaseService.setDocument(COLLECTIONS.CLIENT_PROFILES, userId, {
-      // Common fields
-      userId,
-      phoneNumber: profileData.phoneNumber,
-      dateOfBirth: profileData.dateOfBirth,
-      gender: profileData.gender,
-      location: profileData.location,
-      bio: profileData.bio,
-      
-      // Preferences
-      marketingEmails: profileData.marketingEmails || false,
-      
-      // Timestamps
+      userID: userId,
+      bio: profileData.bio || '',
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     });

@@ -153,9 +153,13 @@ class SkillBotService {
           unreadCount: newUnreadCount,
           updatedAt: serverTimestamp()
         });
+      } else {
+        // Create the chat document if it doesn't exist
+        await this.createOrUpdateChatEntry(userId, '', false);
       }
     } catch (error) {
       console.error('Error marking SkillBot as read:', error);
+      // Silently fail - this is not critical for core functionality
     }
   }
 

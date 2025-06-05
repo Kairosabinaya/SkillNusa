@@ -2621,7 +2621,7 @@ export const seedUsers = async () => {
   try {
     // Seed freelancers
     for (const freelancer of freelancers) {
-      // Create user document
+      // Create user document with only the 15 required fields
       await setDoc(doc(db, COLLECTIONS.USERS, freelancer.uid), {
         uid: freelancer.uid,
         email: freelancer.email,
@@ -2629,13 +2629,13 @@ export const seedUsers = async () => {
         displayName: freelancer.displayName,
         phoneNumber: freelancer.phoneNumber,
         gender: freelancer.gender,
+        dateOfBirth: freelancer.dateOfBirth || '',
         location: freelancer.location,
-        bio: freelancer.bio,
-        profilePhoto: freelancer.profilePhoto,
-        isFreelancer: freelancer.isFreelancer,
         roles: freelancer.roles,
+        isFreelancer: freelancer.isFreelancer,
+        hasInteractedWithSkillBot: false,
+        profilePhoto: freelancer.profilePhoto,
         emailVerified: freelancer.emailVerified,
-        isActive: freelancer.isActive,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
@@ -2648,12 +2648,14 @@ export const seedUsers = async () => {
         hourlyRate: freelancer.hourlyRate,
         availability: freelancer.availability,
         portfolioLinks: freelancer.portfolioLinks,
-        rating: freelancer.rating,
+        orderCount: 0, // Initial order count, will be calculated from gigs
+        rating: 0, // Initial rating, will be calculated from gigs average
         totalReviews: freelancer.totalReviews,
         completedProjects: freelancer.completedProjects,
         tier: freelancer.tier,
         education: freelancer.education,
         certifications: freelancer.certifications,
+        bio: freelancer.bio, // Bio goes in freelancer profile, not user document
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
@@ -2663,29 +2665,29 @@ export const seedUsers = async () => {
     
     // Seed clients
     for (const client of clients) {
-      // Create user document
+      // Create user document with only the 15 required fields
       await setDoc(doc(db, COLLECTIONS.USERS, client.uid), {
         uid: client.uid,
         email: client.email,
         username: client.username,
         displayName: client.displayName,
         phoneNumber: client.phoneNumber,
+        gender: client.gender || '',
+        dateOfBirth: client.dateOfBirth || '',
         location: client.location,
-        bio: client.bio,
-        profilePhoto: client.profilePhoto,
-        isFreelancer: client.isFreelancer,
         roles: client.roles,
+        isFreelancer: client.isFreelancer,
+        hasInteractedWithSkillBot: false,
+        profilePhoto: client.profilePhoto,
         emailVerified: client.emailVerified,
-        isActive: client.isActive,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
       
-      // Create client profile
+      // Create client profile with only the 4 required fields
       await setDoc(doc(db, COLLECTIONS.CLIENT_PROFILES, client.uid), {
-        userId: client.uid,
-        companyName: client.companyName,
-        industry: client.industry,
+        userID: client.uid,
+        bio: client.bio || '',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });

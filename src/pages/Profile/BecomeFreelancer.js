@@ -32,7 +32,7 @@ export default function BecomeFreelancer() {
   const initialValues = {
     // Step 1: Skills & Experience
     skills: [], // Menyimpan array objek {skill, experienceLevel}
-    bio: userProfile?.bio || '',
+    bio: '', // Bio untuk freelancer profile harus kosong untuk diisi baru
     
     // Step 2: Education & Certification
     education: [], // Array objek education {country, university, degree, fieldOfStudy, graduationYear}
@@ -129,8 +129,8 @@ export default function BecomeFreelancer() {
       // Refresh user data to update role and freelancer status
       await refreshUserData();
       
-      // Redirect to profile page
-      navigate('/profile', { 
+      // Redirect to freelancer dashboard instead of profile
+      navigate('/dashboard/freelancer', { 
         state: { 
           message: 'Selamat! Anda telah berhasil terdaftar sebagai freelancer.', 
           type: 'success' 

@@ -6,7 +6,9 @@ import {
   signOut,
   sendPasswordResetEmail,
   updateProfile,
-  sendEmailVerification
+  sendEmailVerification,
+  reauthenticateWithCredential,
+  EmailAuthProvider
 } from 'firebase/auth';
 import { 
   doc, 
@@ -41,12 +43,21 @@ export function AuthProvider({ children }) {
     try {
       Logger.operationStart('createUserDocument', { userId });
       
-      // Add multi-role fields if not provided
+      // Add multi-role fields if not provided - only include the 15 required fields
       const multiRoleData = {
-        ...userData,
+        uid: userData.uid || userId,
+        email: userData.email,
+        username: userData.username,
+        displayName: userData.displayName,
+        phoneNumber: userData.phoneNumber || '',
+        gender: userData.gender || '',
+        dateOfBirth: userData.dateOfBirth || '',
+        location: userData.location || '',
         roles: userData.roles || [USER_ROLES.CLIENT],
-        activeRole: userData.activeRole || USER_ROLES.CLIENT,
         isFreelancer: userData.isFreelancer || false,
+        hasInteractedWithSkillBot: userData.hasInteractedWithSkillBot || false,
+        profilePhoto: userData.profilePhoto || null,
+        emailVerified: userData.emailVerified || false,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       };
@@ -64,10 +75,10 @@ export function AuthProvider({ children }) {
 
   const createProfileDocument = async (userId) => {
     try {
-      // Create client profile in the new structure
+      // Create client profile with only the 4 required fields
       return await firebaseService.setDocument(COLLECTIONS.CLIENT_PROFILES, userId, {
-        userId,
-        isOnline: false,
+        userID: userId,
+        bio: '',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
@@ -83,23 +94,24 @@ export function AuthProvider({ children }) {
       const result = await createUserWithEmailAndPassword(auth, email, password);
       const { user } = result;
       
-      // Create user profile in Firestore with multi-role support
+      // Create user profile in Firestore with only the 15 required fields
       await createUserDocument(user.uid, {
         uid: user.uid,
         email,
         username,
         displayName: username,
-        // Multi-role architecture
+        phoneNumber: '',
+        gender: '',
+        dateOfBirth: '',
+        location: '',
         roles: [role],
-        activeRole: role,
         isFreelancer: role === USER_ROLES.FREELANCER,
+        hasInteractedWithSkillBot: false,
         profilePhoto: null,
-        bio: '',
-        isActive: true,
         emailVerified: user.emailVerified
       });
       
-      // Create profile document (client profile by default)
+      // Create profile document (client profile with only 4 fields)
       await createProfileDocument(user.uid);
       
       // If user is a freelancer (in admin flow), create freelancer profile too
@@ -351,10 +363,75 @@ export function AuthProvider({ children }) {
   };
 
   /**
-   * Delete user account and all associated data
+   * Re-authenticate user with their current password
+   * @param {string} password - User's current password
    * @returns {Promise<{success: boolean, message: string}>}
    */
-  const deleteUserAccount = async () => {
+  const reauthenticateUser = async (password) => {
+    setError(null);
+    
+    if (!currentUser) {
+      setError('No authenticated user found');
+      return { success: false, message: 'No authenticated user found' };
+    }
+
+    try {
+      const credential = EmailAuthProvider.credential(currentUser.email, password);
+      await reauthenticateWithCredential(currentUser, credential);
+      
+      return { success: true, message: 'Re-authentication successful' };
+    } catch (error) {
+      let errorMessage = 'Re-authentication failed';
+      
+      switch (error.code) {
+        case 'auth/wrong-password':
+          errorMessage = 'Password salah. Silakan coba lagi.';
+          break;
+        case 'auth/too-many-requests':
+          errorMessage = 'Terlalu banyak percobaan. Silakan coba lagi nanti.';
+          break;
+        case 'auth/user-disabled':
+          errorMessage = 'Akun Anda telah dinonaktifkan.';
+          break;
+        default:
+          errorMessage = error.message || 'Gagal memverifikasi identitas';
+      }
+      
+      setError(errorMessage);
+      console.error('AuthContext: Re-authentication error:', error);
+      return { success: false, message: errorMessage };
+    }
+  };
+
+  /**
+   * Clean up all active subscriptions before account deletion
+   * @returns {Promise<void>}
+   */
+  const cleanupSubscriptions = async () => {
+    try {
+      console.log('🧹 [AuthContext] Starting subscription cleanup before account deletion');
+      
+      // Dispatch a custom event to notify SubscriptionContext to clean up
+      window.dispatchEvent(new CustomEvent('forceCleanupSubscriptions', {
+        detail: { userId: currentUser.uid, reason: 'account-deletion' }
+      }));
+      
+      // Wait a moment for subscriptions to clean up
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      console.log('✅ [AuthContext] Subscription cleanup completed');
+    } catch (error) {
+      console.error('❌ [AuthContext] Error during subscription cleanup:', error);
+      throw error;
+    }
+  };
+
+  /**
+   * Delete user account and all associated data
+   * @param {string} password - User's current password for re-authentication
+   * @returns {Promise<{success: boolean, message: string}>}
+   */
+  const deleteUserAccount = async (password = null) => {
     setError(null);
     
     if (!currentUser || !userProfile) {
@@ -363,6 +440,23 @@ export function AuthProvider({ children }) {
     }
 
     try {
+      // Re-authenticate user if password is provided
+      if (password) {
+        const reauthResult = await reauthenticateUser(password);
+        if (!reauthResult.success) {
+          return reauthResult;
+        }
+      }
+      
+      console.log('🚀 [AuthContext] Starting account deletion process');
+      
+      // Step 1: Clean up all active subscriptions BEFORE deleting data
+      console.log('🧹 [AuthContext] Cleaning up active subscriptions...');
+      await cleanupSubscriptions();
+      
+      // Step 2: Delete user data and auth account
+      console.log('🗑️ [AuthContext] Proceeding with data deletion...');
+      
       // Import userDeletionService dynamically to avoid circular dependencies
       const { default: userDeletionService } = await import('../services/userDeletionService');
       
@@ -378,7 +472,7 @@ export function AuthProvider({ children }) {
         // Clear localStorage
         localStorage.clear();
         
-        console.log('User account deleted successfully');
+        console.log('✅ [AuthContext] User account deleted successfully');
         return { 
           success: true, 
           message: 'Account deleted successfully',
@@ -395,9 +489,19 @@ export function AuthProvider({ children }) {
         };
       }
     } catch (error) {
+      // Check if the error is due to requires-recent-login
+      if (error.code === 'auth/requires-recent-login') {
+        setError('Untuk keamanan, Anda perlu memverifikasi identitas terlebih dahulu.');
+        return { 
+          success: false, 
+          message: 'Verifikasi identitas diperlukan',
+          requiresReauth: true
+        };
+      }
+      
       const errorMessage = `Failed to delete account: ${error.message}`;
       setError(errorMessage);
-      console.error('AuthContext: Account deletion error:', error);
+      console.error('❌ [AuthContext] Account deletion error:', error);
       return { success: false, message: errorMessage };
     }
   };
@@ -473,7 +577,8 @@ export function AuthProvider({ children }) {
     switchRole,
     refreshUserData,
     syncEmailVerifiedStatus,
-    deleteUserAccount
+    deleteUserAccount,
+    reauthenticateUser
   };
 
   return (

@@ -32,24 +32,11 @@ export default class ClientProfileRepository extends BaseRepository {
   async createForUser(userId, profileData = {}) {
     try {
       const defaultProfile = {
-        userId,
-        companyName: '',
-        industry: '',
-        website: '',
-        location: '',
-        contactEmail: '',
-        contactPhone: '',
-        bio: '',
-        profilePhoto: null,
-        preferences: {},
-        hiredFreelancers: [],
-        paymentMethods: []
+        userID: userId,
+        bio: profileData.bio || '',
       };
       
-      return await this.create(userId, { 
-        ...defaultProfile,
-        ...profileData 
-      });
+      return await this.create(userId, defaultProfile);
     } catch (error) {
       throw error;
     }

@@ -11,6 +11,9 @@ import './utils/debugFirestore';
 // Firebase read monitoring (available in console)
 import './scripts/monitorFirebaseReads';
 
+// Import Firebase usage debugging utility for development
+import './utils/debugFirebaseUsage';
+
 // Layouts
 import PublicLayout from './components/Layout/PublicLayout';
 import DashboardLayout from './components/Layout/DashboardLayout';

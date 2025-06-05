@@ -91,26 +91,26 @@ export const updateUserProfile = async (userId, profileData, updateAuthProfile =
     const userRef = doc(db, COLLECTIONS.USERS, userId);
     const clientProfileRef = doc(db, COLLECTIONS.CLIENT_PROFILES, userId);
     
-    // Fields that belong in users collection
+    // Fields that belong in users collection - only the 15 required fields
     const userFields = [
-      'displayName', 
+      'uid',
       'email', 
       'username', 
+      'displayName',
+      'phoneNumber',
+      'gender',
+      'dateOfBirth',
+      'location',
       'roles',
-      'activeRole', 
-      'isFreelancer', 
+      'isFreelancer',
+      'hasInteractedWithSkillBot',
+      'profilePhoto',
+      'emailVerified'
     ];
     
-    // Fields that belong in client profile
-    const profileFields = [
-      'displayName', 
-      'fullName',
-      'phoneNumber', 
-      'gender', 
-      'dateOfBirth',
-      'location', 
-      'bio', 
-      'profilePhoto'
+    // Fields that belong in client profile - only the 4 required fields
+    const clientProfileFields = [
+      'bio'
     ];
     
     // Separate data for different collections
@@ -122,14 +122,18 @@ export const updateUserProfile = async (userId, profileData, updateAuthProfile =
       if (userFields.includes(key)) {
         userData[key] = profileData[key];
       }
-      if (profileFields.includes(key)) {
+      if (clientProfileFields.includes(key)) {
         clientData[key] = profileData[key];
       }
     });
     
     // Add timestamps
-    userData.updatedAt = serverTimestamp();
-    clientData.updatedAt = serverTimestamp();
+    if (Object.keys(userData).length > 0) {
+      userData.updatedAt = serverTimestamp();
+    }
+    if (Object.keys(clientData).length > 0) {
+      clientData.updatedAt = serverTimestamp();
+    }
     
     // Update in users collection if we have user data
     if (Object.keys(userData).length > 0) {
@@ -141,19 +145,8 @@ export const updateUserProfile = async (userId, profileData, updateAuthProfile =
       // Use setDoc with merge to create if not exists
       await setDoc(clientProfileRef, {
         ...clientData,
-        userId // Ensure userId is set
+        userID: userId // Ensure userID is set
       }, { merge: true });
-      
-      // Also update data in clientProfiles if it exists (to keep both collections in sync)
-      const oldFormatRef = doc(db, 'clientProfiles', userId);
-      const oldFormatDoc = await getDoc(oldFormatRef);
-      if (oldFormatDoc.exists()) {
-        await setDoc(oldFormatRef, {
-          ...clientData,
-          userId,
-          updatedAt: serverTimestamp()
-        }, { merge: true });
-      }
     }
     
     // Also handle freelancer profile data if relevant
@@ -169,24 +162,13 @@ export const updateUserProfile = async (userId, profileData, updateAuthProfile =
         });
         
         if (Object.keys(freelancerData).length > 0) {
-          // Update in both possible collections
+          // Update in freelancer profiles collection
           const freelancerProfileRef = doc(db, COLLECTIONS.FREELANCER_PROFILES, userId);
           await setDoc(freelancerProfileRef, {
             ...freelancerData,
             userId,
             updatedAt: serverTimestamp()
           }, { merge: true });
-          
-          // Also update in old format collection if it exists
-          const oldFormatFreelancerRef = doc(db, 'freelancerProfiles', userId);
-          const oldFormatDoc = await getDoc(oldFormatFreelancerRef);
-          if (oldFormatDoc.exists()) {
-            await setDoc(oldFormatFreelancerRef, {
-              ...freelancerData,
-              userId,
-              updatedAt: serverTimestamp()
-            }, { merge: true });
-          }
         }
       }
     }

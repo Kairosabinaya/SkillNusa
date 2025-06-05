@@ -5,16 +5,20 @@ import { useNavigate } from 'react-router-dom';
 export default function DeleteAccountModal({ isOpen, onClose }) {
   const { deleteUserAccount, currentUser } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState(1); // 1: warning, 2: confirmation, 3: processing, 4: result
+  const [step, setStep] = useState(1); // 1: warning, 2: confirmation, 3: reauth, 4: processing, 5: result
   const [confirmText, setConfirmText] = useState('');
+  const [password, setPassword] = useState('');
   const [result, setResult] = useState(null);
+  const [authError, setAuthError] = useState('');
   const navigate = useNavigate();
 
   const handleClose = () => {
     if (!loading) {
       setStep(1);
       setConfirmText('');
+      setPassword('');
       setResult(null);
+      setAuthError('');
       onClose();
     }
   };
@@ -23,27 +27,58 @@ export default function DeleteAccountModal({ isOpen, onClose }) {
     if (confirmText !== 'HAPUS AKUN SAYA') {
       return;
     }
+    setStep(3); // Move to re-authentication step
+  };
+
+  const handleReauthAndDelete = async () => {
+    if (!password.trim()) {
+      setAuthError('Password wajib diisi');
+      return;
+    }
 
     setLoading(true);
-    setStep(3);
+    setStep(4); // Processing step
+    setAuthError('');
 
     try {
-      const result = await deleteUserAccount();
+      const result = await deleteUserAccount(password);
       setResult(result);
-      setStep(4);
 
       if (result.success) {
+        setStep(5); // Result step
         // Redirect to home page after successful deletion
         setTimeout(() => {
           navigate('/');
         }, 3000);
+      } else if (result.requiresReauth) {
+        // This shouldn't happen since we just re-authenticated, but handle it
+        setStep(3);
+        setAuthError('Verifikasi gagal. Silakan coba lagi.');
+      } else {
+        // Check if it's a password error
+        if (result.message && result.message.includes('Password salah')) {
+          setStep(3);
+          setAuthError(result.message);
+        } else {
+          setStep(5); // Show result step for other errors
+        }
       }
     } catch (error) {
-      setResult({
-        success: false,
-        message: error.message || 'Gagal menghapus akun'
-      });
-      setStep(4);
+      // Handle authentication errors by going back to re-auth step
+      if (error.message && (
+        error.message.includes('Password salah') || 
+        error.message.includes('wrong-password') ||
+        error.message.includes('auth/wrong-password')
+      )) {
+        setStep(3);
+        setAuthError('Password salah. Silakan coba lagi.');
+      } else {
+        setResult({
+          success: false,
+          message: error.message || 'Gagal menghapus akun'
+        });
+        setStep(5);
+      }
     } finally {
       setLoading(false);
     }
@@ -157,8 +192,71 @@ export default function DeleteAccountModal({ isOpen, onClose }) {
           </div>
         )}
 
-        {/* Step 3: Processing */}
+        {/* Step 3: Re-authentication */}
         {step === 3 && (
+          <div className="p-6">
+            <div className="text-center">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
+                <svg className="h-6 w-6 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-4a2 2 0 00-2-2H6a2 2 0 00-2 2v4a2 2 0 002 2zM12 9V7a4 4 0 00-8 0v2m8 0V7a4 4 0 00-8 0v2" />
+                </svg>
+              </div>
+              <div className="mt-3">
+                <h3 className="text-lg font-medium text-gray-900">Verifikasi Identitas</h3>
+                <div className="mt-2">
+                  <p className="text-sm text-gray-500 mb-4">
+                    Untuk keamanan, masukkan password Anda untuk melanjutkan penghapusan akun:
+                  </p>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setAuthError('');
+                    }}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && password.trim() && !loading) {
+                        handleReauthAndDelete();
+                      }
+                    }}
+                    placeholder="Masukkan password Anda"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
+                    disabled={loading}
+                    autoFocus
+                  />
+                  {authError && (
+                    <p className="mt-2 text-sm text-red-600">{authError}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                disabled={loading}
+                className="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Kembali
+              </button>
+              <button
+                type="button"
+                onClick={handleReauthAndDelete}
+                disabled={loading || !password.trim()}
+                className={`inline-flex justify-center px-4 py-2 text-sm font-medium text-white border border-transparent rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${
+                  !loading && password.trim()
+                    ? 'bg-red-600 hover:bg-red-700' 
+                    : 'bg-gray-400 cursor-not-allowed'
+                }`}
+              >
+                {loading ? 'Memverifikasi...' : 'Verifikasi & Hapus Akun'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 4: Processing */}
+        {step === 4 && (
           <div className="p-6">
             <div className="text-center">
               <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
@@ -177,8 +275,8 @@ export default function DeleteAccountModal({ isOpen, onClose }) {
           </div>
         )}
 
-        {/* Step 4: Result */}
-        {step === 4 && result && (
+        {/* Step 5: Result */}
+        {step === 5 && result && (
           <div className="p-6">
             <div className="text-center">
               <div className={`mx-auto flex items-center justify-center h-12 w-12 rounded-full ${

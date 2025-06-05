@@ -12,7 +12,8 @@ import {
   serverTimestamp,
   orderBy,
   updateDoc
-} from 'firebase/firestore';
+  } from 'firebase/firestore';
+import firebaseMonitor from '../utils/firebaseMonitor';
 
 /**
  * Enhanced Cart Service for managing shopping cart functionality with Firestore
@@ -208,7 +209,14 @@ class CartService {
         query: 'userId == userId (sorted in JavaScript)'
       });
       
-      return onSnapshot(q, (snapshot) => {
+      // Track subscription for monitoring
+      const subscriptionId = `cart_${userId}_${Date.now()}`;
+      firebaseMonitor.trackSubscription(subscriptionId, this.collectionName, userId);
+      
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        // Track reads for monitoring
+        firebaseMonitor.trackRead('subscribeToCartItems', this.collectionName, snapshot.size);
+        
         console.log('📥 [CartService] Firestore snapshot received:', {
           size: snapshot.size,
           empty: snapshot.empty,
@@ -260,6 +268,12 @@ class CartService {
         console.error('💥 [CartService] Error in cart subscription:', error);
         callback([]);
       });
+      
+      // Return enhanced unsubscribe function
+      return () => {
+        firebaseMonitor.trackSubscriptionCleanup(subscriptionId);
+        unsubscribe();
+      };
     } catch (error) {
       console.error('💥 [CartService] Error subscribing to cart:', error);
       callback([]);

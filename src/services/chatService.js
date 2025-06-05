@@ -15,11 +15,48 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { Chat, Message } from '../models/Chat';
+import firebaseMonitor from '../utils/firebaseMonitor';
 
 class ChatService {
   constructor() {
     this.chatsCollection = 'chats';
     this.messagesCollection = 'messages';
+    
+    // Add caching to reduce redundant reads
+    this.userCache = new Map();
+    this.cacheExpiration = 5 * 60 * 1000; // 5 minutes
+  }
+
+  // Cached user fetch to reduce redundant reads
+  async getCachedUser(userId) {
+    const cached = this.userCache.get(userId);
+    const now = Date.now();
+    
+    if (cached && (now - cached.timestamp) < this.cacheExpiration) {
+      return cached.data;
+    }
+    
+    try {
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      if (userDoc.exists()) {
+        const userData = { id: userDoc.id, ...userDoc.data() };
+        this.userCache.set(userId, { data: userData, timestamp: now });
+        
+        // Track read for monitoring
+        firebaseMonitor.trackRead('getCachedUser', 'users', 1);
+        
+        return userData;
+      }
+    } catch (error) {
+      console.error(`Error fetching user ${userId}:`, error);
+    }
+    
+    return null;
+  }
+
+  // Clear user cache
+  clearUserCache() {
+    this.userCache.clear();
   }
 
   // Create or get existing chat between two users with enhanced context
@@ -514,15 +551,36 @@ class ChatService {
 
   // Subscribe to user chats (real-time) - OPTIMIZED to reduce reads
   subscribeToUserChats(userId, callback) {
+    // Global subscription safety check
+    const currentStats = firebaseMonitor.getSubscriptionStats();
+    if (currentStats.active >= 10) {
+      console.error('🚨 [ChatService] Subscription limit reached! Blocking new subscription creation.');
+      console.error('🚨 [ChatService] Current active subscriptions:', currentStats.active);
+      console.table(currentStats.byCollection);
+      
+      // Return a dummy unsubscribe function
+      return () => {
+        console.log('🚨 [ChatService] Dummy unsubscribe called for blocked subscription');
+      };
+    }
+
     const q = query(
       collection(db, this.chatsCollection),
       where('participants', 'array-contains', userId)
     );
 
-    return onSnapshot(q, async (querySnapshot) => {
+    // Track subscription for monitoring
+    const subscriptionId = `chats_${userId}_${Date.now()}`;
+    console.log('📡 [ChatService] Creating subscription:', subscriptionId, 'Current active:', currentStats.active);
+    firebaseMonitor.trackSubscription(subscriptionId, this.chatsCollection, userId);
+
+    const unsubscribe = onSnapshot(q, async (querySnapshot) => {
+      // Track reads for monitoring
+      firebaseMonitor.trackRead('subscribeToUserChats', this.chatsCollection, querySnapshot.size);
+      
       const chats = [];
       
-      // Batch user fetches to reduce reads
+      // Use cached users to reduce reads
       const userIdsToFetch = new Set();
       const chatDataArray = [];
       
@@ -537,53 +595,62 @@ class ChatService {
         
         const otherParticipantId = chatData.participants.find(id => id !== userId);
         if (otherParticipantId) {
-          // Check if we have cached participant details
+          // Check if we have cached participant details first
           if (chatData.participantDetails && chatData.participantDetails[otherParticipantId]) {
             chatData.otherParticipant = {
               id: otherParticipantId,
               ...chatData.participantDetails[otherParticipantId]
             };
           } else {
-            // Mark for batch fetch
-            userIdsToFetch.add(otherParticipantId);
+            // Check cache before marking for fetch
+            const cachedUser = this.userCache.get(otherParticipantId);
+            if (cachedUser && (Date.now() - cachedUser.timestamp) < this.cacheExpiration) {
+              chatData.otherParticipant = cachedUser.data;
+            } else {
+              // Mark for batch fetch only if not cached
+              userIdsToFetch.add(otherParticipantId);
+            }
           }
         }
         
         chatDataArray.push(chatData);
       });
       
-      // Batch fetch user details if needed
-      const userDetailsMap = new Map();
+      // Batch fetch user details only for uncached users
       if (userIdsToFetch.size > 0) {
-        console.log(`🔄 [ChatService] Batch fetching ${userIdsToFetch.size} user details`);
+        console.log(`🔄 [ChatService] Batch fetching ${userIdsToFetch.size} uncached user details`);
         
-        // Fetch users in parallel to reduce total time
+        // Use cached fetch method
         const userFetchPromises = Array.from(userIdsToFetch).map(async (userId) => {
-          try {
-            const userDoc = await getDoc(doc(db, 'users', userId));
-            if (userDoc.exists()) {
-              userDetailsMap.set(userId, { id: userDoc.id, ...userDoc.data() });
-            }
-          } catch (error) {
-            console.error(`Error fetching user ${userId}:`, error);
+          return await this.getCachedUser(userId);
+        });
+        
+        const userResults = await Promise.all(userFetchPromises);
+        
+        // Create a map for quick lookup
+        const userDetailsMap = new Map();
+        Array.from(userIdsToFetch).forEach((userId, index) => {
+          if (userResults[index]) {
+            userDetailsMap.set(userId, userResults[index]);
           }
         });
         
-        await Promise.all(userFetchPromises);
-      }
-      
-      // Process chats with fetched user details
-      for (const chatData of chatDataArray) {
-        const otherParticipantId = chatData.participants.find(id => id !== userId);
-        
-        if (otherParticipantId && !chatData.otherParticipant) {
-          const userDetails = userDetailsMap.get(otherParticipantId);
-          if (userDetails) {
-            chatData.otherParticipant = userDetails;
+        // Process chats with fetched user details
+        for (const chatData of chatDataArray) {
+          const otherParticipantId = chatData.participants.find(id => id !== userId);
+          
+          if (otherParticipantId && !chatData.otherParticipant) {
+            const userDetails = userDetailsMap.get(otherParticipantId);
+            if (userDetails) {
+              chatData.otherParticipant = userDetails;
+            }
           }
+          
+          chats.push(chatData);
         }
-        
-        chats.push(chatData);
+      } else {
+        // No users to fetch, just add all chats
+        chats.push(...chatDataArray);
       }
 
       // Sort by lastMessageTime in JavaScript instead of Firestore
@@ -595,6 +662,15 @@ class ChatService {
       
       callback(chats);
     });
+
+    // Return enhanced unsubscribe function with proper logging
+    return () => {
+      console.log(`🧹 [ChatService] Cleaning up subscription: ${subscriptionId}`);
+      firebaseMonitor.trackSubscriptionCleanup(subscriptionId);
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
   }
 
   // Get total unread count for user

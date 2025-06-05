@@ -49,31 +49,12 @@ export default function RegisterStep3({ formikProps }) {
               <ErrorMessage name="agreeToPrivacy" component="div" className="mt-1 text-sm text-red-600" />
             </div>
           </div>
-          
-          {/* Marketing Emails */}
-          <div className="flex items-start">
-            <div className="flex items-center h-5">
-              <Field
-                id="agreeToMarketing"
-                name="agreeToMarketing"
-                type="checkbox"
-                className="h-4 w-4 text-[#010042] focus:ring-[#010042] border-gray-300 rounded"
-              />
-            </div>
-            <div className="ml-3 text-sm">
-              <label htmlFor="agreeToMarketing" className="font-medium text-gray-700">
-                Saya ingin menerima email tentang penawaran dan pembaruan dari SkillNusa
-              </label>
-            </div>
-          </div>
         </div>
       </div>
       
       <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
         <h4 className="text-sm font-medium text-blue-800 mb-2">Langkah Selanjutnya</h4>
         <ul className="list-disc pl-5 text-sm text-blue-700 space-y-1">
-          <li>Anda akan diminta untuk memverifikasi email Anda setelah pendaftaran</li>
-          <li>Profil Anda hanya akan terlihat setelah email diverifikasi</li>
           <li>Anda dapat mengubah detail profil Anda kapan saja setelah pendaftaran</li>
           <li>Anda dapat menjadi freelancer setelah mendaftar melalui halaman profil Anda</li>
         </ul>
@@ -97,13 +78,30 @@ export default function RegisterStep3({ formikProps }) {
             <div className="font-medium">Username:</div>
             <div>{values.username}</div>
           </div>
-          
+
           <div className="grid grid-cols-2 gap-2">
-            <div className="font-medium">Peran:</div>
-            <div>Client</div>
+            <div className="font-medium">Nomor Telepon:</div>
+            <div>{values.phoneNumber}</div>
           </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div className="font-medium">Tanggal Lahir:</div>
+            <div>{values.dateOfBirth}</div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div className="font-medium">Jenis Kelamin:</div>
+            <div>{values.gender === 'Male' ? 'Laki-laki' : 'Perempuan'}</div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div className="font-medium">Kota:</div>
+            <div>{values.location.charAt(0).toUpperCase() + values.location.slice(1)}</div>
+          </div>
+
         </div>
       </div>
+      
       
       <div className="pt-2">
         <p className="text-xs text-gray-500">

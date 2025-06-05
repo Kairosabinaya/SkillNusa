@@ -9,6 +9,9 @@ export default function GigCard({ gig, showFavoriteButton = true, className = ""
   const navigate = useNavigate();
   const [isFavorited, setIsFavorited] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
+  
+  // Check if current user is the gig owner
+  const isOwnGig = currentUser && gig && currentUser.uid === gig.freelancerId;
 
   // Check if gig is favorited when component mounts
   useEffect(() => {
@@ -41,6 +44,11 @@ export default function GigCard({ gig, showFavoriteButton = true, className = ""
       return;
     }
 
+    // Prevent freelancer from liking their own gig
+    if (isOwnGig) {
+      return; // Silently return for own gigs
+    }
+
     setFavoriteLoading(true);
     try {
       const result = await favoriteService.toggleFavorite(currentUser.uid, gig.id);
@@ -68,20 +76,22 @@ export default function GigCard({ gig, showFavoriteButton = true, className = ""
         {showFavoriteButton && (
           <button
             onClick={handleFavoriteToggle}
-            disabled={favoriteLoading}
+            disabled={favoriteLoading || isOwnGig}
             className={`absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center shadow-sm transition-all duration-200 ${
-              isFavorited
+              isOwnGig
+                ? 'bg-gray-100 border border-gray-200 text-gray-400 cursor-not-allowed opacity-50'
+                : isFavorited
                 ? 'bg-red-100 border border-red-200 text-red-600 hover:bg-red-200'
                 : 'bg-white/90 border border-gray-200 text-gray-600 hover:bg-white hover:text-red-500'
-            } ${favoriteLoading ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
-            title={isFavorited ? 'Hapus dari favorit' : 'Tambah ke favorit'}
+            } ${favoriteLoading ? 'opacity-50 cursor-not-allowed' : !isOwnGig ? 'hover:scale-105' : ''}`}
+            title={isOwnGig ? 'Gig Anda sendiri' : isFavorited ? 'Hapus dari favorit' : 'Tambah ke favorit'}
           >
             {favoriteLoading ? (
               <div className="w-4 h-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
             ) : (
               <svg 
                 className="w-5 h-5" 
-                fill={isFavorited ? 'currentColor' : 'none'} 
+                fill={isFavorited && !isOwnGig ? 'currentColor' : 'none'} 
                 stroke="currentColor" 
                 viewBox="0 0 24 24"
               >

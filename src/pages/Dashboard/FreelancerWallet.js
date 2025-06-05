@@ -67,7 +67,7 @@ export default function FreelancerWallet() {
       // Fetch completed orders to calculate earnings
       const ordersQuery = query(
         collection(db, 'orders'),
-        where('sellerId', '==', currentUser.uid),
+        where('freelancerId', '==', currentUser.uid),
         where('status', '==', 'completed')
       );
 
@@ -77,7 +77,7 @@ export default function FreelancerWallet() {
 
       ordersSnapshot.forEach(doc => {
         const order = doc.data();
-        const earnings = order.amount * 0.85; // 15% platform fee
+        const earnings = order.amount * 0.95; // 15% platform fee
         totalEarnings += earnings;
         
         // Check if payment is released (e.g., 7 days after completion)
@@ -93,7 +93,7 @@ export default function FreelancerWallet() {
       // Fetch pending balance from orders in review
       const pendingQuery = query(
         collection(db, 'orders'),
-        where('sellerId', '==', currentUser.uid),
+        where('freelancerId', '==', currentUser.uid),
         where('status', 'in', ['delivered', 'in_revision'])
       );
 
@@ -141,7 +141,7 @@ export default function FreelancerWallet() {
       // Fetch earnings from orders
       const ordersQuery = query(
         collection(db, 'orders'),
-        where('sellerId', '==', currentUser.uid),
+        where('freelancerId', '==', currentUser.uid),
         where('status', '==', 'completed'),
         orderBy('completedAt', 'desc'),
         limit(20)
@@ -451,7 +451,7 @@ export default function FreelancerWallet() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Fee platform:</span>
-                  <span className="text-sm font-medium text-gray-900">15%</span>
+                  <span className="text-sm font-medium text-gray-900">5%</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Waktu hold:</span>

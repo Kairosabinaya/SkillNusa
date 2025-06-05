@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
@@ -24,6 +24,7 @@ import {
   StarIcon,
   ClockIcon,
   ArrowTrendingUpIcon,
+  ArrowTrendingDownIcon,
   UserGroupIcon,
   CheckCircleIcon,
   ExclamationCircleIcon,
@@ -43,9 +44,18 @@ import freelancerRatingService from '../../services/freelancerRatingService';
 export default function FreelancerDashboard() {
   const { currentUser, userProfile } = useAuth();
   
-  console.log('🚀 DEBUG: FreelancerDashboard component rendered');
+  // Count renders to detect excessive re-renders
+  const renderCount = useRef(0);
+  renderCount.current += 1;
+  
+  console.log('🚀 DEBUG: FreelancerDashboard component rendered (render #' + renderCount.current + ')');
   console.log('🚀 DEBUG: currentUser:', currentUser?.uid);
   console.log('🚀 DEBUG: userProfile at component render:', userProfile);
+  
+  // Warn if too many renders
+  if (renderCount.current > 10) {
+    console.error('🚨 [FreelancerDashboard] Excessive re-renders detected! Render count:', renderCount.current);
+  }
   
   const [stats, setStats] = useState({
     totalEarnings: 0,
@@ -53,20 +63,15 @@ export default function FreelancerDashboard() {
     completedOrders: 0,
     averageRating: 0,
     totalReviews: 0,
-    responseRate: 100,
-    responseTime: '1 jam'
+    responseRate: 0,
+    responseTime: '-'
   });
   const [recentActivities, setRecentActivities] = useState([]);
-  const [profileCompletion, setProfileCompletion] = useState(0);
   const [freelancerProfile, setFreelancerProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [gigs, setGigs] = useState([]);
-  const [level, setLevel] = useState({
-    current: 'New Seller',
-    next: 'Level 1 Seller',
-    progress: 0,
-    requirements: []
-  });
+  const [showAllEducation, setShowAllEducation] = useState(false);
+  const [showAllCertifications, setShowAllCertifications] = useState(false);
 
   // Debug state changes
   useEffect(() => {
@@ -132,35 +137,14 @@ export default function FreelancerDashboard() {
     }
   };
 
-  // Calculate profile completion
-  useEffect(() => {
-    const calculateProfileCompletion = () => {
-      if (!userProfile || !freelancerProfile) return 0;
-      
-      let completed = 0;
-      const checks = [
-        userProfile.profilePhoto,
-        userProfile.bio,
-        freelancerProfile?.skills?.length > 0,
-        freelancerProfile?.experienceLevel,
-        freelancerProfile?.hourlyRate > 0,
-        freelancerProfile?.portfolioLinks?.length > 0,
-        gigs.length > 0
-      ];
-      
-      completed = checks.filter(Boolean).length;
-      return Math.round((completed / checks.length) * 100);
-    };
-    
-    setProfileCompletion(calculateProfileCompletion());
-  }, [userProfile, freelancerProfile, gigs]);
 
-  // Check and fix freelancer role on mount
+
+  // Check and fix freelancer role on mount - ONCE only
   useEffect(() => {
     if (currentUser && userProfile) {
       checkAndFixFreelancerRole();
     }
-  }, [currentUser, userProfile]);
+  }, [currentUser?.uid]); // Only depend on user ID to prevent re-runs
 
   // Fetch freelancer profile
   useEffect(() => {
@@ -290,6 +274,66 @@ export default function FreelancerDashboard() {
         
         setGigs(gigsData);
 
+        // Calculate response rate and time from messages/chats data
+        let responseRate = 0;
+        let responseTime = 'Belum tersedia';
+        
+        try {
+          // Fetch chat messages without complex sorting to avoid index requirements
+          const messagesQuery = query(
+            collection(db, 'messages'),
+            where('senderId', '==', currentUser.uid),
+            limit(50)
+          );
+          
+          const messagesSnapshot = await getDocs(messagesQuery);
+          if (!messagesSnapshot.empty) {
+            // Calculate basic response rate based on message count
+            const totalMessages = messagesSnapshot.size;
+            if (totalMessages > 0) {
+              // Simple calculation: assume good response rate if user has sent messages
+              responseRate = Math.min(95, Math.round((totalMessages / 50) * 100));
+              
+              // Calculate average response time from message timestamps
+              const messages = messagesSnapshot.docs
+                .map(doc => doc.data())
+                .filter(msg => msg.timestamp) // Filter out messages without timestamp
+                .sort((a, b) => {
+                  // Sort by timestamp descending
+                  const aTime = a.timestamp?.toDate?.() || new Date(a.timestamp);
+                  const bTime = b.timestamp?.toDate?.() || new Date(b.timestamp);
+                  return bTime - aTime;
+                });
+                
+              if (messages.length >= 2) {
+                const timeDiffs = [];
+                for (let i = 0; i < messages.length - 1; i++) {
+                  const current = messages[i].timestamp?.toDate?.() || new Date(messages[i].timestamp);
+                  const previous = messages[i + 1].timestamp?.toDate?.() || new Date(messages[i + 1].timestamp);
+                  if (current && previous) {
+                    const diff = (current - previous) / (1000 * 60); // minutes
+                    if (diff > 0 && diff < 1440) { // less than 24 hours
+                      timeDiffs.push(diff);
+                    }
+                  }
+                }
+                
+                if (timeDiffs.length > 0) {
+                  const avgMinutes = timeDiffs.reduce((a, b) => a + b, 0) / timeDiffs.length;
+                  if (avgMinutes < 60) {
+                    responseTime = `${Math.round(avgMinutes)} menit`;
+                  } else {
+                    responseTime = `${Math.round(avgMinutes / 60)} jam`;
+                  }
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.log('Could not calculate response metrics:', error);
+          // Keep default values
+        }
+
         // Update stats
         setStats({
           totalEarnings,
@@ -297,12 +341,11 @@ export default function FreelancerDashboard() {
           completedOrders,
           averageRating,
           totalReviews,
-          responseRate: 98, // This would be calculated from actual response data
-          responseTime: '1 jam'
+          responseRate,
+          responseTime
         });
 
-        // Calculate seller level
-        calculateSellerLevel(completedOrders, averageRating, totalEarnings);
+
 
         // Fetch recent activities
         fetchRecentActivities();
@@ -353,50 +396,7 @@ export default function FreelancerDashboard() {
     return () => unsubscribe();
   };
 
-  // Calculate seller level
-  const calculateSellerLevel = (completedOrders, averageRating, totalEarnings) => {
-    let currentLevel = 'New Seller';
-    let nextLevel = 'Level 1 Seller';
-    let progress = 0;
-    let requirements = [];
 
-    if (completedOrders >= 50 && averageRating >= 4.8 && totalEarnings >= 10000000) {
-      currentLevel = 'Level 2 Seller';
-      nextLevel = 'Top Rated Seller';
-      requirements = [
-        { name: 'Pesanan Selesai', current: completedOrders, target: 100, met: completedOrders >= 100 },
-        { name: 'Rating Minimal', current: averageRating, target: 4.9, met: averageRating >= 4.9 },
-        { name: 'Total Pendapatan', current: totalEarnings, target: 50000000, met: totalEarnings >= 50000000 },
-        { name: 'Tingkat Respon', current: stats.responseRate, target: 95, met: stats.responseRate >= 95 }
-      ];
-      progress = calculateProgress(requirements);
-    } else if (completedOrders >= 10 && averageRating >= 4.5 && totalEarnings >= 2000000) {
-      currentLevel = 'Level 1 Seller';
-      nextLevel = 'Level 2 Seller';
-      requirements = [
-        { name: 'Pesanan Selesai', current: completedOrders, target: 50, met: completedOrders >= 50 },
-        { name: 'Rating Minimal', current: averageRating, target: 4.8, met: averageRating >= 4.8 },
-        { name: 'Total Pendapatan', current: totalEarnings, target: 10000000, met: totalEarnings >= 10000000 },
-        { name: 'Tingkat Respon', current: stats.responseRate, target: 90, met: stats.responseRate >= 90 }
-      ];
-      progress = calculateProgress(requirements);
-    } else {
-      requirements = [
-        { name: 'Pesanan Selesai', current: completedOrders, target: 10, met: completedOrders >= 10 },
-        { name: 'Rating Minimal', current: averageRating, target: 4.5, met: averageRating >= 4.5 },
-        { name: 'Total Pendapatan', current: totalEarnings, target: 2000000, met: totalEarnings >= 2000000 },
-        { name: 'Profil Lengkap', current: profileCompletion, target: 100, met: profileCompletion >= 100 }
-      ];
-      progress = calculateProgress(requirements);
-    }
-
-    setLevel({ current: currentLevel, next: nextLevel, progress, requirements });
-  };
-
-  const calculateProgress = (requirements) => {
-    const met = requirements.filter(req => req.met).length;
-    return Math.round((met / requirements.length) * 100);
-  };
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('id-ID', {
@@ -434,53 +434,10 @@ export default function FreelancerDashboard() {
   };
 
   // Format functions for profile display
-  const formatCertifications = (certifications) => {
-    if (!certifications || !Array.isArray(certifications) || certifications.length === 0) return '-';
-    
-    return certifications.map(cert => {
-      if (typeof cert === 'object' && cert !== null) {
-        const name = cert.name || '';
-        const issuedBy = cert.issuedBy || '';
-        const year = cert.year || '';
-        return `${name}${issuedBy ? ` dari ${issuedBy}` : ''}${year ? ` (${year})` : ''}`;
-      } else if (typeof cert === 'string') {
-        return cert;
-      }
-      return '';
-    }).filter(Boolean).join(', ');
-  };
-
   const formatGender = (gender) => {
     if (gender === 'male') return 'Laki-laki';
     if (gender === 'female') return 'Perempuan';
     return '-';
-  };
-
-  const getExperienceLevelLabel = (level) => {
-    const levels = {
-      'pemula': 'Pemula',
-      'menengah': 'Menengah',
-      'ahli': 'Ahli'
-    };
-    return levels[level?.toLowerCase()] || level || '-';
-  };
-
-  const formatEducation = (education) => {
-    if (!education || !Array.isArray(education) || education.length === 0) return '-';
-    
-    return education.map(edu => {
-      if (typeof edu === 'object' && edu !== null) {
-        const degree = edu.degree || '-';
-        const university = edu.university || edu.institution || '-';
-        const fieldOfStudy = edu.fieldOfStudy ? `, ${edu.fieldOfStudy}` : '';
-        const graduationYear = edu.graduationYear || '-';
-        const country = edu.country ? ` (${edu.country})` : '';
-        return `${degree}${fieldOfStudy} di ${university}${country} (${graduationYear})`;
-      } else if (typeof edu === 'string') {
-        return edu;
-      }
-      return '';
-    }).filter(Boolean).join(', ');
   };
 
   if (loading) {
@@ -526,11 +483,13 @@ export default function FreelancerDashboard() {
               <CurrencyDollarIcon className="h-6 w-6 text-green-600" />
             </div>
           </div>
-          <div className="mt-4 flex items-center text-sm">
-            <ArrowTrendingUpIcon className="h-4 w-4 text-green-500 mr-1" />
-            <span className="text-green-500">+12%</span>
-            <span className="text-gray-500 ml-1">dari bulan lalu</span>
-          </div>
+          <Link 
+            to="/dashboard/freelancer/analytics" 
+            className="mt-4 flex items-center text-sm text-[#010042] hover:text-blue-700"
+          >
+            Lihat analytics
+            <ArrowRightIcon className="h-4 w-4 ml-1" />
+          </Link>
         </motion.div>
 
         <motion.div 
@@ -679,94 +638,58 @@ export default function FreelancerDashboard() {
                         Bio
                       </h4>
                       <p className="text-gray-700 leading-relaxed">
-                        {userProfile?.bio || 'Belum ada bio yang ditambahkan. Lengkapi profil Anda untuk menarik lebih banyak klien.'}
+                        {freelancerProfile?.bio || 'Belum ada bio profesional yang ditambahkan. Lengkapi profil freelancer Anda untuk menarik lebih banyak klien.'}
                       </p>
                     </div>
                   </div>
 
-                  {/* Skills Card */}
-                  <div className="bg-blue-50 rounded-lg p-6">
+                  {/* Skills Card - Full Width */}
+                  <div className="col-span-full bg-blue-50 rounded-lg p-6">
                     <h4 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
                       <BriefcaseIcon className="h-5 w-5 mr-2 text-[#010042]" />
-                      Keahlian
+                      Keahlian & Level Pengalaman
                     </h4>
                     <div className="space-y-2">
-                      {(() => {
-                        console.log('🎨 DEBUG: Rendering Skills Card');
-                        console.log('🎨 DEBUG: freelancerProfile?.skills:', freelancerProfile?.skills);
-                        console.log('🎨 DEBUG: Is skills array?', Array.isArray(freelancerProfile?.skills));
-                        console.log('🎨 DEBUG: Skills length:', freelancerProfile?.skills?.length);
-                        
-                        if (freelancerProfile?.skills && Array.isArray(freelancerProfile.skills) && freelancerProfile.skills.length > 0) {
-                          console.log('🎨 DEBUG: About to map skills:', freelancerProfile.skills);
-                          return (
-                            <div className="flex flex-wrap gap-2">
-                              {freelancerProfile.skills.map((skillItem, index) => {
-                                console.log(`🎨 DEBUG: Processing skill[${index}]:`, skillItem);
-                                
-                                // More robust handling of skill data
-                                let skillName = '';
-                                
-                                try {
-                                  if (typeof skillItem === 'string') {
-                                    skillName = skillItem;
-                                    console.log(`🎨 DEBUG: Skill[${index}] is string:`, skillName);
-                                  } else if (typeof skillItem === 'object' && skillItem !== null) {
-                                    console.log(`🎨 DEBUG: Skill[${index}] is object with keys:`, Object.keys(skillItem));
-                                    // Handle various possible object structures
-                                    skillName = skillItem.skill || skillItem.name || skillItem.skillName || '';
-                                    console.log(`🎨 DEBUG: Extracted skill name:`, skillName);
-                                    
-                                    // If still no skill name found, convert object to string representation
-                                    if (!skillName && Object.keys(skillItem).length > 0) {
-                                      skillName = `${Object.values(skillItem)[0] || 'Unknown Skill'}`;
-                                      console.log(`🎨 DEBUG: Using first object value as skill name:`, skillName);
-                                    }
-                                  }
-                                  
-                                  // Ensure skillName is a string
-                                  skillName = String(skillName).trim();
-                                  console.log(`🎨 DEBUG: Final skill name[${index}]:`, skillName);
-                                } catch (error) {
-                                  console.error(`🎨 DEBUG: Error processing skill[${index}]:`, skillItem, error);
-                                  skillName = 'Invalid Skill';
-                                }
-                                
-                                // Only render if we have a valid skill name
-                                const shouldRender = !!skillName;
-                                console.log(`🎨 DEBUG: Should render skill[${index}]:`, shouldRender);
-                                
-                                return shouldRender ? (
-                                  <span 
-                                    key={`skill-${index}-${skillName}`}
-                                    className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-[#010042] text-white"
-                                  >
-                                    {skillName}
-                                  </span>
-                                ) : null;
-                              }).filter(skill => {
-                                console.log('🎨 DEBUG: Filtering skill:', skill);
-                                return Boolean(skill);
-                              })}
-                            </div>
-                          );
-                        } else {
-                          console.log('🎨 DEBUG: No skills to display, showing placeholder');
-                          return <p className="text-gray-500 italic">Belum ada keahlian yang ditambahkan</p>;
-                        }
-                      })()}
+                      {freelancerProfile?.skills && Array.isArray(freelancerProfile.skills) && freelancerProfile.skills.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {freelancerProfile.skills.map((skillItem, index) => {
+                            // Extract skill name and experience level
+                            let skillName = '';
+                            let experienceLevel = '';
+                            
+                            try {
+                              if (typeof skillItem === 'string') {
+                                skillName = skillItem;
+                                experienceLevel = 'Pemula';
+                              } else if (typeof skillItem === 'object' && skillItem !== null) {
+                                skillName = skillItem.skill || skillItem.name || skillItem.skillName || '';
+                                experienceLevel = skillItem.experienceLevel || skillItem.level || 'Pemula';
+                              }
+                              
+                              // Ensure skillName is a string
+                              skillName = String(skillName).trim();
+                              experienceLevel = String(experienceLevel).trim();
+                            } catch (error) {
+                              console.error(`Error processing skill[${index}]:`, skillItem, error);
+                              skillName = 'Invalid Skill';
+                              experienceLevel = 'Pemula';
+                            }
+                            
+                            // Only render if we have a valid skill name
+                            return skillName ? (
+                              <span 
+                                key={`skill-${index}-${skillName}`}
+                                className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-[#010042] text-white"
+                              >
+                                {skillName} ({experienceLevel})
+                              </span>
+                            ) : null;
+                          }).filter(Boolean)}
+                        </div>
+                      ) : (
+                        <p className="text-gray-500 italic">Belum ada keahlian yang ditambahkan</p>
+                      )}
                     </div>
-                  </div>
-
-                  {/* Experience Level Card */}
-                  <div className="bg-purple-50 rounded-lg p-6">
-                    <h4 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
-                      <ChartBarIcon className="h-5 w-5 mr-2 text-[#010042]" />
-                      Level Pengalaman
-                    </h4>
-                    <p className="text-lg font-semibold text-[#010042]">
-                      {getExperienceLevelLabel(freelancerProfile?.experienceLevel)}
-                    </p>
                   </div>
                 </div>
               </div>
@@ -784,12 +707,49 @@ export default function FreelancerDashboard() {
                   Pendidikan
                 </h4>
                 <div className="space-y-4">
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h3 className="font-semibold text-gray-900">Bachelor, Computer Science and Statistics</h3>
-                    <p className="text-gray-600">Universitas Bina Nusantara (Indonesia)</p>
-                    <p className="text-gray-500 text-sm">(2026)</p>
-                  </div>
-                  {/* Add more education items here if needed */}
+                  {freelancerProfile?.education && Array.isArray(freelancerProfile.education) && freelancerProfile.education.length > 0 ? (
+                    <>
+                      {(showAllEducation ? freelancerProfile.education : freelancerProfile.education.slice(0, 3)).map((edu, index) => (
+                        <div key={index} className="bg-gray-50 p-4 rounded-lg">
+                          <h3 className="font-semibold text-gray-900">
+                            {edu.degree || 'Tidak disebutkan'}{edu.fieldOfStudy ? `, ${edu.fieldOfStudy}` : ''}
+                          </h3>
+                          <p className="text-gray-600">
+                            {edu.university || 'Tidak disebutkan'}{edu.country ? ` (${edu.country})` : ''}
+                          </p>
+                          <p className="text-gray-500 text-sm">
+                            ({edu.graduationYear || 'Tidak disebutkan'})
+                          </p>
+                        </div>
+                      ))}
+                      {freelancerProfile.education.length > 3 && (
+                        <button
+                          onClick={() => setShowAllEducation(!showAllEducation)}
+                          className="w-full mt-3 px-4 py-2 text-sm font-medium text-[#010042] bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors flex items-center justify-center"
+                        >
+                          {showAllEducation ? (
+                            <>
+                              <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                              </svg>
+                              Tampilkan lebih sedikit
+                            </>
+                          ) : (
+                            <>
+                              <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                              Lihat selengkapnya ({freelancerProfile.education.length - 3} lainnya)
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <div className="bg-gray-50 p-4 rounded-lg text-center">
+                      <p className="text-gray-500 italic">Belum ada informasi pendidikan yang ditambahkan</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -802,17 +762,49 @@ export default function FreelancerDashboard() {
                   Sertifikasi & Penghargaan
                 </h4>
                 <div className="space-y-4">
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h3 className="font-semibold text-gray-900">AWS Cloud Architecture</h3>
-                    <p className="text-gray-600">dari AWS</p>
-                    <p className="text-gray-500 text-sm">(2024)</p>
-                  </div>
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h3 className="font-semibold text-gray-900">AWS Cloud Foundation</h3>
-                    <p className="text-gray-600">dari AWS</p>
-                    <p className="text-gray-500 text-sm">(2024)</p>
-                  </div>
-                  {/* Add more certification items here if needed */}
+                  {freelancerProfile?.certifications && Array.isArray(freelancerProfile.certifications) && freelancerProfile.certifications.length > 0 ? (
+                    <>
+                      {(showAllCertifications ? freelancerProfile.certifications : freelancerProfile.certifications.slice(0, 3)).map((cert, index) => (
+                        <div key={index} className="bg-gray-50 p-4 rounded-lg">
+                          <h3 className="font-semibold text-gray-900">
+                            {cert.name || 'Tidak disebutkan'}
+                          </h3>
+                          <p className="text-gray-600">
+                            {cert.issuedBy ? `dari ${cert.issuedBy}` : 'Penerbit tidak disebutkan'}
+                          </p>
+                          <p className="text-gray-500 text-sm">
+                            ({cert.year || 'Tahun tidak disebutkan'})
+                          </p>
+                        </div>
+                      ))}
+                      {freelancerProfile.certifications.length > 3 && (
+                        <button
+                          onClick={() => setShowAllCertifications(!showAllCertifications)}
+                          className="w-full mt-3 px-4 py-2 text-sm font-medium text-[#010042] bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors flex items-center justify-center"
+                        >
+                          {showAllCertifications ? (
+                            <>
+                              <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                              </svg>
+                              Tampilkan lebih sedikit
+                            </>
+                          ) : (
+                            <>
+                              <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                              Lihat selengkapnya ({freelancerProfile.certifications.length - 3} lainnya)
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <div className="bg-gray-50 p-4 rounded-lg text-center">
+                      <p className="text-gray-500 italic">Belum ada sertifikasi atau penghargaan yang ditambahkan</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -827,15 +819,15 @@ export default function FreelancerDashboard() {
                 <div className="space-y-3">
                   <div>
                     <span className="text-sm font-medium text-gray-500">Telepon:</span>
-                    <p className="text-gray-700">{userProfile?.phoneNumber || '+628129416196'}</p>
+                    <p className="text-gray-700">{userProfile?.phoneNumber || 'Belum diisi'}</p>
                   </div>
                   <div>
                     <span className="text-sm font-medium text-gray-500">Lokasi:</span>
-                    <p className="text-gray-700">{userProfile?.location ? userProfile.location.charAt(0).toUpperCase() + userProfile.location.slice(1) : 'Jakarta'}</p>
+                    <p className="text-gray-700">{userProfile?.location ? userProfile.location.charAt(0).toUpperCase() + userProfile.location.slice(1) : 'Belum diisi'}</p>
                   </div>
                   <div>
                     <span className="text-sm font-medium text-gray-500">Jam Kerja:</span>
-                    <p className="text-gray-700">{freelancerProfile?.workingHours || '08:00 - 17:00 WIB'}</p>
+                    <p className="text-gray-700">{freelancerProfile?.workingHours || 'Belum diisi'}</p>
                   </div>
                 </div>
               </div>
@@ -844,118 +836,40 @@ export default function FreelancerDashboard() {
         </motion.div>
       </div>
 
-      {/* Bottom Section: Activities and Level Side by Side */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        {/* Recent Activities */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-          className="bg-white rounded-lg shadow"
-        >
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Aktivitas Terbaru</h2>
-          </div>
-          <div className="divide-y divide-gray-200">
-            {recentActivities.length > 0 ? (
-              recentActivities.map((activity) => (
-                <div key={activity.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-start">
-                    <div className="flex-shrink-0">
-                      {getActivityIcon(activity.type)}
-                    </div>
-                    <div className="ml-3 flex-1">
-                      <p className="text-sm text-gray-900">{activity.message}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {formatTime(activity.createdAt)}
-                      </p>
-                    </div>
+      {/* Recent Activities - Full Width */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.6 }}
+        className="bg-white rounded-lg shadow mb-8"
+      >
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">Aktivitas Terbaru</h2>
+        </div>
+        <div className="divide-y divide-gray-200">
+          {recentActivities.length > 0 ? (
+            recentActivities.map((activity) => (
+              <div key={activity.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    {getActivityIcon(activity.type)}
+                  </div>
+                  <div className="ml-3 flex-1">
+                    <p className="text-sm text-gray-900">{activity.message}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {formatTime(activity.createdAt)}
+                    </p>
                   </div>
                 </div>
-              ))
-            ) : (
-              <div className="px-6 py-12 text-center">
-                <p className="text-gray-500">Belum ada aktivitas terbaru</p>
               </div>
-            )}
-          </div>
-        </motion.div>
-
-        {/* Seller Level Progress */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-          className="bg-white rounded-lg shadow"
-        >
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Level Seller</h2>
-          </div>
-          <div className="p-6">
-            <div className="text-center mb-6">
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-[#010042] rounded-full mb-3">
-                <span className="text-white text-2xl font-bold">
-                  {level.current === 'New Seller' ? 'NS' : 
-                   level.current === 'Level 1 Seller' ? 'L1' :
-                   level.current === 'Level 2 Seller' ? 'L2' : 'TR'}
-                </span>
-              </div>
-              <h3 className="text-xl font-bold text-gray-900">{level.current}</h3>
-              <p className="text-sm text-gray-600 mt-1">
-                Progress menuju {level.next}
-              </p>
+            ))
+          ) : (
+            <div className="px-6 py-12 text-center">
+              <p className="text-gray-500">Belum ada aktivitas terbaru</p>
             </div>
-
-            <div className="mb-6">
-              <div className="flex justify-between text-sm text-gray-600 mb-2">
-                <span>Progress</span>
-                <span>{level.progress}%</span>
-              </div>
-              <div className="bg-gray-200 rounded-full h-3">
-                <div 
-                  className="bg-[#010042] h-3 rounded-full transition-all duration-500"
-                  style={{ width: `${level.progress}%` }}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <h4 className="text-sm font-medium text-gray-900">Persyaratan:</h4>
-              {level.requirements.map((req, index) => (
-                <div key={index} className="flex items-center justify-between text-sm">
-                  <div className="flex items-center">
-                    {req.met ? (
-                      <CheckCircleIcon className="h-5 w-5 text-green-500 mr-2" />
-                    ) : (
-                      <div className="w-5 h-5 border-2 border-gray-300 rounded-full mr-2" />
-                    )}
-                    <span className={req.met ? 'text-gray-900' : 'text-gray-500'}>
-                      {req.name}
-                    </span>
-                  </div>
-                  <span className={req.met ? 'text-green-600' : 'text-gray-500'}>
-                    {req.name.includes('Pendapatan') 
-                      ? formatCurrency(req.current)
-                      : req.name.includes('Rating')
-                      ? req.current.toFixed(1)
-                      : req.current}
-                    {req.name.includes('Pendapatan') 
-                      ? ` / ${formatCurrency(req.target)}`
-                      : ` / ${req.target}`}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            <Link 
-              to="/dashboard/freelancer/analytics"
-              className="mt-6 block w-full text-center py-2 px-4 bg-[#010042] text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Lihat Detail Analytics
-            </Link>
-          </div>
-        </motion.div>
-      </div>
+          )}
+        </div>
+      </motion.div>
 
       {/* Quick Actions */}
       <motion.div 

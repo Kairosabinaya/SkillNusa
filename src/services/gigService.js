@@ -382,17 +382,33 @@ const getFreelancerData = async (freelancerId) => {
     console.log('👤 Full freelancer profile data:', freelancerData);
     console.log('📊 Calculated rating stats:', ratingStats);
     
+    // Format join date
+    const formatJoinDate = (date) => {
+      if (!date) return 'Unknown';
+      try {
+        const joinDate = date.toDate ? date.toDate() : new Date(date);
+        return joinDate.toLocaleDateString('en-US', { 
+          month: 'short', 
+          year: 'numeric' 
+        });
+      } catch (error) {
+        console.error('Error formatting join date:', error);
+        return 'Unknown';
+      }
+    };
+
     return {
       id: freelancerId,
       name: userData.displayName || userData.username || 'Unknown',
       displayName: userData.displayName || userData.username || 'Unknown',
       avatar: userData.profilePhoto || null,
       profilePhoto: userData.profilePhoto || null,
-      bio: userData.bio || '',
+      bio: freelancerData.bio || userData.bio || '',
       location: userData.location || 'Unknown',
       isVerified: userData.emailVerified || false,
       isTopRated: freelancerData.tier === 'platinum' || freelancerData.tier === 'gold',
       tier: freelancerData.tier || 'bronze',
+      joinedDate: formatJoinDate(userData.createdAt || freelancerData.createdAt),
       rating: ratingStats.averageRating, // Use calculated rating
       totalReviews: ratingStats.totalReviews, // Use calculated total reviews
       completedProjects: freelancerData.completedProjects || 0,
@@ -410,11 +426,12 @@ const getFreelancerData = async (freelancerId) => {
       displayName: 'Unknown Freelancer',
       avatar: null,
       profilePhoto: null,
-      bio: '',
+      bio: 'No bio available',
       location: 'Unknown',
       isVerified: false,
       isTopRated: false,
       tier: 'bronze',
+      joinedDate: 'Unknown',
       rating: 0,
       totalReviews: 0,
       completedProjects: 0,

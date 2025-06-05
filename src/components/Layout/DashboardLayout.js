@@ -105,24 +105,6 @@ export default function DashboardLayout({ children }) {
       )
     },
     {
-      name: 'Pesan',
-      href: '/dashboard/client/messages',
-      icon: (
-        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-        </svg>
-      )
-    },
-    {
-      name: 'Telusuri Layanan',
-      href: '/browse',
-      icon: (
-        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-        </svg>
-      )
-    },
-    {
       name: 'Bantuan & Dukungan',
       href: '/contact',
       icon: (
@@ -341,53 +323,6 @@ export default function DashboardLayout({ children }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </motion.button>
-        </motion.div>
-
-        {/* User info */}
-        <motion.div 
-          className="p-6 border-b border-gray-200"
-          initial={{ opacity: 0, x: -50 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <div className="flex items-center">
-            <motion.div 
-              className="h-10 w-10 rounded-full bg-[#010042]/10 flex items-center justify-center overflow-hidden border border-gray-200"
-              whileHover={{ scale: 1.1, borderColor: '#010042' }}
-              transition={{ type: "spring", stiffness: 400 }}
-            >
-              {userProfile?.profilePhoto ? (
-                <img 
-                  className="h-10 w-10 rounded-full object-cover" 
-                  src={userProfile.profilePhoto} 
-                  alt={userProfile.displayName || currentUser.email} 
-                />
-              ) : (
-                <span className="text-sm font-semibold text-[#010042]">
-                  {(userProfile?.displayName || currentUser?.displayName)?.charAt(0).toUpperCase() || 
-                  currentUser?.email?.charAt(0).toUpperCase() || 'U'}
-                </span>
-              )}
-            </motion.div>
-            <div className="ml-3">
-              <motion.p 
-                className="text-sm font-medium text-gray-900 truncate"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.3 }}
-              >
-                {userProfile?.displayName || currentUser?.displayName || 'Pengguna'}
-              </motion.p>
-              <motion.p 
-                className="text-xs text-gray-500 truncate"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.4 }}
-              >
-                {getCurrentDashboardType()}
-              </motion.p>
-            </div>
-          </div>
         </motion.div>
 
         {/* Navigation */}

@@ -21,8 +21,8 @@ export default function Contact() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-15">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-gray-50 py-16">
+      <div className="max-w-4xl mx-auto px-6">
         <h1 className="text-4xl font-bold text-gray-900 mb-4">Hubungi Kami</h1>
         <p className="text-xl text-gray-600 mb-8">Kami senang mendengar dari Anda. Isi formulir di bawah ini dan kami akan segera menghubungi Anda.</p>
 

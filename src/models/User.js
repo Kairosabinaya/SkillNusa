@@ -15,19 +15,22 @@ export default class User extends BaseModel {
     this.email = data.email || '';
     this.username = data.username || '';
     this.displayName = data.displayName || '';
-    this.fullName = data.fullName || '';
     this.phoneNumber = data.phoneNumber || '';
     this.gender = data.gender || '';
-    this.birthDate = data.birthDate || '';
+    this.dateOfBirth = data.dateOfBirth || '';
+    this.location = data.location || '';
     
-    // Simplified role architecture
-    this.isFreelancer = data.isFreelancer || false; // Quick check flag
-    this.roles = data.roles || []; // Keep roles array for admin checking
+    // Multi-role architecture
+    this.isFreelancer = data.isFreelancer || false;
+    this.roles = data.roles || [USER_ROLES.CLIENT];
+    this.hasInteractedWithSkillBot = data.hasInteractedWithSkillBot || false;
     
     this.profilePhoto = data.profilePhoto || null;
-    this.bio = data.bio || '';
-    this.isActive = data.isActive !== undefined ? data.isActive : true;
     this.emailVerified = data.emailVerified || false;
+    
+    // Timestamps are handled by BaseModel
+    this.createdAt = data.createdAt || new Date();
+    this.updatedAt = data.updatedAt || new Date();
   }
 
   /**

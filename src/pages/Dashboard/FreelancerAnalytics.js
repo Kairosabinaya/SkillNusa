@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   collection, 
   query, 
@@ -26,8 +27,10 @@ import {
 
 export default function FreelancerAnalytics() {
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('30'); // days
+  // Removed chartTimeRange - using fixed 7 days only
   const [analytics, setAnalytics] = useState({
     earnings: {
       total: 0,
@@ -58,11 +61,19 @@ export default function FreelancerAnalytics() {
   
   const [earningsChart, setEarningsChart] = useState([]);
   const [topGigs, setTopGigs] = useState([]);
-  const [recentOrders, setRecentOrders] = useState([]);
+  const [recentOrders, setRecentOrders] = useState([]); // All orders for chart
+  const [recentOrdersDisplay, setRecentOrdersDisplay] = useState([]); // Recent orders for display
 
   useEffect(() => {
     fetchAnalytics();
   }, [currentUser, timeRange]);
+
+  useEffect(() => {
+    // Re-generate chart when orders change (7 days only)
+    console.log('📊 Regenerating chart for 7 days');
+    const chartData = generateEarningsChart(recentOrders, 7);
+    setEarningsChart(chartData);
+  }, [recentOrders]);
 
   const fetchAnalytics = async () => {
     if (!currentUser) return;
@@ -76,15 +87,26 @@ export default function FreelancerAnalytics() {
       const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
 
-      // Fetch orders data
-      const ordersQuery = query(
+      // Fetch orders data with both field names for compatibility
+      const ordersQueryPrimary = query(
+        collection(db, 'orders'),
+        where('freelancerId', '==', currentUser.uid),
+        orderBy('createdAt', 'desc')
+      );
+      
+      const ordersQueryFallback = query(
         collection(db, 'orders'),
         where('sellerId', '==', currentUser.uid),
         orderBy('createdAt', 'desc')
       );
       
-      const ordersSnapshot = await getDocs(ordersQuery);
+      const [ordersSnapshotPrimary, ordersSnapshotFallback] = await Promise.all([
+        getDocs(ordersQueryPrimary).catch(() => ({ docs: [] })),
+        getDocs(ordersQueryFallback).catch(() => ({ docs: [] }))
+      ]);
+      
       const orders = [];
+      const processedOrderIds = new Set();
       let totalEarnings = 0;
       let thisMonthEarnings = 0;
       let lastMonthEarnings = 0;
@@ -95,11 +117,15 @@ export default function FreelancerAnalytics() {
       let deliveredCount = 0;
       let revisionCount = 0;
 
-      ordersSnapshot.forEach(doc => {
-        const order = { id: doc.id, ...doc.data() };
-        const orderDate = order.createdAt?.toDate();
-        
-        orders.push(order);
+      // Process both snapshots to avoid duplicates
+      [ordersSnapshotPrimary, ordersSnapshotFallback].forEach(snapshot => {
+        snapshot.forEach(doc => {
+          if (!processedOrderIds.has(doc.id)) {
+            processedOrderIds.add(doc.id);
+            const order = { id: doc.id, ...doc.data() };
+            const orderDate = order.createdAt?.toDate();
+            
+            orders.push(order);
         
         if (order.status === 'completed') {
           totalEarnings += order.amount || 0;
@@ -125,36 +151,67 @@ export default function FreelancerAnalytics() {
           cancelledOrders++;
         }
         
-        if (order.status === 'in_revision') {
-          revisionCount++;
-        }
+            if (order.status === 'in_revision') {
+              revisionCount++;
+            }
+          }
+        });
       });
 
-      // Fetch gigs data
-      const gigsQuery = query(
+      // Fetch gigs data with both field names for compatibility
+      const gigsQueryPrimary = query(
+        collection(db, 'gigs'),
+        where('freelancerId', '==', currentUser.uid)
+      );
+      
+      const gigsQueryFallback = query(
         collection(db, 'gigs'),
         where('userId', '==', currentUser.uid)
       );
       
-      const gigsSnapshot = await getDocs(gigsQuery);
+      const [gigsSnapshotPrimary, gigsSnapshotFallback] = await Promise.all([
+        getDocs(gigsQueryPrimary),
+        getDocs(gigsQueryFallback)
+      ]);
+      
       const gigs = [];
+      const processedGigIds = new Set();
       let totalViews = 0;
       let totalImpressions = 0;
 
-      for (const doc of gigsSnapshot.docs) {
-        const gig = { id: doc.id, ...doc.data() };
-        
-        // Get gig orders for performance metrics
-        const gigOrders = orders.filter(order => order.gigId === doc.id);
-        gig.orderCount = gigOrders.length;
-        gig.revenue = gigOrders
-          .filter(order => order.status === 'completed')
-          .reduce((sum, order) => sum + (order.amount || 0), 0);
-        
-        gigs.push(gig);
-        totalViews += gig.views || 0;
-        totalImpressions += gig.impressions || 0;
-      }
+      // Process both snapshots to avoid duplicates
+      [gigsSnapshotPrimary, gigsSnapshotFallback].forEach(snapshot => {
+        snapshot.forEach(doc => {
+          if (!processedGigIds.has(doc.id)) {
+            processedGigIds.add(doc.id);
+            const gig = { id: doc.id, ...doc.data() };
+            
+            // Get gig orders for performance metrics
+            const gigOrders = orders.filter(order => order.gigId === doc.id);
+            gig.orderCount = gigOrders.length;
+            gig.revenue = gigOrders
+              .filter(order => order.status === 'completed')
+              .reduce((sum, order) => sum + (order.amount || 0), 0);
+            
+            // Calculate rating from reviews
+            const gigReviews = orders.filter(order => order.gigId === doc.id && order.status === 'completed');
+            let totalRating = 0;
+            let ratingCount = 0;
+            gigReviews.forEach(order => {
+              if (order.rating) {
+                totalRating += order.rating;
+                ratingCount++;
+              }
+            });
+            gig.rating = ratingCount > 0 ? totalRating / ratingCount : 0;
+            gig.reviewCount = ratingCount;
+            
+            gigs.push(gig);
+            totalViews += gig.views || 0;
+            totalImpressions += gig.impressions || 0;
+          }
+        });
+      });
 
       // Fetch reviews for rating
       const reviewsQuery = query(
@@ -214,15 +271,16 @@ export default function FreelancerAnalytics() {
         .slice(0, 5);
       setTopGigs(sortedGigs);
 
-      // Get recent orders
+      // Get recent orders and store all orders for chart generation
       const sortedOrders = orders
         .sort((a, b) => b.createdAt?.toDate() - a.createdAt?.toDate())
         .slice(0, 10);
-      setRecentOrders(sortedOrders);
+      setRecentOrders(orders); // Store all orders for chart generation
+      setRecentOrdersDisplay(sortedOrders); // Store recent orders for display
 
-      // Generate earnings chart data (simplified)
-      const chartData = generateEarningsChart(orders, parseInt(timeRange));
-      setEarningsChart(chartData);
+              // Generate earnings chart data (7 days only)
+        const chartData = generateEarningsChart(orders, 7);
+        setEarningsChart(chartData);
 
     } catch (error) {
       console.error('Error fetching analytics:', error);
@@ -231,9 +289,11 @@ export default function FreelancerAnalytics() {
     }
   };
 
-  const generateEarningsChart = (orders, days) => {
+  const generateEarningsChart = (orders, days = 7) => {
     const data = [];
     const now = new Date();
+    
+    console.log(`📊 Generating chart for ${days} days with ${orders.length} orders`);
     
     for (let i = days - 1; i >= 0; i--) {
       const date = new Date(now.getTime() - (i * 24 * 60 * 60 * 1000));
@@ -242,19 +302,22 @@ export default function FreelancerAnalytics() {
       
       const dayEarnings = orders
         .filter(order => {
-          const orderDate = order.createdAt?.toDate();
+          const orderDate = order.createdAt?.toDate?.() || new Date(order.createdAt);
           return order.status === 'completed' && 
                  orderDate >= dayStart && 
                  orderDate < dayEnd;
         })
         .reduce((sum, order) => sum + (order.amount || 0), 0);
       
+      const formattedDate = date.toLocaleDateString('id-ID', { weekday: 'short' });
+      
       data.push({
-        date: date.toLocaleDateString('id-ID', { month: 'short', day: 'numeric' }),
+        date: formattedDate,
         earnings: dayEarnings
       });
     }
     
+    console.log('📊 Generated chart data:', data);
     return data;
   };
 
@@ -273,6 +336,14 @@ export default function FreelancerAnalytics() {
       return `${(num / 1000).toFixed(1)}K`;
     }
     return num.toString();
+  };
+
+  const formatPrice = (price) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0
+    }).format(price);
   };
 
   const getStatusColor = (status) => {
@@ -422,31 +493,142 @@ export default function FreelancerAnalytics() {
           className="lg:col-span-2 bg-white rounded-lg shadow p-6"
         >
           <h2 className="text-lg font-semibold text-gray-900 mb-6">
-            Tren Pendapatan
+            Tren Pendapatan (7 Hari)
           </h2>
-          <div className="h-64 flex items-end justify-between space-x-2">
-            {earningsChart.map((data, index) => {
-              const maxEarnings = Math.max(...earningsChart.map(d => d.earnings));
-              const height = maxEarnings > 0 ? (data.earnings / maxEarnings) * 100 : 0;
-              
-              return (
-                <div key={index} className="flex flex-col items-center flex-1">
-                  <div className="relative group">
-                    <div 
-                      className="bg-[#010042] rounded-t-sm w-full transition-all duration-300 hover:bg-blue-700"
-                      style={{ height: `${height * 2}px`, minHeight: data.earnings > 0 ? '4px' : '2px' }}
-                    ></div>
-                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                      {formatCurrency(data.earnings)}
-                    </div>
-                  </div>
-                  <span className="text-xs text-gray-500 mt-2 rotate-45 origin-left">
-                    {data.date}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+          
+          {earningsChart.length > 0 && earningsChart.some(d => d.earnings > 0) ? (
+            <div className="h-64 relative">
+              <svg className="w-full h-full" viewBox="0 0 800 200" preserveAspectRatio="xMidYMid meet">
+                {/* Grid lines */}
+                <defs>
+                  <pattern id="grid" width="80" height="40" patternUnits="userSpaceOnUse">
+                    <path d="M 80 0 L 0 0 0 40" fill="none" stroke="#e5e7eb" strokeWidth="1"/>
+                  </pattern>
+                </defs>
+                <rect x="60" y="20" width="720" height="160" fill="url(#grid)" />
+                
+                {/* Y-axis */}
+                <line x1="60" y1="20" x2="60" y2="180" stroke="#d1d5db" strokeWidth="1"/>
+                
+                {/* X-axis */}
+                <line x1="60" y1="180" x2="780" y2="180" stroke="#d1d5db" strokeWidth="1"/>
+                
+                {/* Chart line and Y-axis labels */}
+                {(() => {
+                  const maxEarnings = Math.max(...earningsChart.map(d => d.earnings), 1);
+                  const chartWidth = 720;
+                  const chartHeight = 160;
+                  const marginLeft = 60;
+                  const marginTop = 20;
+                  
+                  // Generate Y-axis labels
+                  const yLabels = [];
+                  const labelCount = 5;
+                  for (let i = 0; i <= labelCount; i++) {
+                    const value = (maxEarnings / labelCount) * i;
+                    const y = 180 - (i / labelCount) * chartHeight;
+                    yLabels.push(
+                      <g key={`y-label-${i}`}>
+                        <text
+                          x="55"
+                          y={y + 3}
+                          textAnchor="end"
+                          className="text-xs fill-gray-500"
+                          style={{ fontSize: '10px' }}
+                        >
+                          {value > 1000 ? `${Math.round(value/1000)}K` : Math.round(value)}
+                        </text>
+                        <line x1="58" y1={y} x2="62" y2={y} stroke="#9ca3af" strokeWidth="1"/>
+                      </g>
+                    );
+                  }
+                  
+                  if (earningsChart.length === 1) {
+                    // Special case for single data point
+                    const x = marginLeft + chartWidth / 2;
+                    const y = 180 - (earningsChart[0].earnings / maxEarnings) * chartHeight;
+                    
+                    return (
+                      <>
+                        {yLabels}
+                        <g key={0}>
+                          <circle
+                            cx={x}
+                            cy={y}
+                            r="6"
+                            fill="#3b82f6"
+                            className="cursor-pointer"
+                          />
+                          <text
+                            x={x}
+                            y="195"
+                            textAnchor="middle"
+                            className="text-xs fill-gray-500"
+                          >
+                            {earningsChart[0].date}
+                          </text>
+                          <title>{formatCurrency(earningsChart[0].earnings)}</title>
+                        </g>
+                      </>
+                    );
+                  }
+                  
+                  const points = earningsChart.map((data, index) => {
+                    const x = marginLeft + (index / (earningsChart.length - 1)) * chartWidth;
+                    const y = 180 - (data.earnings / maxEarnings) * chartHeight;
+                    return `${x},${y}`;
+                  }).join(' ');
+                  
+                  return (
+                    <>
+                      {yLabels}
+                      {earningsChart.length > 1 && (
+                        <polyline
+                          fill="none"
+                          stroke="#3b82f6"
+                          strokeWidth="2"
+                          points={points}
+                        />
+                      )}
+                      {earningsChart.map((data, index) => {
+                        const x = marginLeft + (index / (earningsChart.length - 1)) * chartWidth;
+                        const y = 180 - (data.earnings / maxEarnings) * chartHeight;
+                        return (
+                          <g key={index}>
+                            <circle
+                              cx={x}
+                              cy={y}
+                              r="4"
+                              fill="#3b82f6"
+                              className="hover:r-6 transition-all cursor-pointer"
+                            />
+                            <text
+                              x={x}
+                              y="195"
+                              textAnchor="middle"
+                              className="text-xs fill-gray-500"
+                              style={{ fontSize: '10px' }}
+                            >
+                              {data.date}
+                            </text>
+                            <title>{formatCurrency(data.earnings)}</title>
+                          </g>
+                        );
+                      })}
+                    </>
+                  );
+                })()}
+              </svg>
+            </div>
+          ) : (
+            <div className="h-64 flex flex-col items-center justify-center text-gray-500">
+              <ChartBarIcon className="h-12 w-12 text-gray-300 mb-4" />
+              <p className="text-lg font-medium text-gray-400 mb-2">Belum Ada Data Pendapatan</p>
+              <p className="text-sm text-gray-400 text-center">
+                Mulai menerima pesanan untuk melihat tren pendapatan Anda
+              </p>
+            </div>
+          )}
         </motion.div>
 
         {/* Performance Metrics */}
@@ -536,27 +718,112 @@ export default function FreelancerAnalytics() {
           <h2 className="text-lg font-semibold text-gray-900 mb-6">
             Gig Terbaik
           </h2>
-          <div className="space-y-4">
-            {topGigs.map((gig, index) => (
-              <div key={gig.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0 w-8 h-8 bg-[#010042] text-white rounded-full flex items-center justify-center text-sm font-medium">
-                    {index + 1}
+          {topGigs.length > 0 ? (
+            <div className="space-y-4">
+              {topGigs.map((gig, index) => (
+                <motion.div 
+                  key={gig.id}
+                  whileHover={{ scale: 1.01 }}
+                  transition={{ type: "spring", stiffness: 300 }}
+                  className="bg-white rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all p-4"
+                >
+                  <div className="flex items-start gap-4">
+                    {/* Gig Image/Icon */}
+                    <div className="flex-shrink-0">
+                      {gig.images && gig.images.length > 0 ? (
+                        <img 
+                          src={gig.images[0]} 
+                          alt={gig.title}
+                          className="w-16 h-16 rounded-lg object-cover"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 bg-gradient-to-br from-[#010042] to-blue-700 rounded-lg flex items-center justify-center">
+                          <DocumentTextIcon className="h-8 w-8 text-white" />
+                        </div>
+                      )}
+                    </div>
+                    
+                                         {/* Gig Details */}
+                    <div className="flex-1 min-w-0">
+                      <div className="mb-2">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-1 leading-tight">
+                          {gig.title}
+                        </h3>
+                        <p className="text-sm text-gray-600 mb-2">
+                          {gig.category} • Mulai dari {formatPrice(
+                            gig.packages?.basic?.price || 
+                            gig.startingPrice || 
+                            gig.price || 
+                            100000
+                          )}
+                        </p>
+                      </div>
+                      
+                      {/* Stats */}
+                      <div className="flex items-center gap-6 text-sm text-gray-500 mb-4">
+                        <div className="flex items-center gap-1">
+                          <EyeIcon className="h-4 w-4" />
+                          <span>{formatNumber(gig.views || 0)} views</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <ChartBarIcon className="h-4 w-4" />
+                          <span>{gig.orderCount || 0} orders</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <StarIcon className="h-4 w-4" />
+                          <span>
+                            {gig.rating > 0 ? `${gig.rating.toFixed(1)} (${gig.reviewCount})` : 'Belum ada rating'}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      {/* Action Buttons */}
+                      <div className="flex items-center gap-3">
+                        <Link 
+                          to={`/gig/${gig.id}`}
+                          target="_blank"
+                          className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+                        >
+                          <EyeIcon className="h-4 w-4" />
+                          Lihat
+                        </Link>
+                        <button 
+                          onClick={() => navigate(`/dashboard/freelancer/gigs`)}
+                          className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-800 transition-colors"
+                        >
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                          Edit
+                        </button>
+                        <button 
+                          onClick={() => {
+                            if (window.confirm('Apakah Anda yakin ingin menghapus gig ini?')) {
+                              console.log('Delete gig:', gig.id);
+                            }
+                          }}
+                          className="flex items-center gap-1 px-3 py-1.5 text-sm text-red-600 hover:text-red-800 transition-colors"
+                        >
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                          Hapus
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <div className="ml-4">
-                    <h4 className="text-sm font-medium text-gray-900">{gig.title}</h4>
-                    <p className="text-xs text-gray-500">{gig.orderCount} pesanan</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">
-                    {formatCurrency(gig.revenue)}
-                  </p>
-                  <p className="text-xs text-gray-500">{gig.views} views</p>
-                </div>
-              </div>
-            ))}
-          </div>
+                </motion.div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+              <StarIcon className="h-12 w-12 text-gray-300 mb-4" />
+              <p className="text-lg font-medium text-gray-400 mb-2">Belum Ada Gig Terbaik</p>
+              <p className="text-sm text-gray-400 text-center">
+                Buat gig dan mulai menerima pesanan untuk melihat performa gig terbaik Anda
+              </p>
+            </div>
+          )}
         </motion.div>
 
         {/* Recent Orders */}
@@ -569,28 +836,38 @@ export default function FreelancerAnalytics() {
           <h2 className="text-lg font-semibold text-gray-900 mb-6">
             Pesanan Terbaru
           </h2>
-          <div className="space-y-3">
-            {recentOrders.slice(0, 5).map((order) => (
-              <div key={order.id} className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">
-                    #{order.id.slice(-6)}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {order.createdAt?.toDate().toLocaleDateString('id-ID')}
-                  </p>
+          {recentOrdersDisplay.length > 0 ? (
+            <div className="space-y-3">
+              {recentOrdersDisplay.slice(0, 5).map((order) => (
+                <div key={order.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">
+                      #{order.id.slice(-6)}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {order.createdAt?.toDate().toLocaleDateString('id-ID')}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(order.status)}`}>
+                      {order.status}
+                    </span>
+                    <p className="text-xs text-gray-600 mt-1">
+                      {formatCurrency(order.amount)}
+                    </p>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(order.status)}`}>
-                    {order.status}
-                  </span>
-                  <p className="text-xs text-gray-600 mt-1">
-                    {formatCurrency(order.amount)}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+              <DocumentTextIcon className="h-12 w-12 text-gray-300 mb-4" />
+              <p className="text-lg font-medium text-gray-400 mb-2">Belum Ada Pesanan</p>
+              <p className="text-sm text-gray-400 text-center">
+                Pesanan terbaru Anda akan muncul di sini setelah ada yang memesan gig Anda
+              </p>
+            </div>
+          )}
         </motion.div>
       </div>
     </div>

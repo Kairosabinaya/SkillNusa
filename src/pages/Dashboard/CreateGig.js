@@ -27,6 +27,7 @@ import {
 } from '@heroicons/react/24/outline';
 import ErrorPopup from '../../components/common/ErrorPopup';
 import SuccessPopup from '../../components/common/SuccessPopup';
+import { testGigCreation, testFirebaseAuth } from '../../utils/testGigCreation';
 
 const categories = [
   'Programming & Tech',
@@ -268,6 +269,15 @@ export default function CreateGig() {
     }
   }, [gigId]);
 
+  // Add test functions to window for debugging
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      window.testGigCreation = testGigCreation;
+      window.testFirebaseAuth = testFirebaseAuth;
+      console.log('🛠️ Debug: Test functions added to window. Use window.testGigCreation() and window.testFirebaseAuth() in console.');
+    }
+  }, []);
+
   // Force proper initialization of array fields
   useEffect(() => {
     if (!Array.isArray(formData.images)) {
@@ -435,7 +445,19 @@ export default function CreateGig() {
       }
     } catch (error) {
       console.error('Error saving gig:', error);
-      setError(`Gagal menyimpan gig: ${error.message}`);
+      let errorMessage = 'Gagal menyimpan gig';
+      
+      if (error.code === 'permission-denied') {
+        errorMessage = 'Anda tidak memiliki izin untuk membuat gig. Pastikan Anda sudah login sebagai freelancer.';
+      } else if (error.code === 'invalid-argument') {
+        errorMessage = 'Data gig tidak valid. Pastikan semua field sudah diisi dengan benar.';
+      } else if (error.code === 'unavailable') {
+        errorMessage = 'Layanan tidak tersedia saat ini. Silakan coba lagi nanti.';
+      } else if (error.message) {
+        errorMessage = `${errorMessage}: ${error.message}`;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

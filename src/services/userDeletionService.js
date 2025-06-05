@@ -32,25 +32,34 @@ class UserDeletionService {
       throw new Error('Valid user object is required');
     }
 
-    console.log(`Starting deletion process for user: ${user.uid}`);
+    console.log(`🚀 Starting deletion process for user: ${user.uid}`);
 
     try {
+      // Wait a moment to ensure subscriptions are cleaned up
+      console.log('⏳ Waiting for subscription cleanup to complete...');
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       // 1. Delete user profile photos from Cloudinary
+      console.log('🖼️ Deleting user media...');
       await this.deleteUserMedia(user.uid, userProfile, deletedData, errors);
       
       // 2. Delete user-generated content (gigs, orders, reviews, etc.)
+      console.log('📄 Deleting user-generated content...');
       await this.deleteUserGeneratedContent(user.uid, deletedData, errors);
       
       // 3. Delete user profiles (client & freelancer)
+      console.log('👤 Deleting user profiles...');
       await this.deleteUserProfiles(user.uid, deletedData, errors);
       
       // 4. Delete main user document
+      console.log('🗂️ Deleting main user document...');
       await this.deleteUserDocument(user.uid, deletedData, errors);
       
       // 5. Delete user from Firebase Auth (do this last)
+      console.log('🔐 Deleting auth user...');
       await this.deleteAuthUser(user, deletedData, errors);
       
-      console.log('User deletion completed successfully', { deletedData, errors });
+      console.log('✅ User deletion completed successfully', { deletedData, errors });
       
       return {
         success: true,
@@ -60,16 +69,25 @@ class UserDeletionService {
       
     } catch (error) {
       console.error('Critical error during user deletion:', error);
-      errors.push({
-        operation: 'deleteUserAccount',
-        error: error.message
-      });
       
-      return {
-        success: false,
-        deletedData,
-        errors
-      };
+      // Check if the error is auth/requires-recent-login
+      if (error.code === 'auth/requires-recent-login') {
+        errors.push({
+          operation: 'deleteUserAccount',
+          error: 'Recent authentication required for account deletion',
+          code: error.code,
+          requiresReauth: true
+        });
+      } else {
+        errors.push({
+          operation: 'deleteUserAccount',
+          error: error.message,
+          code: error.code
+        });
+      }
+      
+      // Re-throw the error so the calling code can handle it appropriately
+      throw error;
     }
   }
 
@@ -181,11 +199,14 @@ class UserDeletionService {
           collection
         });
       } catch (error) {
-        // Don't log error if document doesn't exist
-        if (error.code !== 'not-found') {
+        // Handle various error types gracefully
+        if (error.code === 'permission-denied') {
+          console.warn(`⚠️ Permission denied for ${collection}, user may already be deleted from auth`);
+        } else if (error.code !== 'not-found') {
           errors.push({
             operation: `delete_${collection}`,
-            error: error.message
+            error: error.message,
+            code: error.code
           });
         }
       }
@@ -204,10 +225,16 @@ class UserDeletionService {
         collection: COLLECTIONS.USERS
       });
     } catch (error) {
-      errors.push({
-        operation: 'deleteUserDocument',
-        error: error.message
-      });
+      // Handle permission errors gracefully
+      if (error.code === 'permission-denied') {
+        console.warn(`⚠️ Permission denied for user document, user may already be deleted from auth`);
+      } else {
+        errors.push({
+          operation: 'deleteUserDocument',
+          error: error.message,
+          code: error.code
+        });
+      }
     }
   }
 
@@ -223,9 +250,28 @@ class UserDeletionService {
         collection: 'firebase_auth'
       });
     } catch (error) {
+      console.error('Error deleting auth user:', error);
+      
+      // Provide more specific error messages
+      let errorMessage = error.message;
+      switch (error.code) {
+        case 'auth/requires-recent-login':
+          errorMessage = 'For security reasons, please verify your identity before deleting your account';
+          break;
+        case 'auth/user-not-found':
+          errorMessage = 'User not found in authentication system';
+          break;
+        case 'auth/user-disabled':
+          errorMessage = 'User account has been disabled';
+          break;
+        default:
+          errorMessage = error.message || 'Failed to delete user from authentication system';
+      }
+      
       errors.push({
         operation: 'deleteAuthUser',
-        error: error.message
+        error: errorMessage,
+        code: error.code
       });
       throw error; // Re-throw auth deletion errors as they're critical
     }
@@ -264,11 +310,15 @@ class UserDeletionService {
       });
       
     } catch (error) {
-      // Collection might not exist, don't treat as error
-      if (error.code !== 'not-found') {
+      // Handle various error types more gracefully
+      if (error.code === 'permission-denied') {
+        console.warn(`⚠️ Permission denied for ${collectionName}, user may already be deleted from auth`);
+        // Don't treat permission errors as critical during deletion
+      } else if (error.code !== 'not-found') {
         errors.push({
           operation: `deleteFromCollection_${collectionName}_${fieldName}`,
-          error: error.message
+          error: error.message,
+          code: error.code
         });
       }
     }
