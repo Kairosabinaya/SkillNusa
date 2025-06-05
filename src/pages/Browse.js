@@ -3,6 +3,7 @@ import { useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import gigService from '../services/gigService';
 import GigCard from '../components/common/GigCard';
+import PageContainer from '../components/common/PageContainer';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase/config.js';
 import { COLLECTIONS } from '../utils/constants';
@@ -239,7 +240,7 @@ export default function Browse() {
     <div className="min-h-screen bg-gray-50 pb-14">
       {/* Breadcrumb */}
       <div className="bg-gray-50 mt-[17px] mb-2">
-        <div className="max-w-7xl mx-auto px-4">
+        <PageContainer>
           <nav className="flex items-center space-x-2 text-sm text-gray-500 py-2">
             <Link to="/" className="hover:text-gray-900">Home</Link>
             <span className="text-gray-400 mx-1">›</span>
@@ -253,10 +254,10 @@ export default function Browse() {
               <span className="text-gray-900">Browse Gigs</span>
             )}
           </nav>
-        </div>
+        </PageContainer>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4">
+      <PageContainer>
         <div className="flex gap-6">
           {/* Left Sidebar - Filters */}
           <div className="w-80 bg-white rounded-lg p-6 h-fit sticky top-6">
@@ -506,7 +507,7 @@ export default function Browse() {
             )}
           </div>
         </div>
-      </div>
+      </PageContainer>
     </div>
   );
 } 

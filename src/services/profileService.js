@@ -3,6 +3,7 @@ import { db } from '../firebase/config';
 import firebaseService from './firebaseService';
 import { COLLECTIONS } from '../utils/constants';
 import { uploadProfilePhoto as uploadToCloudinary } from './cloudinaryService';
+import { DEFAULT_PROFILE_PHOTO } from '../utils/profilePhotoUtils';
 
 /**
  * Create a complete user profile after registration
@@ -29,7 +30,7 @@ export const createUserProfile = async (userId, profileData) => {
       roles: profileData.roles || ['client'],
       isFreelancer: profileData.isFreelancer || false,
       hasInteractedWithSkillBot: profileData.hasInteractedWithSkillBot || false,
-      profilePhoto: profileData.profilePhoto,
+      profilePhoto: profileData.profilePhoto || DEFAULT_PROFILE_PHOTO,
       updatedAt: serverTimestamp()
     });
     

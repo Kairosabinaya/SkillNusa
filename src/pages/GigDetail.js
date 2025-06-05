@@ -10,6 +10,7 @@ import chatService from '../services/chatService';
 import ErrorPopup from '../components/common/ErrorPopup';
 import SuccessPopup from '../components/common/SuccessPopup';
 import GigAnalysisChat from '../components/SkillBot/GigAnalysisChat';
+import PageContainer from '../components/common/PageContainer';
 
 export default function GigDetail() {
   const { gigId } = useParams();
@@ -54,6 +55,11 @@ export default function GigDetail() {
         
         setGig(gigData);
         setReviews(gigData.reviews || []);
+
+        // Increment view count for non-owners
+        if (gigData) {
+          await gigService.incrementGigViews(gigId, currentUser?.uid);
+        }
       } catch (error) {
         console.error('Error loading gig:', error);
         // Handle error state - maybe redirect to 404
@@ -65,7 +71,7 @@ export default function GigDetail() {
     if (gigId) {
       loadGigData();
     }
-  }, [gigId]);
+  }, [gigId, currentUser]);
 
   // Check if gig is favorited when component mounts
   useEffect(() => {
@@ -123,8 +129,7 @@ export default function GigDetail() {
     try {
       await cartService.addToCart(currentUser.uid, {
         gigId: gig.id,
-        packageType: selectedPackage,
-        quantity: 1
+        packageType: selectedPackage
       });
 
       setIsInCart(true);
@@ -255,17 +260,17 @@ export default function GigDetail() {
     setFavoriteLoading(true);
     try {
       if (isFavorited) {
-        await favoriteService.removeFavorite(currentUser.uid, gig.id);
+        await favoriteService.removeFromFavorites(currentUser.uid, gig.id);
         setIsFavorited(false);
-        setSuccess('Removed from favorites');
+        setSuccess('Dihapus dari favorit');
       } else {
-        await favoriteService.addFavorite(currentUser.uid, gig.id);
+        await favoriteService.addToFavorites(currentUser.uid, gig.id);
         setIsFavorited(true);
-        setSuccess('Added to favorites');
+        setSuccess('Ditambahkan ke favorit');
       }
     } catch (error) {
       console.error('Error toggling favorite:', error);
-      setError('Failed to update favorites. Please try again.');
+      setError('Gagal memperbarui favorit. Silakan coba lagi.');
     } finally {
       setFavoriteLoading(false);
     }
@@ -280,7 +285,7 @@ export default function GigDetail() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 pt-20">
-        <div className="max-w-7xl mx-auto px-6 py-8">
+        <PageContainer padding="px-6 py-8">
           <div className="animate-pulse">
             <div className="h-8 bg-gray-300 rounded w-3/4 mb-6"></div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -293,7 +298,7 @@ export default function GigDetail() {
               </div>
             </div>
           </div>
-        </div>
+        </PageContainer>
       </div>
     );
   }
@@ -301,12 +306,12 @@ export default function GigDetail() {
   if (!gig) {
     return (
       <div className="min-h-screen bg-gray-50 pt-20">
-        <div className="max-w-7xl mx-auto px-6 py-8 text-center">
+        <PageContainer padding="px-6 py-8 text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Gig not found</h1>
           <Link to="/browse" className="text-blue-600 hover:text-blue-800">
             Browse all gigs
           </Link>
-        </div>
+        </PageContainer>
       </div>
     );
   }
@@ -315,7 +320,7 @@ export default function GigDetail() {
 
   return (
     <div className="min-h-screen bg-gray-50 pt-[40px]">
-      <div className="max-w-7xl mx-auto px-6 py-4">
+      <PageContainer padding="px-6 py-4">
         {/* Add Error and Success Popups */}
         <ErrorPopup 
           message={error} 
@@ -475,7 +480,7 @@ export default function GigDetail() {
                           <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
                         </svg>
                         <span className="ml-1 text-sm font-medium text-gray-900">
-                          {gig.freelancer.rating || 5.0}
+                          {gig.freelancer.rating || 0}
                         </span>
                       </div>
                       <span className="text-sm text-gray-500">
@@ -986,7 +991,7 @@ export default function GigDetail() {
             </div>
           </div>
         </div>
-      </div>
+      </PageContainer>
     </div>
   );
 } 

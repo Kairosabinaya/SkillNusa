@@ -8,6 +8,8 @@ import DeleteAccountModal from '../../components/Profile/DeleteAccountModal';
 import { uploadProfilePhoto as uploadToCloudinary } from '../../services/cloudinaryService';
 import { getUserProfile, updateUserProfile } from '../../services/userProfileService';
 import { getIndonesianCities } from '../../services/profileService';
+import ProfilePhoto from '../../components/common/ProfilePhoto';
+import { getProfilePhotoUrl } from '../../utils/profilePhotoUtils';
 
 export default function Profile() {
   const { userProfile, currentUser } = useAuth();
@@ -285,7 +287,7 @@ export default function Profile() {
           <div className="p-8">
             <div className="flex flex-col md:flex-row md:items-end">
               <div className="flex-shrink-0 mb-4 md:mb-0 md:mr-6 relative">
-                {isEditing ? (
+{isEditing ? (
                   <div className="relative">
                     <div className="h-32 w-32 rounded-full overflow-hidden border-4 border-white shadow-lg">
                       {photoPreview ? (
@@ -294,16 +296,17 @@ export default function Profile() {
                           alt="Preview" 
                           className="h-32 w-32 object-cover"
                         />
-                      ) : combinedUserData?.profilePhoto ? (
-                        <img
-                          className="h-32 w-32 object-cover"
-                          src={combinedUserData.profilePhoto}
-                          alt={combinedUserData.displayName || combinedUserData.email}
-                        />
                       ) : (
-                        <div className="h-32 w-32 bg-white flex items-center justify-center text-[#010042] text-4xl font-bold">
-                          {(combinedUserData?.displayName || combinedUserData?.email)?.charAt(0).toUpperCase() || 'U'}
-                        </div>
+                        <ProfilePhoto 
+                          user={{
+                            profilePhoto: getProfilePhotoUrl(combinedUserData?.profilePhoto),
+                            displayName: combinedUserData?.displayName,
+                            email: combinedUserData?.email
+                          }}
+                          size="2xl"
+                          className="border-4 border-white shadow-lg"
+                          useInitials={false}
+                        />
                       )}
                     </div>
                     <label 
@@ -323,17 +326,16 @@ export default function Profile() {
                     />
                   </div>
                 ) : (
-                  combinedUserData?.profilePhoto ? (
-                    <img
-                      className="h-32 w-32 rounded-full object-cover border-4 border-white shadow-lg"
-                      src={combinedUserData.profilePhoto}
-                      alt={combinedUserData.displayName || combinedUserData.email}
-                    />
-                  ) : (
-                    <div className="h-32 w-32 rounded-full bg-white shadow-lg flex items-center justify-center text-[#010042] text-4xl font-bold border-4 border-white">
-                      {(combinedUserData?.displayName || combinedUserData?.email)?.charAt(0).toUpperCase() || 'U'}
-                    </div>
-                  )
+                  <ProfilePhoto 
+                    user={{
+                      profilePhoto: getProfilePhotoUrl(combinedUserData?.profilePhoto),
+                      displayName: combinedUserData?.displayName,
+                      email: combinedUserData?.email
+                    }}
+                    size="2xl"
+                    className="border-4 border-white shadow-lg"
+                    useInitials={false}
+                  />
                 )}
               </div>
               <div className="flex-1">

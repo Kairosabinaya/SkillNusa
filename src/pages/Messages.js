@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import chatService from '../services/chatService';
 import skillBotService from '../services/skillBotService';
 import { MarkdownText } from '../utils/markdownUtils';
+import PageContainer from '../components/common/PageContainer';
 
 // Constants for SkillBot
 const SKILLBOT_ID = 'skillbot';
@@ -399,7 +400,7 @@ export default function Messages() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <PageContainer padding="px-4 py-6">
         <div className="bg-white rounded-lg shadow-sm h-[80vh] flex">
           {/* Chat List */}
           <div className="w-1/3 border-r border-gray-200 flex flex-col">
@@ -595,7 +596,7 @@ export default function Messages() {
             )}
           </div>
         </div>
-      </div>
+      </PageContainer>
     </div>
   );
 } 

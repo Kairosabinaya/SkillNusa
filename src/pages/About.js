@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../routes';
+import PageContainer from '../components/common/PageContainer';
 
 export default function About() {
   const { currentUser } = useAuth();
@@ -22,7 +23,7 @@ export default function About() {
     <div>
       {/* Hero Section */}
       <div className="relative bg-gray-50 pt-24 pb-12">
-        <div className="max-w-[1400px] mx-auto px-4">
+        <PageContainer maxWidth="max-w-7xl">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             {/* Left Image Section */}
             <div className="relative w-full h-auto rounded-3xl shadow-lg overflow-hidden">
@@ -54,11 +55,11 @@ export default function About() {
               </div>
             </div>
           </div>
-        </div>
+        </PageContainer>
       </div>
 
       {/* Tim Kami Section */}
-      <div className="max-w-[1400px] mx-auto px-4 py-16">
+      <PageContainer maxWidth="max-w-7xl" padding="px-4 py-16">
         <div className="grid md:grid-cols-2 gap-12 mb-16">
           <div>
             <h2 className="text-4xl font-bold mb-2">Tim Kami</h2>
@@ -131,11 +132,11 @@ export default function About() {
             </div>
           ))}
         </div>
-      </div>
+      </PageContainer>
 
       {/* Cara Kerja SkillNusa Section */}
       <div className="bg-gray-50">
-        <div className="max-w-[1400px] mx-auto px-4 py-16">
+        <PageContainer maxWidth="max-w-7xl" padding="px-4 py-16">
           <h2 className="text-4xl font-bold text-[#010042] mb-6">Cara Kerja SkillNusa</h2>
           <p className="text-gray-700 text-lg mb-6">
             Platform kami memudahkan Anda untuk terhubung dengan profesional terampil atau menemukan klien untuk layanan Anda.
@@ -186,12 +187,12 @@ export default function About() {
               </div>
             </div>
           </div>
-        </div>
+        </PageContainer>
       </div>
 
       {/* Visi Ke Depan Section */}
       <div className="bg-white py-20">
-        <div className="max-w-[1400px] mx-auto px-4">
+        <PageContainer maxWidth="max-w-7xl">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             {/* Left Content */}
             <div>
@@ -215,7 +216,7 @@ export default function About() {
               />
             </div>
           </div>
-        </div>
+        </PageContainer>
       </div>
     </div>
   );

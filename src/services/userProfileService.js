@@ -14,6 +14,7 @@ import {
 import { updateProfile } from 'firebase/auth';
 import { db, auth } from '../firebase/config';
 import { COLLECTIONS } from '../utils/constants';
+import { DEFAULT_PROFILE_PHOTO, ensureDefaultProfilePhoto } from '../utils/profilePhotoUtils';
 
 /**
  * Get complete user profile data from all collections
@@ -30,7 +31,9 @@ export const getUserProfile = async (userId) => {
     const userDoc = await getDoc(doc(db, COLLECTIONS.USERS, userId));
     if (userDoc.exists()) {
       const userData = userDoc.data();
-      Object.assign(profileData, userData);
+      // Ensure user has default profile photo if none exists
+      const userDataWithDefaults = ensureDefaultProfilePhoto(userData);
+      Object.assign(profileData, userDataWithDefaults);
     }
     
     // Check clientProfiles collection (string format)

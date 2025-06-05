@@ -6,6 +6,7 @@ import reviewService from '../services/reviewService';
 import freelancerRatingService from '../services/freelancerRatingService';
 import { formatPrice } from '../utils/helpers';
 import RatingModal from '../components/RatingModal';
+import PageContainer from '../components/common/PageContainer';
 
 export default function Transactions() {
   const { currentUser } = useAuth();
@@ -251,7 +252,7 @@ export default function Transactions() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 ">
-        <div className="max-w-7xl mx-auto px-6 py-8">
+        <PageContainer padding="px-6 py-8">
           <div className="animate-pulse">
             <div className="h-8 bg-gray-300 rounded w-1/4 mb-6"></div>
             <div className="bg-white rounded-lg shadow-sm">
@@ -265,14 +266,14 @@ export default function Transactions() {
               ))}
             </div>
           </div>
-        </div>
+        </PageContainer>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gray-50 ">
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <PageContainer padding="px-6 py-8">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Daftar Transaksi</h1>
@@ -552,7 +553,7 @@ export default function Transactions() {
           gigTitle={orders.find(o => o.id === pendingRatingOrder)?.title || ''}
           isSubmitting={isSubmittingRating}
         />
-      </div>
+      </PageContainer>
     </div>
   );
 } 

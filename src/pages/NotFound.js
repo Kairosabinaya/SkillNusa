@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
+import PageContainer from '../components/common/PageContainer';
 
 export default function NotFound() {
   return (
-    <div className="min-h-[70vh] flex items-center justify-center px-6 py-24">
+    <PageContainer className="min-h-[70vh] flex items-center justify-center py-24">
       <div className="max-w-md w-full text-center">
         <div className="mb-8">
           <svg
@@ -40,6 +41,6 @@ export default function NotFound() {
           </Link>
         </div>
       </div>
-    </div>
+    </PageContainer>
   );
 } 

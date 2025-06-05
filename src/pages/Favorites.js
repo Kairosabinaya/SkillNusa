@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import favoriteService from '../services/favoriteService';
+import PageContainer from '../components/common/PageContainer';
 
 export default function Favorites() {
   const { currentUser } = useAuth();
@@ -102,7 +103,7 @@ export default function Favorites() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 pt-20">
-        <div className="max-w-7xl mx-auto px-6 py-8">
+        <PageContainer padding="px-6 py-8">
           <div className="animate-pulse">
             <div className="h-8 bg-gray-300 rounded w-1/4 mb-6"></div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -116,7 +117,7 @@ export default function Favorites() {
               ))}
             </div>
           </div>
-        </div>
+        </PageContainer>
       </div>
     );
   }
@@ -124,18 +125,18 @@ export default function Favorites() {
   if (error) {
     return (
       <div className="min-h-screen bg-gray-50 pt-20">
-        <div className="max-w-7xl mx-auto px-6 py-8">
+        <PageContainer padding="px-6 py-8">
           <div className="text-center">
             <div className="text-red-500 text-lg">{error}</div>
           </div>
-        </div>
+        </PageContainer>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gray-50 ">
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <PageContainer padding="px-6 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Layanan Favorit</h1>
           <p className="text-gray-600">Layanan yang telah Anda simpan untuk referensi</p>
@@ -242,7 +243,7 @@ export default function Favorites() {
             </div>
           </>
         )}
-      </div>
+      </PageContainer>
     </div>
   );
 } 

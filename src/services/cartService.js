@@ -74,7 +74,6 @@ class CartService {
         gigId: cartItem.gigId,
         freelancerId: gigData.freelancerId,
         packageType: cartItem.packageType,
-        quantity: cartItem.quantity || 1,
         
         // Denormalized gig data - handle undefined values
         gigData: {
@@ -303,41 +302,7 @@ class CartService {
     }
   }
 
-  /**
-   * Update cart item quantity
-   * @param {string} userId - User ID
-   * @param {string} cartItemId - Cart item ID
-   * @param {number} quantity - New quantity
-   * @returns {Promise<Object>} Updated cart item
-   */
-  async updateCartItemQuantity(userId, cartItemId, quantity) {
-    try {
-      if (quantity < 1) {
-        throw new Error('Quantity must be at least 1');
-      }
-      
-      // Verify ownership
-      const cartItemDoc = await getDoc(doc(db, this.collectionName, cartItemId));
-      if (!cartItemDoc.exists() || cartItemDoc.data().userId !== userId) {
-        throw new Error('Cart item not found or access denied');
-      }
-      
-      await updateDoc(doc(db, this.collectionName, cartItemId), {
-        quantity,
-        updatedAt: serverTimestamp()
-      });
-      
-      // Return updated item
-      const updatedDoc = await getDoc(doc(db, this.collectionName, cartItemId));
-      return {
-        id: updatedDoc.id,
-        ...updatedDoc.data()
-      };
-    } catch (error) {
-      console.error('Error updating cart item quantity:', error);
-      throw error;
-    }
-  }
+
 
   /**
    * Clear all cart items for user
@@ -369,7 +334,7 @@ class CartService {
   async getCartCount(userId) {
     try {
       const cartItems = await this.getCartItems(userId);
-      return cartItems.reduce((total, item) => total + (item.quantity || 1), 0);
+      return cartItems.length;
     } catch (error) {
       console.error('Error getting cart count:', error);
       return 0;
@@ -390,11 +355,7 @@ class CartService {
       );
       
       const unsubscribe = onSnapshot(q, (snapshot) => {
-        let totalCount = 0;
-        snapshot.forEach((doc) => {
-          const item = doc.data();
-          totalCount += item.quantity || 1;
-        });
+        const totalCount = snapshot.size;
         
         console.log('Real-time cart count update:', totalCount);
         callback(totalCount);
@@ -421,8 +382,7 @@ class CartService {
       const cartItems = await this.getCartItems(userId);
       return cartItems.reduce((total, item) => {
         const price = item.packageData?.price || 0;
-        const quantity = item.quantity || 1;
-        return total + (price * quantity);
+        return total + price;
       }, 0);
     } catch (error) {
       console.error('Error getting cart total:', error);

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import cartService from '../services/cartService';
+import PageContainer from '../components/common/PageContainer';
 
 export default function Cart() {
   const { currentUser } = useAuth();
@@ -9,6 +10,7 @@ export default function Cart() {
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedItems, setSelectedItems] = useState(new Set());
 
   // Redirect if not logged in
   useEffect(() => {
@@ -72,6 +74,12 @@ export default function Cart() {
   const removeFromCart = async (cartItemId) => {
     try {
       await cartService.removeFromCart(currentUser.uid, cartItemId);
+      // Remove from selected items if it was selected
+      setSelectedItems(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(cartItemId);
+        return newSet;
+      });
       // No need to manually update state - real-time subscription will handle it
     } catch (error) {
       console.error('Error removing from cart:', error);
@@ -81,22 +89,34 @@ export default function Cart() {
     }
   };
 
-  const updateQuantity = async (cartItemId, quantity) => {
-    try {
-      await cartService.updateCartItemQuantity(currentUser.uid, cartItemId, quantity);
-      // No need to manually update state - real-time subscription will handle it
-    } catch (error) {
-      console.error('Error updating quantity:', error);
-      setError('Gagal mengupdate kuantitas');
-      setTimeout(() => setError(''), 3000);
+  const handleSelectItem = (itemId) => {
+    setSelectedItems(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(itemId)) {
+        newSet.delete(itemId);
+      } else {
+        newSet.add(itemId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedItems.size === cartItems.length) {
+      setSelectedItems(new Set());
+    } else {
+      setSelectedItems(new Set(cartItems.map(item => item.id)));
     }
   };
 
+  const getSelectedItems = () => {
+    return cartItems.filter(item => selectedItems.has(item.id));
+  };
+
   const getTotalPrice = () => {
-    return cartItems.reduce((total, item) => {
+    return getSelectedItems().reduce((total, item) => {
       const price = item.packageData?.price || 0;
-      const quantity = item.quantity || 1;
-      return total + (price * quantity);
+      return total + price;
     }, 0);
   };
 
@@ -108,52 +128,35 @@ export default function Cart() {
     }).format(amount);
   };
 
+  const handleCheckout = () => {
+    const selectedCartItems = getSelectedItems();
+    if (selectedCartItems.length === 0) {
+      setError('Pilih setidaknya satu item untuk checkout');
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+    navigate('/checkout', { state: { cartItems: selectedCartItems } });
+  };
+
   if (!currentUser) {
     return null; // Will redirect
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 pt-20">
-        <div className="max-w-7xl mx-auto px-6 py-8">
-          <div className="animate-pulse">
-            <div className="h-8 bg-gray-300 rounded w-1/4 mb-6"></div>
-            <div className="grid lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2 space-y-4">
-                {[...Array(3)].map((_, i) => (
-                  <div key={i} className="bg-white rounded-lg p-6 border border-gray-200">
-                    <div className="flex items-start gap-4">
-                      <div className="w-20 h-16 bg-gray-300 rounded"></div>
-                      <div className="flex-1">
-                        <div className="h-4 bg-gray-300 rounded mb-2"></div>
-                        <div className="h-3 bg-gray-300 rounded w-3/4 mb-2"></div>
-                        <div className="h-3 bg-gray-300 rounded w-1/2"></div>
-                      </div>
-                      <div className="w-20 h-6 bg-gray-300 rounded"></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="lg:col-span-1">
-                <div className="bg-white rounded-lg p-6 border border-gray-200">
-                  <div className="h-6 bg-gray-300 rounded mb-4"></div>
-                  <div className="space-y-3 mb-6">
-                    <div className="h-4 bg-gray-300 rounded"></div>
-                    <div className="h-4 bg-gray-300 rounded"></div>
-                  </div>
-                  <div className="h-12 bg-gray-300 rounded"></div>
-                </div>
-              </div>
-            </div>
+      <div className="min-h-screen bg-gray-50">
+        <PageContainer padding="px-6 py-8">
+          <div className="flex items-center justify-center min-h-[50vh]">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#010042]"></div>
           </div>
-        </div>
+        </PageContainer>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gray-50 ">
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <PageContainer padding="px-6 py-8">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Keranjang Belanja</h1>
@@ -191,9 +194,34 @@ export default function Cart() {
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Cart Items */}
             <div className="lg:col-span-2 space-y-4">
+              {/* Select All Header */}
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={selectedItems.size === cartItems.length && cartItems.length > 0}
+                    onChange={handleSelectAll}
+                    className="w-4 h-4 text-[#010042] bg-gray-100 border-gray-300 rounded focus:ring-[#010042] focus:ring-2"
+                  />
+                  <span className="ml-3 text-sm font-medium text-gray-900">
+                    Pilih Semua ({cartItems.length} item)
+                  </span>
+                </label>
+              </div>
+
               {cartItems.map((item) => (
                 <div key={item.id} className="bg-white rounded-lg p-6 border border-gray-200">
                   <div className="flex items-start gap-4">
+                    {/* Checkbox */}
+                    <div className="flex-shrink-0 pt-1">
+                      <input
+                        type="checkbox"
+                        checked={selectedItems.has(item.id)}
+                        onChange={() => handleSelectItem(item.id)}
+                        className="w-4 h-4 text-[#010042] bg-gray-100 border-gray-300 rounded focus:ring-[#010042] focus:ring-2"
+                      />
+                    </div>
+
                     <Link to={`/gig/${item.gigId}`}>
                       <img 
                         src={item.gigData?.images?.[0] || 'https://picsum.photos/100/80'} 
@@ -220,27 +248,9 @@ export default function Cart() {
                       </p>
                     </div>
                     <div className="text-right flex flex-col items-end">
-                      <p className="text-lg font-bold text-gray-900 mb-2">
+                      <p className="text-lg font-bold text-gray-900 mb-4">
                         {formatCurrency(item.packageData?.price || 0)}
                       </p>
-                      
-                      {/* Quantity Controls */}
-                      <div className="flex items-center gap-2 mb-2">
-                        <button 
-                          onClick={() => updateQuantity(item.id, Math.max(1, (item.quantity || 1) - 1))}
-                          className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 transition-colors"
-                          disabled={item.quantity <= 1}
-                        >
-                          -
-                        </button>
-                        <span className="w-8 text-center">{item.quantity || 1}</span>
-                        <button 
-                          onClick={() => updateQuantity(item.id, (item.quantity || 1) + 1)}
-                          className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 transition-colors"
-                        >
-                          +
-                        </button>
-                      </div>
                       
                       <button 
                         onClick={() => removeFromCart(item.id)}
@@ -261,28 +271,36 @@ export default function Cart() {
                 
                 <div className="space-y-3 mb-6">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Subtotal</span>
+                    <span className="text-gray-600">Subtotal ({selectedItems.size} item)</span>
                     <span className="font-medium">{formatCurrency(getTotalPrice())}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Biaya Layanan</span>
-                    <span className="font-medium">{formatCurrency(5000)}</span>
+                    <span className="text-gray-600">Biaya Layanan (5%)</span>
+                    <span className="font-medium">{formatCurrency(getTotalPrice() * 0.05)}</span>
                   </div>
                   <div className="border-t pt-3">
                     <div className="flex justify-between">
                       <span className="text-lg font-semibold">Total</span>
                       <span className="text-lg font-bold text-[#010042]">
-                        {formatCurrency(getTotalPrice() + 5000)}
+                        {formatCurrency(getTotalPrice() * 1.05)}
                       </span>
                     </div>
                   </div>
                 </div>
 
                 <button 
-                  className="w-full bg-[#010042] text-white py-3 px-4 rounded-lg font-semibold hover:bg-[#000030] transition duration-200"
-                  onClick={() => navigate('/checkout', { state: { cartItems } })}
+                  className={`w-full py-3 px-4 rounded-lg font-semibold transition duration-200 ${
+                    selectedItems.size > 0 
+                      ? 'bg-[#010042] text-white hover:bg-[#000030]' 
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+                  onClick={handleCheckout}
+                  disabled={selectedItems.size === 0}
                 >
-                  Lanjut ke Checkout ({cartItems.length} item)
+                  {selectedItems.size > 0 
+                    ? `Lanjut ke Checkout (${selectedItems.size} item)` 
+                    : 'Pilih item untuk checkout'
+                  }
                 </button>
 
                 <p className="text-sm text-gray-500 mt-4 text-center">
@@ -292,7 +310,7 @@ export default function Cart() {
             </div>
           </div>
         )}
-      </div>
+      </PageContainer>
     </div>
   );
 } 

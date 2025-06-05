@@ -20,6 +20,7 @@ import {
 import { Link } from 'react-router-dom';
 import ErrorPopup from '../components/common/ErrorPopup';
 import SuccessPopup from '../components/common/SuccessPopup';
+import PageContainer from '../components/common/PageContainer';
 
 export default function Settings() {
   const { currentUser, userProfile } = useAuth();
@@ -174,7 +175,7 @@ export default function Settings() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <PageContainer maxWidth="max-w-6xl" padding="px-4 sm:px-6 lg:px-8 py-8">
       {/* Add Error and Success Popups */}
       <ErrorPopup 
         message={error} 
@@ -503,6 +504,6 @@ export default function Settings() {
           )}
         </motion.div>
       </div>
-    </div>
+    </PageContainer>
   );
 } 

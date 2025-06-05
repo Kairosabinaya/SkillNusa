@@ -28,6 +28,7 @@ import {
   ArrowLeftIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
+import PageContainer from '../components/common/PageContainer';
 
 export default function FreelancerProfile() {
   const { freelancerId } = useParams();
@@ -215,35 +216,39 @@ export default function FreelancerProfile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 pt-20 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#010042] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading freelancer profile...</p>
-        </div>
+      <div className="min-h-screen bg-gray-50 pt-20">
+        <PageContainer className="flex items-center justify-center min-h-[70vh]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#010042] mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading freelancer profile...</p>
+          </div>
+        </PageContainer>
       </div>
     );
   }
 
   if (!freelancerData) {
     return (
-      <div className="min-h-screen bg-gray-50 pt-20 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Freelancer tidak ditemukan</h2>
-          <p className="text-gray-600 mb-6">Freelancer yang Anda cari tidak tersedia.</p>
-          <Link 
-            to="/browse" 
-            className="inline-flex items-center px-6 py-3 bg-[#010042] text-white rounded-lg hover:bg-[#000030] transition-colors"
-          >
-            Kembali ke Browse
-          </Link>
-        </div>
+      <div className="min-h-screen bg-gray-50 pt-20">
+        <PageContainer className="flex items-center justify-center min-h-[70vh]">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Freelancer tidak ditemukan</h2>
+            <p className="text-gray-600 mb-6">Freelancer yang Anda cari tidak tersedia.</p>
+            <Link 
+              to="/browse" 
+              className="inline-flex items-center px-6 py-3 bg-[#010042] text-white rounded-lg hover:bg-[#000030] transition-colors"
+            >
+              Kembali ke Browse
+            </Link>
+          </div>
+        </PageContainer>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gray-50 pt-20">
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <PageContainer padding="px-6 py-8">
         {/* Back Button */}
         <motion.button
           initial={{ opacity: 0, x: -20 }}
@@ -656,7 +661,7 @@ export default function FreelancerProfile() {
             )}
           </div>
         </motion.div>
-      </div>
+      </PageContainer>
     </div>
   );
 } 

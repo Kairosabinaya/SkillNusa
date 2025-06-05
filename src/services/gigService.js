@@ -11,7 +11,9 @@ import {
   where, 
   orderBy, 
   limit as firestoreLimit,
-  startAfter
+  startAfter,
+  updateDoc,
+  increment
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { COLLECTIONS } from '../utils/constants';
@@ -555,6 +557,47 @@ export const getGigStats = async (gigId) => {
   }
 };
 
+/**
+ * Increment view count for a gig
+ * @param {string} gigId - The gig ID
+ * @param {string} viewerId - The ID of the user viewing the gig (optional)
+ * @returns {Promise<void>}
+ */
+export const incrementGigViews = async (gigId, viewerId = null) => {
+  try {
+    if (!gigId) {
+      throw new Error('Gig ID is required');
+    }
+
+    // Get the gig to check if viewer is the owner
+    const gigDoc = await getDoc(doc(db, COLLECTIONS.GIGS, gigId));
+    
+    if (!gigDoc.exists()) {
+      throw new Error('Gig not found');
+    }
+
+    const gigData = gigDoc.data();
+    const gigOwnerId = gigData.freelancerId || gigData.userId;
+
+    // Don't increment views if the viewer is the gig owner
+    if (viewerId && viewerId === gigOwnerId) {
+      console.log('🔍 View not counted: User is gig owner');
+      return;
+    }
+
+    // Increment the view count atomically
+    const gigRef = doc(db, COLLECTIONS.GIGS, gigId);
+    await updateDoc(gigRef, {
+      views: increment(1)
+    });
+
+    console.log('👁️ Gig view count incremented for gig:', gigId);
+  } catch (error) {
+    console.error('Error incrementing gig views:', error);
+    // Don't throw error to avoid breaking the page load
+  }
+};
+
 // Export default object with all functions
 const gigService = {
   getGigs,
@@ -563,7 +606,8 @@ const gigService = {
   getGigReviews,
   getGigsByCategory,
   searchGigs,
-  getGigStats
+  getGigStats,
+  incrementGigViews
 };
 
 export default gigService; 

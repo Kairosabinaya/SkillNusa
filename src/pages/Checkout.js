@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import orderService from '../services/orderService';
 import cartService from '../services/cartService';
+import PageContainer from '../components/common/PageContainer';
 
 export default function Checkout() {
   const { currentUser } = useAuth();
@@ -46,8 +47,7 @@ export default function Checkout() {
     if (isCartCheckout) {
       return cartItems.reduce((total, item) => {
         const price = item.packageData?.price || 0;
-        const quantity = item.quantity || 1;
-        return total + (price * quantity);
+        return total + price;
       }, 0);
     }
     return orderData?.price || 0;
@@ -80,7 +80,7 @@ export default function Checkout() {
             packageType: item.packageType,
             title: item.gigData?.title || 'Order',
             description: item.packageData?.description || '',
-            price: (item.packageData?.price || 0) * (item.quantity || 1),
+            price: item.packageData?.price || 0,
             deliveryTime: parseInt(item.packageData?.deliveryTime) || 7,
             revisions: item.packageData?.revisions || 3,
             requirements: requirements.trim(),
@@ -139,17 +139,19 @@ export default function Checkout() {
 
   if (!orderData && !isCartCheckout) {
     return (
-      <div className="min-h-screen bg-gray-50 pt-20 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Data pesanan tidak ditemukan</h2>
-          <p className="text-gray-600 mb-6">Silakan pilih layanan terlebih dahulu</p>
-          <button
-            onClick={() => navigate('/browse')}
-            className="bg-[#010042] text-white px-6 py-3 rounded-lg hover:bg-[#0100a3]"
-          >
-            Jelajahi Layanan
-          </button>
-        </div>
+      <div className="min-h-screen bg-gray-50">
+        <PageContainer className="flex items-center justify-center min-h-[70vh]" padding="px-6 py-8">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Data pesanan tidak ditemukan</h2>
+            <p className="text-gray-600 mb-6">Silakan pilih layanan terlebih dahulu</p>
+            <button
+              onClick={() => navigate('/browse')}
+              className="bg-[#010042] text-white px-6 py-3 rounded-lg hover:bg-[#0100a3]"
+            >
+              Jelajahi Layanan
+            </button>
+          </div>
+        </PageContainer>
       </div>
     );
   }
@@ -169,8 +171,7 @@ export default function Checkout() {
               </div>
               <div className="text-sm text-gray-500 mb-2">
                 Paket {item.packageType === 'basic' ? 'Dasar' : 
-                       item.packageType === 'standard' ? 'Standar' : 'Premium'} 
-                {item.quantity > 1 && ` x ${item.quantity}`}
+                       item.packageType === 'standard' ? 'Standar' : 'Premium'}
               </div>
               <div className="flex items-center gap-2 mb-2">
                 <img 
@@ -183,7 +184,7 @@ export default function Checkout() {
                 </span>
               </div>
               <div className="text-right text-gray-900 font-medium">
-                {formatPrice((item.packageData?.price || 0) * (item.quantity || 1))}
+                {formatPrice(item.packageData?.price || 0)}
               </div>
             </div>
           ))}
@@ -246,8 +247,8 @@ export default function Checkout() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-20">
-      <div className="max-w-4xl mx-auto px-6 py-8">
+    <div className="min-h-screen bg-gray-50">
+      <PageContainer padding="px-6 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Checkout</h1>
           <p className="text-gray-600">Selesaikan pesanan Anda</p>
@@ -395,7 +396,7 @@ export default function Checkout() {
 
           {/* Order Summary */}
           <div>
-            <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 sticky top-24">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
               {renderOrderSummary()}
               
               {/* Price Breakdown */}
@@ -431,7 +432,7 @@ export default function Checkout() {
             </div>
           </div>
         </div>
-      </div>
+      </PageContainer>
     </div>
   );
 } 
