@@ -11,7 +11,8 @@ import {
   orderBy, 
   serverTimestamp,
   writeBatch,
-  onSnapshot
+  onSnapshot,
+  deleteDoc
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { COLLECTIONS } from '../utils/constants';
@@ -227,16 +228,30 @@ class SkillBotService {
       
       // Check if we should show gig recommendations based on conversation
       const shouldShowGigs = this.shouldShowGigRecommendations(conversationHistory, userMessage);
+      console.log('🤖 SkillBot: shouldShowGigs =', shouldShowGigs, 'for message:', userMessage);
       
-      if (shouldShowGigs) {
+      // Also check if AI response mentions specific gigs (fallback detection)
+      const aiResponseMentionsGigs = aiResponse && (
+        aiResponse.toLowerCase().includes('rp ') || 
+        aiResponse.toLowerCase().includes('hari') || 
+        aiResponse.toLowerCase().includes('gig ') ||
+        aiResponse.toLowerCase().includes('freelancer') ||
+        aiResponse.toLowerCase().includes('skillnusa')
+      );
+      console.log('🤖 SkillBot: aiResponseMentionsGigs =', aiResponseMentionsGigs);
+      
+      if (shouldShowGigs || aiResponseMentionsGigs) {
         // Get suitable gigs and generate recommendations
         const gigs = await this.findSuitableGigs(userMessage, conversationHistory);
+        console.log('🤖 SkillBot: Found gigs:', gigs.length);
         if (gigs.length > 0) {
           const gigRecommendations = await this.generateGigRecommendations(userMessage, gigs);
+          console.log('🤖 SkillBot: Generated gig recommendations with', gigRecommendations.recommendedGigs?.length || 0, 'gigs');
           botMessageObj.content = gigRecommendations.content;
           botMessageObj.recommendedGigs = gigRecommendations.recommendedGigs;
           botMessageObj.messageType = 'gig_recommendations';
         } else {
+          console.log('🤖 SkillBot: No gigs found, using AI response only');
           botMessageObj.content = aiResponse;
         }
       } else {
@@ -301,6 +316,11 @@ class SkillBotService {
     try {
       const lowercaseMessage = userMessage.toLowerCase();
       
+      // Check if user mentions other platforms
+      if (this.mentionsOtherPlatforms(lowercaseMessage)) {
+        return "Di SkillNusa aja, banyak freelancer berkualitas dengan harga terjangkau kok! Ada project apa yang lagi kamu butuhkan? Saya bantu carikan freelancer yang tepat 😊";
+      }
+      
       if (this.isProjectDiscussion(lowercaseMessage)) {
         // Project analysis and recommendation
         return await this.handleProjectDiscussion(userMessage, conversationHistory, context);
@@ -316,7 +336,7 @@ class SkillBotService {
       }
     } catch (error) {
       console.error('Error generating AI response:', error);
-      return 'Maaf, saya sedang mengalami gangguan teknis. Silakan coba lagi dalam beberapa saat.';
+      return 'Maaf, saya sedang mengalami gangguan teknis. Silakan coba lagi dalam beberapa saat untuk mencari freelancer di SkillNusa.';
     }
   }
 
@@ -341,19 +361,21 @@ class SkillBotService {
 
       // Prepare gigs context if any are found
       const gigsContext = relevantGigs.length > 0 
-        ? `\n\nGigs tersedia yang relevan:\n${relevantGigs.slice(0, 5).map(gig => 
+        ? `\n\nGigs tersedia yang relevan di SkillNusa:\n${relevantGigs.slice(0, 5).map(gig => 
             `- ${gig.title} (Rp ${gig.packages?.basic?.price?.toLocaleString('id-ID') || 'N/A'}) - ${gig.packages?.basic?.deliveryTime || 'N/A'} hari`
           ).join('\n')}`
-        : '\n\nBelum ada gigs tersedia yang sesuai.';
+        : '\n\nBelum ada gigs tersedia yang sesuai dengan kebutuhan ini di SkillNusa.';
 
       // Create a comprehensive prompt for a single API call
       const comprehensivePrompt = `${geminiService.systemPrompts.projectAnalysis}
 
 User bilang: "${userMessage}"${conversationContext}${gigsContext}
 
+INGAT: Kamu adalah SkillBot dari platform SkillNusa. JANGAN menyebutkan platform lain!
+
 ${relevantGigs.length > 0 ? 
-  'Analisis projectnya secara SINGKAT, lalu rekomendasikan 2-3 gigs terbaik yang paling relevan. Fokus pada yang paling cocok saja. Maksimal 4 kalimat total.' :
-  'Analisis projectnya secara SINGKAT dan kasih saran umum. Maksimal 3 kalimat.'
+  'Analisis projectnya secara SINGKAT, lalu rekomendasikan 2-3 gigs terbaik yang tersedia di SkillNusa yang paling relevan. Fokus pada yang paling cocok saja. Maksimal 4 kalimat total.' :
+  'Sampaikan dengan ramah bahwa belum ada layanan yang cocok untuk kebutuhan ini di SkillNusa saat ini. Sarankan untuk cek lagi nanti atau mungkin sesuaikan kebutuhannya. Jangan menyebutkan platform lain. Maksimal 3 kalimat.'
 }`;
 
       // Make a single API call to get comprehensive response
@@ -427,6 +449,17 @@ ${relevantGigs.length > 0 ?
     }
   }
 
+  // Check if message mentions other platforms
+  mentionsOtherPlatforms(message) {
+    const otherPlatforms = [
+      'upwork', 'fiverr', 'freelancer.com', 'projects.co.id', '99designs',
+      'guru.com', 'toptal', 'peopleperhour', 'workana', 'freelance'
+    ];
+    
+    const lowercaseMessage = message.toLowerCase();
+    return otherPlatforms.some(platform => lowercaseMessage.includes(platform));
+  }
+
   // Check if message is about project discussion
   isProjectDiscussion(message) {
     const projectKeywords = [
@@ -440,18 +473,30 @@ ${relevantGigs.length > 0 ?
 
   // Check if we should show gig recommendations
   shouldShowGigRecommendations(conversationHistory, userMessage) {
-    // Show gig recommendations ONLY after user has answered clarifying questions
-    // or after specific project details are provided
-    const messageCount = conversationHistory.length;
+    // Show gig recommendations when:
+    // 1. User has provided project details and we have relevant gigs
+    // 2. After clarifying questions have been asked and user responds
+    // 3. User provides specific project requirements
     
-    // If this is the first or second message, don't show gigs yet
-    if (messageCount <= 2) return false;
+    const messageCount = conversationHistory.length;
+    const lowercaseMessage = userMessage.toLowerCase();
+    
+    // If this is the very first message (welcome), don't show gigs yet
+    if (messageCount <= 1) return false;
     
     // Check if SkillBot has already asked clarifying questions
     const hasAskedQuestions = conversationHistory.some(msg => 
       msg.senderId === SKILLBOT_ID && 
       (msg.content.includes('?') || msg.content.includes('berapa budget') || 
-       msg.content.includes('berapa lama') || msg.content.includes('fitur apa'))
+       msg.content.includes('berapa lama') || msg.content.includes('fitur apa') ||
+       msg.content.includes('detail tentang project') || msg.content.includes('jenis'))
+    );
+    
+    // Check if user has provided project-related keywords
+    const hasProjectKeywords = ['testing', 'aplikasi', 'app', 'website', 'web', 'design', 'logo', 
+                               'content', 'artikel', 'blog', 'marketing', 'video', 'editing',
+                               'e-commerce', 'toko online', 'sistem', 'platform', 'mobile'].some(keyword => 
+      lowercaseMessage.includes(keyword)
     );
     
     // Check if user has provided answers to clarifying questions
@@ -462,15 +507,22 @@ ${relevantGigs.length > 0 ?
        msg.content.toLowerCase().includes('ribu') ||
        msg.content.toLowerCase().includes('minggu') ||
        msg.content.toLowerCase().includes('bulan') ||
-       msg.content.toLowerCase().includes('hari'))
+       msg.content.toLowerCase().includes('hari') ||
+       ['mau', 'ingin', 'butuh', 'perlu', 'ya', 'iya', 'ok', 'oke'].some(word => 
+         msg.content.toLowerCase().includes(word)
+       ))
     );
     
-    // Show recommendations only if:
-    // 1. SkillBot has asked questions AND user has provided details, OR
-    // 2. User provides very specific requirements in their message
+    // Check if user provides very specific requirements
     const hasSpecificRequirements = this.hasSpecificProjectRequirements(userMessage);
     
-    return (hasAskedQuestions && hasProvidedDetails) || hasSpecificRequirements;
+    // Show recommendations if:
+    // 1. User has specific requirements, OR
+    // 2. SkillBot asked questions AND user has provided ANY response (not just detailed), OR  
+    // 3. User mentions project keywords after message 2
+    return hasSpecificRequirements || 
+           (hasAskedQuestions && hasProvidedDetails) || 
+           (messageCount >= 2 && hasProjectKeywords);
   }
 
   // Check if user message contains specific project requirements
@@ -578,7 +630,12 @@ ${relevantGigs.length > 0 ?
         'sosmed': ['Digital Marketing', 'Graphic Design'],
         'social media': ['Digital Marketing', 'Graphic Design'],
         'e-commerce': ['Web Development', 'Digital Marketing'],
-        'toko online': ['Web Development', 'Digital Marketing']
+        'toko online': ['Web Development', 'Digital Marketing'],
+        'testing': ['Mobile Development', 'Web Development', 'Quality Assurance'],
+        'test': ['Mobile Development', 'Web Development', 'Quality Assurance'],
+        'qa': ['Quality Assurance', 'Mobile Development'],
+        'bug': ['Quality Assurance', 'Web Development'],
+        'debug': ['Quality Assurance', 'Web Development', 'Mobile Development']
       };
       
       let searchCategories = [];
@@ -591,8 +648,22 @@ ${relevantGigs.length > 0 ?
       // Remove duplicates
       searchCategories = [...new Set(searchCategories)];
       
-      // If no specific categories found, return popular gigs
+      // If no specific categories found, try keyword-based search first
       if (searchCategories.length === 0) {
+        // Try searching with keywords from the message
+        const searchWords = userMessage.toLowerCase().split(' ').filter(word => word.length > 2);
+        for (const word of searchWords) {
+          try {
+            const keywordGigs = await searchGigs(word, '', 'popular', 3);
+            if (keywordGigs && keywordGigs.length > 0) {
+              return keywordGigs.slice(0, 5);
+            }
+          } catch (error) {
+            console.log(`No gigs found for keyword: ${word}`);
+          }
+        }
+        
+        // Fallback to popular gigs
         const popularGigs = await searchGigs('', '', 'popular', 5);
         return popularGigs || [];
       }
@@ -621,10 +692,10 @@ ${relevantGigs.length > 0 ?
   // Generate gig recommendations with action buttons
   async generateGigRecommendations(userRequirements, gigs) {
     try {
-      // Generate shorter, more focused recommendations with actual gig data
-      const gigSummaries = gigs.map(gig => 
-        `${gig.title} - ${gig.packages?.basic?.price ? `Rp ${gig.packages.basic.price.toLocaleString('id-ID')}` : 'Mulai dari Rp 100k'} (⭐ ${gig.averageRating || gig.rating || 4.8})`
-      ).join('\n');
+              // Generate shorter, more focused recommendations with actual gig data
+        const gigSummaries = gigs.map(gig => 
+          `${gig.title} - ${gig.packages?.basic?.price ? `Rp ${gig.packages.basic.price.toLocaleString('id-ID')}` : 'Mulai dari Rp 100k'} (⭐ ${gig.averageRating || gig.rating || 0})`
+        ).join('\n');
       
       const recommendationText = `Nih, saya nemuin beberapa freelancer yang cocok buat kebutuhan kamu:\n\n${gigSummaries}\n\nTinggal pilih yang mana nih? 😊`;
       
@@ -639,6 +710,7 @@ ${relevantGigs.length > 0 ?
             rating: gig.averageRating || gig.rating || 4.8,
             deliveryTime: gig.packages?.basic?.deliveryTime || 7,
             freelancer: gig.freelancer,
+            freelancerId: gig.freelancerId || gig.freelancer?.uid, // Add freelancerId
             image: gig.images?.[0] || gig.image,
             description: gig.description,
             tags: gig.tags,
@@ -772,9 +844,30 @@ ${relevantGigs.length > 0 ?
     }
   }
 
+  // Reset SkillBot conversation
+  async resetSkillBotConversation(userId) {
+    try {
+      const conversationId = `${userId}_${SKILLBOT_ID}`;
+      const conversationRef = doc(db, COLLECTIONS.SKILLBOT_CONVERSATIONS, conversationId);
+      
+      // Delete the conversation document
+      await deleteDoc(conversationRef);
+      
+      // Also clean up the chat entry
+      const chatId = `${userId}_${SKILLBOT_ID}`;
+      const chatRef = doc(db, 'chats', chatId);
+      await deleteDoc(chatRef);
+      
+      return true;
+    } catch (error) {
+      console.error('Error resetting SkillBot conversation:', error);
+      throw error;
+    }
+  }
+
   // Fallback response when AI fails
   getFallbackProjectAnalysis() {
-    return "Saya akan bantu carikan freelancer yang cocok untuk project kamu! Bisa cerita lebih detail tentang kebutuhan dan budget yang kamu punya? 😊";
+    return "Saya akan bantu carikan freelancer yang cocok untuk project kamu di SkillNusa! Bisa cerita lebih detail tentang kebutuhan dan budget yang kamu punya? 😊";
   }
 }
 

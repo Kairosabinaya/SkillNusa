@@ -5,6 +5,7 @@ import chatService from '../services/chatService';
 import skillBotService from '../services/skillBotService';
 import cartService from '../services/cartService';
 import favoriteService from '../services/favoriteService';
+import gigService from '../services/gigService';
 import { MarkdownText } from '../utils/markdownUtils';
 import PageContainer from '../components/common/PageContainer';
 
@@ -29,6 +30,11 @@ export default function Messages() {
   const [showCleanupNotification, setShowCleanupNotification] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
   const [messagesLoading, setMessagesLoading] = useState(false);
+  const [favoriteGigs, setFavoriteGigs] = useState(new Set());
+  const [cartGigs, setCartGigs] = useState(new Set());
+  const [ownGigs, setOwnGigs] = useState(new Set());
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   
   // Real-time listeners cleanup functions
   const [chatsUnsubscribe, setChatsUnsubscribe] = useState(null);
@@ -36,12 +42,8 @@ export default function Messages() {
   
   // Message templates for SkillBot
   const skillBotTemplates = [
-    "Saya butuh website e-commerce",
-    "Cari freelancer untuk design logo",
-    "Perlu mobile app development",
-    "Butuh content writer untuk blog",
-    "Cari video editor profesional",
-    "Perlu design banner social media"
+    "Gig apa yang cocok untuk project saya di SkillNusa?",
+    "Rekomendasi freelancer berdasarkan budget saya",
   ];
   
   // Flag to prevent StrictMode double-mounting issues
@@ -127,6 +129,17 @@ export default function Messages() {
     
     return () => clearTimeout(timeoutId);
   }, [messages]);
+
+  // Auto-dismiss success messages
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => {
+        setSuccess('');
+      }, 3000); // 3 seconds
+      
+      return () => clearTimeout(timer);
+    }
+  }, [success]);
 
   // Load user chats and initialize SkillBot if needed
   useEffect(() => {
@@ -424,9 +437,68 @@ export default function Messages() {
     }, 100); // Small delay to prevent rapid switching
   };
 
+  // Load user favorites, cart items, and own gigs
+  useEffect(() => {
+    const loadUserData = async () => {
+      if (!currentUser) return;
+      
+      try {
+        // Load favorites
+        const userFavorites = await favoriteService.getUserFavorites(currentUser.uid);
+        const favoriteGigIds = new Set(userFavorites.map(fav => fav.gigId));
+        setFavoriteGigs(favoriteGigIds);
+
+        // Load cart items
+        const cartItems = await cartService.getCartItems(currentUser.uid);
+        const cartGigIds = new Set(cartItems.map(item => item.gigId));
+        setCartGigs(cartGigIds);
+
+        // Load own gigs (check for all users, not just freelancers)
+        try {
+          const freelancerGigs = await gigService.getFreelancerGigs(currentUser.uid);
+          const ownGigIds = new Set(freelancerGigs.map(gig => gig.id));
+          setOwnGigs(ownGigIds);
+        } catch (error) {
+          // If getFreelancerGigs fails (user has no gigs), just set empty set
+          console.log('User has no gigs or error loading gigs:', error);
+          setOwnGigs(new Set());
+        }
+      } catch (error) {
+        console.error('Error loading user data:', error);
+      }
+    };
+
+    loadUserData();
+  }, [currentUser]);
+
   // Handle template message click
   const handleTemplateClick = (template) => {
     setNewMessage(template);
+  };
+
+  // Handle reset chat
+  const handleResetChat = async () => {
+    if (!currentUser || !selectedChat?.isSkillBot) return;
+    
+    try {
+      setActionLoading('reset_chat');
+      
+      // Reset SkillBot conversation
+      await skillBotService.resetSkillBotConversation(currentUser.uid);
+      
+      // Initialize new conversation
+      const newConversation = await skillBotService.initializeSkillBotForUser(
+        currentUser.uid,
+        currentUser.displayName || 'User'
+      );
+      
+      setMessages(newConversation.messages);
+      setTimeout(() => scrollToBottom(), 50);
+    } catch (error) {
+      console.error('Error resetting chat:', error);
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   // Handle gig card actions
@@ -436,6 +508,11 @@ export default function Messages() {
       return;
     }
 
+    // Clear previous errors/success messages
+    setError('');
+    setSuccess('');
+
+    const isOwnGig = (currentUser && gig && currentUser.uid === gig.freelancerId) || ownGigs.has(gig.id);
     setActionLoading(`${action}-${gig.id}`);
 
     try {
@@ -444,26 +521,70 @@ export default function Messages() {
           navigate(`/gig/${gig.id}`);
           break;
           
-        case 'add_to_favorites':
-          await favoriteService.addToFavorites(currentUser.uid, gig.id);
+        case 'toggle_favorite':
+          // Prevent freelancer from favoriting their own gig
+          if (isOwnGig) {
+            setError('Anda tidak dapat menyukai gig Anda sendiri');
+            return;
+          }
+
+          const isCurrentlyFavorited = favoriteGigs.has(gig.id);
           
-          // Send success message to SkillBot
-          const favMessage = {
-            id: `fav-${Date.now()}`,
-            content: `✅ Gig "${gig.title}" berhasil ditambahkan ke favorit!`,
-            senderId: SKILLBOT_ID,
-            createdAt: new Date(),
-            messageType: 'system_notification'
-          };
-          setMessages(prev => [...prev, favMessage]);
+          if (isCurrentlyFavorited) {
+            await favoriteService.removeFromFavorites(currentUser.uid, gig.id);
+            setFavoriteGigs(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(gig.id);
+              return newSet;
+            });
+            setSuccess('Dihapus dari favorit');
+            
+            // Send success message to SkillBot
+            const removeFavMessage = {
+              id: `fav-${Date.now()}`,
+              content: `💔 Gig "${gig.title}" dihapus dari favorit!`,
+              senderId: SKILLBOT_ID,
+              createdAt: new Date(),
+              messageType: 'system_notification'
+            };
+            setMessages(prev => [...prev, removeFavMessage]);
+          } else {
+            await favoriteService.addToFavorites(currentUser.uid, gig.id);
+            setFavoriteGigs(prev => new Set(prev).add(gig.id));
+            setSuccess('Ditambahkan ke favorit');
+            
+            // Send success message to SkillBot
+            const favMessage = {
+              id: `fav-${Date.now()}`,
+              content: `✅ Gig "${gig.title}" berhasil ditambahkan ke favorit!`,
+              senderId: SKILLBOT_ID,
+              createdAt: new Date(),
+              messageType: 'system_notification'
+            };
+            setMessages(prev => [...prev, favMessage]);
+          }
           setTimeout(() => scrollToBottom(), 50);
           break;
           
         case 'add_to_cart':
+          // Prevent freelancer from adding own gig to cart
+          if (isOwnGig) {
+            setError('Anda tidak dapat menambahkan gig Anda sendiri ke keranjang');
+            return;
+          }
+
           await cartService.addToCart(currentUser.uid, {
             gigId: gig.id,
             packageType: 'basic'
           });
+
+          setCartGigs(prev => new Set(prev).add(gig.id));
+          setSuccess('Item berhasil ditambahkan ke keranjang!');
+          
+          // Refresh cart count in dashboard if available
+          if (window.refreshClientOrdersCount) {
+            window.refreshClientOrdersCount();
+          }
           
           // Send success message to SkillBot
           const cartMessage = {
@@ -482,11 +603,12 @@ export default function Messages() {
       }
     } catch (error) {
       console.error('Error handling gig action:', error);
+      setError('Gagal memproses aksi: ' + error.message);
       
       // Send error message to SkillBot
       const errorMessage = {
         id: `error-${Date.now()}`,
-        content: `❌ Maaf, terjadi kesalahan saat memproses aksi. Silakan coba lagi.`,
+        content: `❌ Maaf, terjadi kesalahan saat memproses aksi di SkillNusa. Silakan coba lagi.`,
         senderId: SKILLBOT_ID,
         createdAt: new Date(),
         messageType: 'system_notification'
@@ -559,7 +681,7 @@ export default function Messages() {
           // Add error response
           const errorMessage = {
             id: `error-${Date.now()}`,
-            content: "Maaf, saya sedang mengalami gangguan teknis. Silakan coba lagi dalam beberapa saat.",
+            content: "Maaf, saya sedang mengalami gangguan teknis. Silakan coba lagi dalam beberapa saat untuk mencari freelancer di SkillNusa.",
             senderId: SKILLBOT_ID,
             createdAt: new Date(),
             messageType: 'error'
@@ -712,37 +834,111 @@ export default function Messages() {
               <>
                 {/* Chat Header */}
                 <div className="p-4 border-b border-gray-200 bg-white">
-                  <div className="flex items-center space-x-3">
-                    <div className="flex-shrink-0 relative">
-                      {(selectedChat.isSkillBot || selectedChat.id.includes(SKILLBOT_ID)) ? (
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-md">
-                          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
-                          </svg>
-                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
-                            <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="flex-shrink-0 relative">
+                        {(selectedChat.isSkillBot || selectedChat.id.includes(SKILLBOT_ID)) ? (
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-md">
+                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                            </svg>
+                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
+                              <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                            </div>
                           </div>
-                        </div>
-                      ) : (
-                        <img
-                          src={selectedChat.otherParticipant?.profilePhoto || '/images/default-profile.jpg'}
-                          alt={selectedChat.otherParticipant?.displayName}
-                          className="w-10 h-10 rounded-full object-cover"
-                        />
-                      )}
+                        ) : (
+                          <img
+                            src={selectedChat.otherParticipant?.profilePhoto || '/images/default-profile.jpg'}
+                            alt={selectedChat.otherParticipant?.displayName}
+                            className="w-10 h-10 rounded-full object-cover"
+                          />
+                        )}
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-medium text-gray-900">
+                          {selectedChat.otherParticipant?.displayName}
+                        </h3>
+                        {(selectedChat.isSkillBot || selectedChat.id.includes(SKILLBOT_ID)) && (
+                          <p className="text-sm text-green-600">
+                            {skillBotTyping ? 'Mengetik...' : 'Online • AI Assistant'}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-lg font-medium text-gray-900">
-                        {selectedChat.otherParticipant?.displayName}
-                      </h3>
-                      {(selectedChat.isSkillBot || selectedChat.id.includes(SKILLBOT_ID)) && (
-                        <p className="text-sm text-green-600">
-                          {skillBotTyping ? 'Mengetik...' : 'Online • AI Assistant'}
-                        </p>
-                      )}
-                    </div>
+                    
+                    {/* Reset button for SkillBot */}
+                    {(selectedChat.isSkillBot || selectedChat.id.includes(SKILLBOT_ID)) && (
+                      <button
+                        onClick={handleResetChat}
+                        disabled={actionLoading === 'reset_chat'}
+                        className="px-3 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 flex items-center space-x-2"
+                        title="Reset percakapan"
+                      >
+                        {actionLoading === 'reset_chat' ? (
+                          <div className="w-4 h-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
+                        ) : (
+                          <>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            <span>Reset</span>
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
                 </div>
+
+                {/* Error/Success Messages */}
+                {error && (
+                  <div className="mx-4 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="flex">
+                      <div className="flex-shrink-0">
+                        <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm text-red-700">{error}</p>
+                      </div>
+                      <div className="ml-auto pl-3">
+                        <button
+                          onClick={() => setError('')}
+                          className="inline-flex text-red-400 hover:text-red-600"
+                        >
+                          <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {success && (
+                  <div className="mx-4 mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex">
+                      <div className="flex-shrink-0">
+                        <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm text-green-700">{success}</p>
+                      </div>
+                      <div className="ml-auto pl-3">
+                        <button
+                          onClick={() => setSuccess('')}
+                          className="inline-flex text-green-400 hover:text-green-600"
+                        >
+                          <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Messages */}
                 <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -799,10 +995,14 @@ export default function Messages() {
                   {/* Gig Recommendation Cards */}
                   {messages.filter(msg => msg.messageType === 'gig_recommendations' && msg.recommendedGigs).map((recMsg) => (
                     <div key={`${recMsg.id}-gigs`} className="flex justify-start">
-                      <div className="max-w-full w-full">
+                      <div className="max-w-xs lg:max-w-md w-full">
                         <div className="space-y-3 mt-3">
-                          {recMsg.recommendedGigs?.map((gig) => (
-                            <div key={gig.id} className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                          {recMsg.recommendedGigs?.map((gig) => {
+                            // Check if current user owns this gig - use freelancerId from gig data
+                            const isOwnGig = currentUser && gig && (currentUser.uid === gig.freelancerId || ownGigs.has(gig.id));
+                            
+                            return (
+                              <div key={gig.id} className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
                               <div className="p-4">
                                 <div className="flex items-start space-x-4">
                                   <img 
@@ -816,47 +1016,105 @@ export default function Messages() {
                                     </h4>
                                     <p className="text-sm text-gray-600 mb-2">
                                       oleh {gig.freelancer?.displayName || 'Freelancer'}
-                                    </p>
-                                                                         <div className="flex items-center space-x-3 text-sm text-gray-500 mb-3">
-                                       <span className="flex items-center">
-                                         ⭐ {gig.rating || 4.8} {gig.reviewCount ? `(${gig.reviewCount} review)` : ''}
-                                       </span>
-                                       <span>•</span>
-                                       <span>{gig.deliveryTime || 7} hari pengerjaan</span>
-                                     </div>
-                                    <p className="text-lg font-bold text-gray-900 mb-3">
-                                      {formatPrice(gig.price)}
-                                    </p>
+                                      {isOwnGig && <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">Gig Anda</span>}
+                                        </p>
+                                          <div className="flex items-center space-x-3 text-sm text-gray-500 mb-3">
+                                          <span className="flex items-center">
+                                          <svg className="w-4 h-4 text-yellow-400 fill-current" viewBox="0 0 24 24">
+                                            <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                                          </svg>
+                                          {gig.rating || 0} {gig.reviewCount ? `(${gig.reviewCount} review)` : ''}
+                                          </span>
+                                          <span>•</span>
+                                          <span>{gig.deliveryTime || 7} hari pengerjaan</span>
+                                        </div>
+                                        <p className="text-lg font-bold text-gray-900 mb-3">
+                                          {formatPrice(gig.price)}
+                                        </p>
                                     
                                                                          {/* Action Buttons */}
-                                     <div className="flex space-x-3">
+                                     <div className="flex space-x-2">
                                        <button
                                          onClick={() => handleGigAction('view_details', gig)}
                                          disabled={actionLoading === `view_details-${gig.id}`}
-                                         className="flex-1 px-4 py-2 text-sm font-medium bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors disabled:opacity-50"
+                                         className="flex-1 px-3 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
                                        >
                                          {actionLoading === `view_details-${gig.id}` ? 'Loading...' : 'Lihat Detail'}
                                        </button>
+                                       
+                                       {/* Favorite Button */}
                                        <button
-                                         onClick={() => handleGigAction('add_to_favorites', gig)}
-                                         disabled={actionLoading === `add_to_favorites-${gig.id}`}
-                                         className="px-4 py-2 text-sm font-medium bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors disabled:opacity-50"
+                                         onClick={() => handleGigAction('toggle_favorite', gig)}
+                                         disabled={actionLoading === `toggle_favorite-${gig.id}` || isOwnGig}
+                                         className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                                           isOwnGig
+                                             ? 'bg-gray-100 text-gray-400 border-gray-200'
+                                             : favoriteGigs.has(gig.id)
+                                             ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'
+                                             : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                                         }`}
+                                         title={isOwnGig ? 'Tidak dapat menyukai gig sendiri' : (favoriteGigs.has(gig.id) ? 'Hapus dari favorit' : 'Tambah ke favorit')}
                                        >
-                                         {actionLoading === `add_to_favorites-${gig.id}` ? '⏳' : '❤️'} Favorit
+                                         {actionLoading === `toggle_favorite-${gig.id}` ? (
+                                           <div className="w-4 h-4 animate-spin rounded-full border-2 border-gray-300 border-t-current mx-auto"></div>
+                                         ) : (
+                                           <div className="flex items-center justify-center">
+                                             <svg 
+                                               className="w-4 h-4 mr-1" 
+                                               fill={favoriteGigs.has(gig.id) && !isOwnGig ? 'currentColor' : 'none'} 
+                                               stroke="currentColor" 
+                                               viewBox="0 0 24 24"
+                                             >
+                                               <path 
+                                                 strokeLinecap="round" 
+                                                 strokeLinejoin="round" 
+                                                 strokeWidth={2} 
+                                                 d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" 
+                                               />
+                                             </svg>
+                                                                                            {isOwnGig 
+                                                ? 'Favorit' 
+                                                : favoriteGigs.has(gig.id) 
+                                                ? 'Favorited' 
+                                                : 'Favorit'
+                                               }
+                                           </div>
+                                         )}
                                        </button>
+                                       
+                                       {/* Cart Button */}
                                        <button
                                          onClick={() => handleGigAction('add_to_cart', gig)}
-                                         disabled={actionLoading === `add_to_cart-${gig.id}`}
-                                         className="px-4 py-2 text-sm font-medium bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors disabled:opacity-50"
+                                         disabled={actionLoading === `add_to_cart-${gig.id}` || cartGigs.has(gig.id) || isOwnGig}
+                                         className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                                           isOwnGig
+                                             ? 'bg-gray-100 text-gray-400 border border-gray-200'
+                                             : cartGigs.has(gig.id)
+                                             ? 'bg-gray-100 text-gray-600 border border-gray-300'
+                                             : 'bg-green-600 text-white hover:bg-green-700'
+                                         }`}
+                                         title={isOwnGig ? 'Tidak dapat menambahkan gig sendiri ke keranjang' : (cartGigs.has(gig.id) ? 'Sudah ada di keranjang' : 'Tambah ke keranjang')}
                                        >
-                                         {actionLoading === `add_to_cart-${gig.id}` ? '⏳' : '🛒'} Keranjang
+                                         {actionLoading === `add_to_cart-${gig.id}` ? (
+                                           <div className="w-4 h-4 animate-spin rounded-full border-2 border-gray-300 border-t-current mx-auto"></div>
+                                         ) : (
+                                           <div className="flex items-center justify-center">
+                                                                                            {isOwnGig 
+                                                ? 'Keranjang' 
+                                                : cartGigs.has(gig.id) 
+                                                ? 'In Cart' 
+                                                : 'Keranjang'
+                                               }
+                                           </div>
+                                         )}
                                        </button>
                                      </div>
                                   </div>
                                 </div>
                               </div>
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     </div>

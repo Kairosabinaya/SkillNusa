@@ -107,7 +107,7 @@ Ada yang mau ditanyakan tentang layanan ini?`,
       // Add error response
       const errorMessage = {
         id: `error-${Date.now()}`,
-        content: 'Maaf, saya sedang mengalami gangguan teknis. Silakan coba lagi dalam beberapa saat.',
+        content: 'Maaf, saya sedang mengalami gangguan teknis. Silakan coba lagi dalam beberapa saat untuk analisis layanan SkillNusa.',
         senderId: 'skillbot',
         createdAt: new Date(),
         messageType: 'error'
