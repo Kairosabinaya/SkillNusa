@@ -252,7 +252,7 @@ export default function DashboardLayout({ children }) {
   const handleLogout = async () => {
     try {
       await logout();
-      navigate('/');
+      navigate('/'); // Always redirect to home after logout
     } catch (error) {
       console.error('Logout failed:', error);
     }

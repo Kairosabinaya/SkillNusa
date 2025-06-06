@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { sendEmailVerification } from 'firebase/auth';
+import PageContainer from '../../components/common/PageContainer';
 
 export default function VerifyEmail() {
   const { currentUser, logout, syncEmailVerifiedStatus } = useAuth();
@@ -101,99 +102,103 @@ export default function VerifyEmail() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-md">
-        <div>
-          <div className="flex justify-center">
-            <a href="#" onClick={handleHomeClick} className="block text-center">
-              <span className="text-2xl font-bold cursor-pointer bg-gradient-to-r from-[#010042] to-[#0100a3] bg-clip-text text-transparent" style={{letterSpacing: "0.5px"}}>SkillNusa</span>
-            </a>
-          </div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">Verifikasi Email Anda</h2>
-          <div className="mt-2 text-center text-sm text-gray-600">
-            <p>
-              Kami telah mengirimkan email verifikasi ke:{' '}
-              <span className="font-medium text-[#010042]">
-                {currentUser?.email}
-              </span>
-            </p>
-            <p className="mt-2">
-              Silakan periksa kotak masuk Anda dan ikuti instruksi untuk memverifikasi akun Anda.
-            </p>
-          </div>
-        </div>
-        
-        {message && (
-          <div className="rounded-md bg-green-50 p-4">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
+    <div className="min-h-screen bg-gray-50 py-12 relative">
+      <PageContainer maxWidth="max-w-md" padding="px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-center min-h-[calc(100vh-6rem)]">
+          <div className="w-full space-y-8 bg-white p-8 rounded-xl shadow-md">
+            <div>
+              <div className="flex justify-center">
+                <a href="#" onClick={handleHomeClick} className="block text-center">
+                  <span className="text-2xl font-bold cursor-pointer bg-gradient-to-r from-[#010042] to-[#0100a3] bg-clip-text text-transparent" style={{letterSpacing: "0.5px"}}>SkillNusa</span>
+                </a>
               </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-green-800">{message}</p>
+              <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">Verifikasi Email Anda</h2>
+              <div className="mt-2 text-center text-sm text-gray-600">
+                <p>
+                  Kami telah mengirimkan email verifikasi ke:{' '}
+                  <span className="font-medium text-[#010042]">
+                    {currentUser?.email}
+                  </span>
+                </p>
+                <p className="mt-2">
+                  Silakan periksa kotak masuk Anda dan ikuti instruksi untuk memverifikasi akun Anda.
+                </p>
               </div>
             </div>
-          </div>
-        )}
-        
-        {error && (
-          <div className="rounded-md bg-red-50 p-4">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                </svg>
+            
+            {message && (
+              <div className="rounded-md bg-green-50 p-4">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm font-medium text-green-800">{message}</p>
+                  </div>
+                </div>
               </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-red-800">{error}</p>
+            )}
+            
+            {error && (
+              <div className="rounded-md bg-red-50 p-4">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm font-medium text-red-800">{error}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div className="rounded-md bg-blue-50 p-4">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1v-3a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3 flex-1 md:flex md:justify-between">
+                  <p className="text-sm text-blue-700">
+                    Tidak menerima email? Periksa folder spam Anda atau kirim ulang email verifikasi.
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        )}
-        
-        <div className="rounded-md bg-blue-50 p-4">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1v-3a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
+
+            <div className="flex flex-col items-center justify-center space-y-4">
+              <button
+                type="button"
+                onClick={handleCheckVerificationStatus}
+                disabled={checkingStatus}
+                className="text-center w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+              >
+                {checkingStatus ? 'Memeriksa...' : 'Saya Sudah Verifikasi Email'}
+              </button>
+              
+              <button
+                type="button"
+                onClick={handleResendVerification}
+                disabled={loading}
+                className="text-center w-full inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#010042]"
+              >
+                {loading ? 'Mengirim...' : 'Kirim Ulang Email Verifikasi'}
+              </button>
             </div>
-            <div className="ml-3 flex-1 md:flex md:justify-between">
-              <p className="text-sm text-blue-700">
-                Tidak menerima email? Periksa folder spam Anda atau kirim ulang email verifikasi.
+            
+            <div className="mt-4 text-center">
+              <p className="text-sm text-gray-600">
+                Setelah verifikasi email, Anda dapat mulai menggunakan akun SkillNusa Anda.
               </p>
             </div>
           </div>
         </div>
-
-        <div className="flex flex-col items-center justify-center space-y-4">
-          <button
-            type="button"
-            onClick={handleCheckVerificationStatus}
-            disabled={checkingStatus}
-            className="text-center w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-          >
-            {checkingStatus ? 'Memeriksa...' : 'Saya Sudah Verifikasi Email'}
-          </button>
-          
-          <button
-            type="button"
-            onClick={handleResendVerification}
-            disabled={loading}
-            className="text-center w-full inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#010042]"
-          >
-            {loading ? 'Mengirim...' : 'Kirim Ulang Email Verifikasi'}
-          </button>
-        </div>
-        
-        <div className="mt-4 text-center">
-          <p className="text-sm text-gray-600">
-            Setelah verifikasi email, Anda dapat mulai menggunakan akun SkillNusa Anda.
-          </p>
-        </div>
-      </div>
+      </PageContainer>
 
       {/* Warning Modal */}
       {showWarning && (

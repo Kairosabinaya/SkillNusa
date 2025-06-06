@@ -42,7 +42,7 @@ export default function OrderCard({ order, index, onStatusUpdate, userType = 'fr
   };
 
   const handleReject = () => {
-    onStatusUpdate(order.id, 'rejected');
+    onStatusUpdate(order.id, 'cancelled');
   };
 
   const handleRevisionClick = () => {
@@ -135,14 +135,24 @@ export default function OrderCard({ order, index, onStatusUpdate, userType = 'fr
             <CalendarIcon className="h-4 w-4 mr-2" />
             <span>{formatDate(order.createdAt)}</span>
           </div>
-          {order.deadline && (
+          {(order.deadline || order.status === 'completed') && (
             <div className="flex items-center text-sm">
               <ClockIcon className="h-4 w-4 mr-2 text-gray-400" />
               <div className="flex flex-col">
-                <span className="text-gray-600">{formatDate(order.deadline)}</span>
-                <span className={`text-xs ${getDeadlineUrgencyColor(order.deadline)}`}>
-                  Sisa: {calculateTimeRemaining(order.deadline)}
+                <span className="text-gray-600">
+                  {order.status === 'completed' 
+                    ? formatDate(order.completedAt || order.timeline?.completed || order.deliveredAt || order.deadline)
+                    : formatDate(order.deadline)
+                  }
                 </span>
+                {/* Only show countdown if order is not completed */}
+                {order.status !== 'completed' && order.deadline && (
+                  <span className={`text-xs ${getDeadlineUrgencyColor(order.deadline)}`}>
+                    Sisa: {calculateTimeRemaining(order.deadline)}
+                  </span>
+                )}
+                {/* Show completion indicator for completed orders */}
+                {order.status === 'completed'}
               </div>
             </div>
           )}

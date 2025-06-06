@@ -9,7 +9,9 @@ import {
   getDocs,
   orderBy,
   startAfter,
-  limit
+  limit,
+  doc,
+  getDoc
 } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import {
@@ -128,15 +130,17 @@ export default function FreelancerAnalytics() {
             orders.push(order);
         
         if (order.status === 'completed') {
-          totalEarnings += order.amount || 0;
+          // Use freelancerEarning field instead of amount
+          const earnings = order.freelancerEarning || order.amount || 0;
+          totalEarnings += earnings;
           completedOrders++;
           
           if (orderDate >= thisMonthStart) {
-            thisMonthEarnings += order.amount || 0;
+            thisMonthEarnings += earnings;
           }
           
           if (orderDate >= lastMonthStart && orderDate <= lastMonthEnd) {
-            lastMonthEarnings += order.amount || 0;
+            lastMonthEarnings += earnings;
           }
           
           // Calculate delivery time
@@ -151,7 +155,7 @@ export default function FreelancerAnalytics() {
           cancelledOrders++;
         }
         
-            if (order.status === 'in_revision') {
+            if (order.status === 'in_revision' || order.revisionCount > 0) {
               revisionCount++;
             }
           }
@@ -191,20 +195,7 @@ export default function FreelancerAnalytics() {
             gig.orderCount = gigOrders.length;
             gig.revenue = gigOrders
               .filter(order => order.status === 'completed')
-              .reduce((sum, order) => sum + (order.amount || 0), 0);
-            
-            // Calculate rating from reviews
-            const gigReviews = orders.filter(order => order.gigId === doc.id && order.status === 'completed');
-            let totalRating = 0;
-            let ratingCount = 0;
-            gigReviews.forEach(order => {
-              if (order.rating) {
-                totalRating += order.rating;
-                ratingCount++;
-              }
-            });
-            gig.rating = ratingCount > 0 ? totalRating / ratingCount : 0;
-            gig.reviewCount = ratingCount;
+              .reduce((sum, order) => sum + (order.freelancerEarning || order.amount || 0), 0);
             
             gigs.push(gig);
             totalViews += gig.views || 0;
@@ -213,10 +204,10 @@ export default function FreelancerAnalytics() {
         });
       });
 
-      // Fetch reviews for rating
+      // Fetch reviews for rating using correct field
       const reviewsQuery = query(
         collection(db, 'reviews'),
-        where('sellerId', '==', currentUser.uid)
+        where('freelancerId', '==', currentUser.uid)
       );
       
       const reviewsSnapshot = await getDocs(reviewsQuery);
@@ -228,6 +219,32 @@ export default function FreelancerAnalytics() {
         totalRating += review.rating || 0;
         reviewCount++;
       });
+
+      // Fetch gig ratings and add to gigs
+      const gigsWithRatings = await Promise.all(
+        gigs.map(async (gig) => {
+          const gigReviewsQuery = query(
+            collection(db, 'reviews'),
+            where('gigId', '==', gig.id)
+          );
+          
+          const gigReviewsSnapshot = await getDocs(gigReviewsQuery);
+          let gigTotalRating = 0;
+          let gigReviewCount = 0;
+          
+          gigReviewsSnapshot.forEach(reviewDoc => {
+            const review = reviewDoc.data();
+            gigTotalRating += review.rating || 0;
+            gigReviewCount++;
+          });
+          
+          return {
+            ...gig,
+            rating: gigReviewCount > 0 ? gigTotalRating / gigReviewCount : 0,
+            reviewCount: gigReviewCount
+          };
+        })
+      );
 
       // Calculate analytics
       const averageRating = reviewCount > 0 ? totalRating / reviewCount : 0;
@@ -266,17 +283,51 @@ export default function FreelancerAnalytics() {
       });
 
       // Sort gigs by performance
-      const sortedGigs = gigs
+      const sortedGigs = gigsWithRatings
         .sort((a, b) => b.revenue - a.revenue)
         .slice(0, 5);
       setTopGigs(sortedGigs);
 
-      // Get recent orders and store all orders for chart generation
-      const sortedOrders = orders
-        .sort((a, b) => b.createdAt?.toDate() - a.createdAt?.toDate())
-        .slice(0, 10);
+      // Get recent orders with detailed info and store all orders for chart generation
+      const ordersWithDetails = await Promise.all(
+        orders.slice(0, 10).map(async (order) => {
+          let gigTitle = 'Gig Tidak Diketahui';
+          let clientName = 'Client Tidak Diketahui';
+          
+          // Fetch gig title
+          if (order.gigId) {
+            try {
+              const gigDoc = await getDoc(doc(db, 'gigs', order.gigId));
+              if (gigDoc.exists()) {
+                gigTitle = gigDoc.data().title || gigTitle;
+              }
+            } catch (error) {
+              console.error('Error fetching gig:', error);
+            }
+          }
+          
+          // Fetch client name
+          if (order.clientId) {
+            try {
+              const clientDoc = await getDoc(doc(db, 'users', order.clientId));
+              if (clientDoc.exists()) {
+                clientName = clientDoc.data().displayName || clientName;
+              }
+            } catch (error) {
+              console.error('Error fetching client:', error);
+            }
+          }
+          
+          return {
+            ...order,
+            gigTitle,
+            clientName
+          };
+        })
+      );
+      
       setRecentOrders(orders); // Store all orders for chart generation
-      setRecentOrdersDisplay(sortedOrders); // Store recent orders for display
+      setRecentOrdersDisplay(ordersWithDetails); // Store recent orders for display
 
               // Generate earnings chart data (7 days only)
         const chartData = generateEarningsChart(orders, 7);
@@ -307,7 +358,7 @@ export default function FreelancerAnalytics() {
                  orderDate >= dayStart && 
                  orderDate < dayEnd;
         })
-        .reduce((sum, order) => sum + (order.amount || 0), 0);
+        .reduce((sum, order) => sum + (order.freelancerEarning || order.amount || 0), 0);
       
       const formattedDate = date.toLocaleDateString('id-ID', { weekday: 'short' });
       
@@ -361,6 +412,25 @@ export default function FreelancerAnalytics() {
     }
   };
 
+  const getStatusText = (status) => {
+    switch (status) {
+      case 'completed':
+        return 'Selesai';
+      case 'pending':
+        return 'Menunggu';
+      case 'active':
+        return 'Aktif';
+      case 'cancelled':
+        return 'Dibatalkan';
+      case 'in_progress':
+        return 'Dalam Proses';
+      case 'in_revision':
+        return 'Revisi';
+      default:
+        return status;
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -402,7 +472,7 @@ export default function FreelancerAnalytics() {
         </div>
       </motion.div>
 
-      {/* Key Metrics */}
+      {/* Analytics Overview */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -415,15 +485,17 @@ export default function FreelancerAnalytics() {
             <div className="p-3 bg-green-100 rounded-full">
               <CurrencyDollarIcon className="h-6 w-6 text-green-600" />
             </div>
-            <div className={`flex items-center text-sm ${
-              analytics.earnings.trend >= 0 ? 'text-green-600' : 'text-red-600'
-            }`}>
+            <div className="flex items-center">
               {analytics.earnings.trend >= 0 ? (
-                <ArrowTrendingUpIcon className="h-4 w-4 mr-1" />
+                <ArrowTrendingUpIcon className="h-4 w-4 text-green-500 mr-1" />
               ) : (
-                <ArrowTrendingDownIcon className="h-4 w-4 mr-1" />
+                <ArrowTrendingDownIcon className="h-4 w-4 text-red-500 mr-1" />
               )}
-              <span>{Math.abs(analytics.earnings.trend).toFixed(1)}%</span>
+              <span className={`text-sm font-medium ${
+                analytics.earnings.trend >= 0 ? 'text-green-600' : 'text-red-600'
+              }`}>
+                {Math.abs(analytics.earnings.trend).toFixed(1)}%
+              </span>
             </div>
           </div>
           <h3 className="text-2xl font-bold text-gray-900 mb-1">
@@ -432,6 +504,9 @@ export default function FreelancerAnalytics() {
           <p className="text-sm text-gray-600">Total Pendapatan</p>
           <p className="text-xs text-gray-500 mt-1">
             Bulan ini: {formatCurrency(analytics.earnings.thisMonth)}
+          </p>
+          <p className="text-xs text-orange-600 mt-1 font-medium">
+            Sudah dipotong platform fee 10%
           </p>
         </div>
 
@@ -484,21 +559,21 @@ export default function FreelancerAnalytics() {
         </div>
       </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 gap-8">
         {/* Earnings Chart */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="lg:col-span-2 bg-white rounded-lg shadow p-6"
+          className="bg-white rounded-lg shadow p-6"
         >
           <h2 className="text-lg font-semibold text-gray-900 mb-6">
             Tren Pendapatan (7 Hari)
           </h2>
           
           {earningsChart.length > 0 && earningsChart.some(d => d.earnings > 0) ? (
-            <div className="h-64 relative">
-              <svg className="w-full h-full" viewBox="0 0 800 200" preserveAspectRatio="xMidYMid meet">
+            <div className="h-64 relative w-full">
+              <svg className="w-full h-full" viewBox="0 0 800 200" preserveAspectRatio="none">
                 {/* Grid lines */}
                 <defs>
                   <pattern id="grid" width="80" height="40" patternUnits="userSpaceOnUse">
@@ -631,90 +706,15 @@ export default function FreelancerAnalytics() {
           )}
         </motion.div>
 
-        {/* Performance Metrics */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="bg-white rounded-lg shadow-lg p-6 relative overflow-hidden"
-        >
-          <h2 className="text-lg font-semibold text-gray-900 mb-8 relative">
-            Metrik Performa
-          </h2>
-          <div className="grid grid-cols-2 gap-6 relative">
-            <motion.div 
-              whileHover={{ scale: 1.02 }}
-              transition={{ type: "spring", stiffness: 300 }}
-              className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-gray-300 transition-colors"
-            >
-              <div className="flex flex-col items-center space-y-2">
-                <div className="p-3 bg-[#010042]/10 rounded-full transform transition-transform group-hover:scale-110">
-                  <ClockIcon className="h-6 w-6 text-[#010042]" />
-                </div>
-                <span className="text-sm text-gray-600">Response Time</span>
-                <span className="text-xl font-bold text-gray-900">
-                  {analytics.performance.responseTime}h
-                </span>
-              </div>
-            </motion.div>
-            
-            <motion.div 
-              whileHover={{ scale: 1.02 }}
-              transition={{ type: "spring", stiffness: 300 }}
-              className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-gray-300 transition-colors"
-            >
-              <div className="flex flex-col items-center space-y-2">
-                <div className="p-3 bg-[#010042]/10 rounded-full transform transition-transform group-hover:scale-110">
-                  <CalendarIcon className="h-6 w-6 text-[#010042]" />
-                </div>
-                <span className="text-sm text-gray-600">Delivery Time</span>
-                <span className="text-xl font-bold text-gray-900">
-                  {analytics.performance.deliveryTime.toFixed(1)} hari
-                </span>
-              </div>
-            </motion.div>
-            
-            <motion.div 
-              whileHover={{ scale: 1.02 }}
-              transition={{ type: "spring", stiffness: 300 }}
-              className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-gray-300 transition-colors"
-            >
-              <div className="flex flex-col items-center space-y-2">
-                <div className="p-3 bg-[#010042]/10 rounded-full transform transition-transform group-hover:scale-110">
-                  <ChartBarIcon className="h-6 w-6 text-[#010042]" />
-                </div>
-                <span className="text-sm text-gray-600">Conversion Rate</span>
-                <span className="text-xl font-bold text-gray-900">
-                  {analytics.orders.conversionRate.toFixed(1)}%
-                </span>
-              </div>
-            </motion.div>
-            
-            <motion.div 
-              whileHover={{ scale: 1.02 }}
-              transition={{ type: "spring", stiffness: 300 }}
-              className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-gray-300 transition-colors"
-            >
-              <div className="flex flex-col items-center space-y-2">
-                <div className="p-3 bg-[#010042]/10 rounded-full transform transition-transform group-hover:scale-110">
-                  <UserGroupIcon className="h-6 w-6 text-[#010042]" />
-                </div>
-                <span className="text-sm text-gray-600">Revision Rate</span>
-                <span className="text-xl font-bold text-gray-900">
-                  {analytics.performance.revisionRate.toFixed(1)}%
-                </span>
-              </div>
-            </motion.div>
-          </div>
-        </motion.div>
-
-        {/* Top Performing Gigs */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="lg:col-span-2 bg-white rounded-lg shadow p-6"
-        >
+        {/* Bottom Section with Gigs and Orders */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Top Performing Gigs */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="lg:col-span-2 bg-white rounded-lg shadow p-6"
+          >
           <h2 className="text-lg font-semibold text-gray-900 mb-6">
             Gig Terbaik
           </h2>
@@ -770,7 +770,7 @@ export default function FreelancerAnalytics() {
                           <span>{gig.orderCount || 0} orders</span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <StarIcon className="h-4 w-4" />
+                          <StarIcon className={`h-4 w-4 ${gig.rating > 0 ? 'text-yellow-400' : 'text-gray-400'}`} />
                           <span>
                             {gig.rating > 0 ? `${gig.rating.toFixed(1)} (${gig.reviewCount})` : 'Belum ada rating'}
                           </span>
@@ -839,21 +839,27 @@ export default function FreelancerAnalytics() {
           {recentOrdersDisplay.length > 0 ? (
             <div className="space-y-3">
               {recentOrdersDisplay.slice(0, 5).map((order) => (
-                <div key={order.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">
-                      #{order.id.slice(-6)}
-                    </p>
+                <div key={order.id} className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                  <div className="mb-3">
+                    <h4 className="text-sm font-medium text-gray-900 mb-1 line-clamp-1">
+                      {order.gigTitle}
+                    </h4>
                     <p className="text-xs text-gray-500">
-                      {order.createdAt?.toDate().toLocaleDateString('id-ID')}
+                      {order.orderNumber || `#${order.id.slice(-6)}`}
                     </p>
                   </div>
-                  <div className="text-right">
+                  
+                  <div className="flex items-center justify-between text-xs text-gray-600 mb-2">
+                    <span>{order.createdAt?.toDate().toLocaleDateString('id-ID')}</span>
+                    <span>{order.clientName}</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(order.status)}`}>
-                      {order.status}
+                      {getStatusText(order.status)}
                     </span>
-                    <p className="text-xs text-gray-600 mt-1">
-                      {formatCurrency(order.amount)}
+                    <p className="text-sm font-medium text-gray-900">
+                      {formatCurrency(order.freelancerEarning || order.price || order.totalAmount || 0)}
                     </p>
                   </div>
                 </div>
@@ -869,6 +875,7 @@ export default function FreelancerAnalytics() {
             </div>
           )}
         </motion.div>
+        </div>
       </div>
     </div>
   );

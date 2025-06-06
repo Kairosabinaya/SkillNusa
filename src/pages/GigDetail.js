@@ -752,14 +752,24 @@ export default function GigDetail() {
                 <h2 className="text-xl font-bold text-gray-900">
                   Reviews ({reviews.length})
                 </h2>
-                <select 
-                  value={reviewsSortBy}
-                  onChange={(e) => handleReviewsSort(e.target.value)}
-                  className="px-3 py-1 border border-gray-300 rounded-md text-sm"
-                >
-                  <option value="date">Sort by Date</option>
-                  <option value="rating">Sort by Rating</option>
-                </select>
+                <div className="relative">
+                  <select 
+                    value={reviewsSortBy}
+                    onChange={(e) => handleReviewsSort(e.target.value)}
+                    className="appearance-none bg-white border border-gray-300 rounded-lg px-3 py-2 pr-8 text-sm font-medium text-gray-700 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    style={{
+                      backgroundImage: 'none'
+                    }}
+                  >
+                    <option value="date">Sort by Date</option>
+                    <option value="rating">Sort by Rating</option>
+                  </select>
+                  <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
               </div>
 
               {reviews.length === 0 ? (

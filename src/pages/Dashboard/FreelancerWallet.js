@@ -39,10 +39,9 @@ export default function FreelancerWallet() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [wallet, setWallet] = useState({
-    balance: 0,
-    pendingBalance: 0,
-    totalEarnings: 0,
-    availableForWithdraw: 0
+    balance: 0,          // Saldo Tersedia - semua pendapatan yang bisa ditarik
+    pendingBalance: 0,   // Saldo Pending - yang sedang diproses/belum direlease
+    totalEarnings: 0     // Total Pendapatan sepanjang masa
   });
   const [transactions, setTransactions] = useState([]);
   const [withdrawalMethods, setWithdrawalMethods] = useState([]);
@@ -77,17 +76,10 @@ export default function FreelancerWallet() {
 
       ordersSnapshot.forEach(doc => {
         const order = doc.data();
-        const earnings = order.amount * 0.95; // 15% platform fee
+        // Use freelancerEarning field instead of amount with platform fee calculation
+        const earnings = order.freelancerEarning || (order.price ? order.price * 0.85 : 0) || (order.totalAmount ? order.totalAmount * 0.85 : 0);
         totalEarnings += earnings;
-        
-        // Check if payment is released (e.g., 7 days after completion)
-        const completedDate = order.completedAt?.toDate();
-        const now = new Date();
-        const daysDiff = (now - completedDate) / (1000 * 60 * 60 * 24);
-        
-        if (daysDiff >= 7) {
-          availableBalance += earnings;
-        }
+        availableBalance += earnings; // Dana langsung tersedia setelah order completed
       });
 
       // Fetch pending balance from orders in review
@@ -102,7 +94,9 @@ export default function FreelancerWallet() {
 
       pendingSnapshot.forEach(doc => {
         const order = doc.data();
-        pendingBalance += order.amount * 0.85;
+        // Use freelancerEarning field instead of amount
+        const earnings = order.freelancerEarning || (order.price ? order.price * 0.85 : 0) || (order.totalAmount ? order.totalAmount * 0.85 : 0);
+        pendingBalance += earnings;
       });
 
       // Subtract withdrawn amounts
@@ -114,19 +108,21 @@ export default function FreelancerWallet() {
 
       const withdrawalsSnapshot = await getDocs(withdrawalsQuery);
       let withdrawnAmount = 0;
+      let pendingWithdrawal = 0;
 
       withdrawalsSnapshot.forEach(doc => {
         const withdrawal = doc.data();
         if (withdrawal.status === 'completed') {
           withdrawnAmount += withdrawal.amount;
+        } else if (withdrawal.status === 'pending') {
+          pendingWithdrawal += withdrawal.amount;
         }
       });
 
       setWallet({
-        balance: availableBalance - withdrawnAmount,
-        pendingBalance: pendingBalance,
+        balance: availableBalance - withdrawnAmount - pendingWithdrawal, // Saldo yang bisa ditarik
+        pendingBalance: pendingBalance + pendingWithdrawal, // Termasuk penarikan yang sedang diproses
         totalEarnings: totalEarnings,
-        availableForWithdraw: availableBalance - withdrawnAmount
       });
 
     } catch (error) {
@@ -152,11 +148,12 @@ export default function FreelancerWallet() {
 
       ordersSnapshot.forEach(doc => {
         const order = doc.data();
+        const amount = order.freelancerEarning || (order.price ? order.price * 0.85 : 0) || (order.totalAmount ? order.totalAmount * 0.85 : 0) || 0;
         earnings.push({
           id: doc.id,
           type: 'earning',
-          amount: order.amount * 0.85,
-          description: `Pembayaran untuk: ${order.gigTitle || 'Gig'}`,
+          amount: amount,
+          description: `Pembayaran untuk: ${order.title || order.gigTitle || 'Gig'}`,
           date: order.completedAt?.toDate(),
           status: 'completed',
           orderId: doc.id
@@ -220,8 +217,9 @@ export default function FreelancerWallet() {
     }
 
     const amount = parseFloat(withdrawForm.amount);
-    if (amount > wallet.availableForWithdraw || amount < 50000) {
-      setError('Jumlah penarikan tidak valid');
+    
+    if (amount > wallet.balance || amount < 50000) {
+      setError(`Jumlah penarikan tidak valid. Minimum Rp 50.000, maksimal ${formatCurrency(wallet.balance)}`);
       return;
     }
 
@@ -360,7 +358,7 @@ export default function FreelancerWallet() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+        className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-6 mb-8"
       >
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-4">
@@ -372,6 +370,7 @@ export default function FreelancerWallet() {
             {formatCurrency(wallet.balance)}
           </h3>
           <p className="text-sm text-gray-600">Saldo Tersedia</p>
+          <p className="text-xs text-gray-500 mt-1">Siap ditarik</p>
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
@@ -384,6 +383,7 @@ export default function FreelancerWallet() {
             {formatCurrency(wallet.pendingBalance)}
           </h3>
           <p className="text-sm text-gray-600">Saldo Pending</p>
+          <p className="text-xs text-gray-500 mt-1">Order & penarikan diproses</p>
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
@@ -396,18 +396,9 @@ export default function FreelancerWallet() {
             {formatCurrency(wallet.totalEarnings)}
           </h3>
           <p className="text-sm text-gray-600">Total Pendapatan</p>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-purple-100 rounded-full">
-              <ArrowUpIcon className="h-6 w-6 text-purple-600" />
-            </div>
-          </div>
-          <h3 className="text-2xl font-bold text-gray-900 mb-1">
-            {formatCurrency(wallet.availableForWithdraw)}
-          </h3>
-          <p className="text-sm text-gray-600">Bisa Ditarik</p>
+          <p className="text-xs text-orange-600 mt-1 font-medium">
+            Sudah dipotong platform fee 10%
+          </p>
         </div>
       </motion.div>
 
@@ -427,7 +418,7 @@ export default function FreelancerWallet() {
           <div className="/5 rounded-lg p-4 mb-6">
             <button 
               onClick={() => setShowWithdrawModal(true)}
-              disabled={wallet.availableForWithdraw < 50000}
+              disabled={wallet.balance < 50000}
               className="w-full flex items-center justify-center gap-2 bg-[#4A72FF] text-white py-3 px-4 rounded-lg hover:bg-[#3355CC] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <ArrowUpIcon className="h-5 w-5" />
@@ -450,17 +441,10 @@ export default function FreelancerWallet() {
                   <span className="text-sm font-medium text-gray-900">Rp 50,000</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Fee platform:</span>
-                  <span className="text-sm font-medium text-gray-900">5%</span>
+                  <span className="text-sm text-gray-600">Waktu proses:</span>
+                  <span className="text-sm font-medium text-gray-900">1-3 hari kerja</span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Waktu hold:</span>
-                  <span className="text-sm font-medium text-gray-900">7 hari</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Limit harian:</span>
-                  <span className="text-sm font-medium text-gray-900">Rp 10jt</span>
-                </div>
+
               </div>
             </div>
 
@@ -562,14 +546,13 @@ export default function FreelancerWallet() {
                     onChange={(e) => setWithdrawForm(prev => ({ ...prev, amount: e.target.value }))}
                     placeholder="0"
                     min="50000"
-                    max={wallet.availableForWithdraw}
-                    className="w-full pl-12 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042]"
-                    required
-                  />
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Maksimal: {formatCurrency(wallet.availableForWithdraw)}
-                </p>
+                                          className="w-full pl-12 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042]"
+                      required
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Maksimal: {formatCurrency(wallet.balance)}
+                  </p>
               </div>
 
               <div>

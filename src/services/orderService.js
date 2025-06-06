@@ -372,14 +372,15 @@ class OrderService {
   // Get valid status transitions
   getValidStatusTransitions(currentStatus) {
     const transitions = {
-      'pending': ['active', 'cancelled'],
+      'pending': ['active', 'cancelled', 'rejected'], // Support both cancelled and rejected for backward compatibility
       'active': ['in_progress', 'delivered', 'completed', 'cancelled'],
       'in_progress': ['delivered', 'cancelled'],
       'delivered': ['completed', 'in_revision', 'cancelled'],
       'in_revision': ['in_progress', 'delivered', 'completed', 'cancelled'],
       'in_review': ['completed', 'in_revision', 'cancelled'], // Legacy status support
       'completed': [], // Final state
-      'cancelled': [] // Final state
+      'cancelled': [], // Final state
+      'rejected': [] // Final state - backward compatibility
     };
 
     return transitions[currentStatus] || [];
@@ -642,6 +643,8 @@ class OrderService {
 
   // Get freelancer orders with enhanced data
   async getFreelancerOrders(freelancerId, options = {}) {
+    console.log('🔍 [OrderService] getFreelancerOrders called with:', { freelancerId, options });
+    
     try {
       const { 
         status = null, 
@@ -672,15 +675,50 @@ class OrderService {
         console.log('Pagination with lastDoc temporarily disabled due to sorting changes');
       }
 
+      console.log('📡 [OrderService] Executing query for freelancerId:', freelancerId);
       const querySnapshot = await getDocs(q);
+      console.log('📥 [OrderService] Query result size:', querySnapshot.size);
+      
       const orders = [];
       
       querySnapshot.forEach((doc) => {
+        const orderData = doc.data();
+        console.log('📋 [OrderService] Found order:', {
+          id: doc.id,
+          freelancerId: orderData.freelancerId,
+          clientId: orderData.clientId,
+          title: orderData.title,
+          status: orderData.status
+        });
+        
         orders.push({
           id: doc.id,
-          ...doc.data()
+          ...orderData
         });
       });
+
+      // If no orders found, try debugging by checking all orders
+      if (orders.length === 0) {
+        console.log('⚠️ [OrderService] No orders found for freelancerId, checking all orders...');
+        
+        // Check all orders to see what freelancerIds exist
+        const allOrdersQuery = query(collection(db, this.collectionName));
+        const allOrdersSnapshot = await getDocs(allOrdersQuery);
+        
+        console.log('📊 [OrderService] Total orders in database:', allOrdersSnapshot.size);
+        
+        const freelancerIds = new Set();
+        allOrdersSnapshot.forEach(doc => {
+          const orderData = doc.data();
+          if (orderData.freelancerId) {
+            freelancerIds.add(orderData.freelancerId);
+          }
+        });
+        
+        console.log('👥 [OrderService] Unique freelancer IDs found:', Array.from(freelancerIds));
+        console.log('🔍 [OrderService] Looking for freelancerId:', freelancerId);
+        console.log('✅ [OrderService] Match found:', freelancerIds.has(freelancerId));
+      }
 
       // Sort by the specified field in JavaScript
       orders.sort((a, b) => {
@@ -704,13 +742,18 @@ class OrderService {
       // Apply the original limit after sorting
       const limitedOrders = limitCount ? orders.slice(0, limitCount) : orders;
       
+      console.log('✅ [OrderService] getFreelancerOrders returning:', {
+        count: limitedOrders.length,
+        hasMore: orders.length > limitedOrders.length
+      });
+      
       return {
         orders: limitedOrders,
         lastDoc: null, // Simplified pagination for now
         hasMore: orders.length > limitedOrders.length
       };
     } catch (error) {
-      console.error('Error getting freelancer orders:', error);
+      console.error('💥 [OrderService] Error getting freelancer orders:', error);
       throw error;
     }
   }
@@ -964,12 +1007,16 @@ class OrderService {
     try {
       const subscriptionKey = `${userId}_${userType}_orders`;
       
-      // Prevent duplicate subscriptions
+      console.log('🔄 [OrderService] Setting up subscription:', subscriptionKey);
+      
+      // Clean up existing subscription if it exists
       if (this.subscriptions.has(subscriptionKey)) {
-        console.warn('⚠️ [OrderService] Subscription already exists:', subscriptionKey);
-        // Return existing subscription but also immediately call callback with empty array to reset loading state
-        callback([]);
-        return this.subscriptions.get(subscriptionKey);
+        console.log('🧹 [OrderService] Cleaning up existing subscription:', subscriptionKey);
+        const existingUnsubscribe = this.subscriptions.get(subscriptionKey);
+        if (existingUnsubscribe && typeof existingUnsubscribe === 'function') {
+          existingUnsubscribe();
+        }
+        this.subscriptions.delete(subscriptionKey);
       }
 
       const userField = userType === 'freelancer' ? 'freelancerId' : 'clientId';
@@ -985,35 +1032,77 @@ class OrderService {
           console.log(`📊 [OrderService] Orders update for ${userId} (${userType}):`, snapshot.size);
           
           try {
-            // Get orders with enhanced details
-            const orders = [];
-            for (const docSnapshot of snapshot.docs) {
-              const orderData = { id: docSnapshot.id, ...docSnapshot.data() };
-              
-              // Get enhanced order details
-              const enhancedOrder = await this.getOrderWithDetails(orderData);
-              orders.push(enhancedOrder);
+            // If no orders, immediately call callback with empty array
+            if (snapshot.empty) {
+              console.log('📭 [OrderService] No orders found for user');
+              callback([]);
+              return;
             }
             
-            callback(orders);
+            // Get orders with enhanced details
+            const orders = [];
+            const promises = [];
+            
+            snapshot.forEach((docSnapshot) => {
+              const orderData = { id: docSnapshot.id, ...docSnapshot.data() };
+              promises.push(this.getOrderWithDetails(orderData));
+            });
+            
+            // Process all orders in parallel for better performance
+            const enhancedOrders = await Promise.all(promises);
+            
+            console.log(`✅ [OrderService] Processed ${enhancedOrders.length} orders for ${userId}`);
+            callback(enhancedOrders);
           } catch (error) {
             console.error('❌ [OrderService] Error processing order updates:', error);
-            callback([]);
+            // Don't call callback with empty array on error - it might cause loading state issues
+            // Instead, try to get basic order data without enhancement
+            try {
+              const basicOrders = [];
+              snapshot.forEach((docSnapshot) => {
+                basicOrders.push({ id: docSnapshot.id, ...docSnapshot.data() });
+              });
+              console.log('⚠️ [OrderService] Fallback to basic orders:', basicOrders.length);
+              callback(basicOrders);
+            } catch (fallbackError) {
+              console.error('❌ [OrderService] Fallback also failed:', fallbackError);
+              callback([]);
+            }
           }
         },
         (error) => {
           console.error('❌ [OrderService] Error in order subscription:', error);
-          callback([]);
+          // Don't immediately call callback on error - let the component handle timeout
+          if (error.code === 'permission-denied') {
+            console.error('❌ [OrderService] Permission denied - user may not have access');
+          }
         }
       );
 
       this.subscriptions.set(subscriptionKey, unsubscribe);
+      console.log('✅ [OrderService] Subscription established:', subscriptionKey);
       return unsubscribe;
     } catch (error) {
       console.error('❌ [OrderService] Error setting up order subscription:', error);
-      callback([]);
       return () => {};
     }
+  }
+
+  // Force cleanup subscription (for debugging)
+  forceCleanupSubscription(userId, userType) {
+    const subscriptionKey = `${userId}_${userType}_orders`;
+    
+    if (this.subscriptions.has(subscriptionKey)) {
+      console.log('🧹 [OrderService] Force cleanup subscription:', subscriptionKey);
+      const unsubscribe = this.subscriptions.get(subscriptionKey);
+      if (unsubscribe && typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+      this.subscriptions.delete(subscriptionKey);
+      return true;
+    }
+    
+    return false;
   }
 
   // Helper method to get order with details (used by subscription)

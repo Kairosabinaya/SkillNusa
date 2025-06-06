@@ -451,10 +451,11 @@ export default function FreelancerProfile() {
                   </div>
 
                   {/* Portfolio/Website Links */}
-                  {(freelancerData.portfolioLinks || freelancerProfile?.portfolioLinks) && (
+                  {(freelancerData.portfolioLink || freelancerData.portfolioLinks || freelancerProfile?.portfolioLink || freelancerProfile?.portfolioLinks) && (
                     <div className="mt-4">
                       <div className="flex flex-wrap gap-3">
-                        {(freelancerData.portfolioLinks || freelancerProfile?.portfolioLinks || []).map((link, index) => (
+                        {((freelancerData.portfolioLink ? [freelancerData.portfolioLink] : freelancerData.portfolioLinks) || 
+                          (freelancerProfile?.portfolioLink ? [freelancerProfile.portfolioLink] : freelancerProfile?.portfolioLinks) || []).map((link, index) => (
                           <a
                             key={index}
                             href={link.startsWith('http') ? link : `https://${link}`}
@@ -463,7 +464,7 @@ export default function FreelancerProfile() {
                             className="inline-flex items-center px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm hover:bg-blue-100 transition-colors"
                           >
                             <GlobeAltIcon className="w-4 h-4 mr-1.5" />
-                            Portfolio {index + 1}
+                            Portfolio
                           </a>
                         ))}
                       </div>

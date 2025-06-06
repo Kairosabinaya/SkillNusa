@@ -32,57 +32,46 @@ export const useOrderManagement = (currentUser, orderId = null) => {
 
     setLoading(true);
     try {
-      console.log('🔍 [useOrderManagement] Fetching orders for freelancer:', currentUser.uid);
+      console.log('🔍 [useOrderManagement] Fetching orders fallback for:', currentUser.uid);
       
       const ordersData = await orderService.getOrdersWithDetails(currentUser.uid, 'freelancer');
       
-      console.log('📥 [useOrderManagement] Orders received:', {
-        count: ordersData.length,
-        orders: ordersData.map(o => ({ id: o.id, status: o.status, title: o.title }))
-      });
+      console.log('📥 [useOrderManagement] Fallback orders received:', ordersData.length);
 
       // Calculate stats
       const calculatedStats = calculateOrderStats(ordersData);
-      
-      console.log('📊 [useOrderManagement] Final status counts:', calculatedStats);
 
       setOrders(ordersData);
       setStats(calculatedStats);
       
-      console.log('✅ [useOrderManagement] Orders state updated:', {
-        orders: ordersData.length,
-        stats: calculatedStats
-      });
+      console.log('✅ [useOrderManagement] Fallback orders loaded successfully');
     } catch (error) {
       console.error('💥 [useOrderManagement] Error fetching orders:', error);
       setError('Gagal memuat data pesanan');
     } finally {
       setLoading(false);
     }
-  }, [currentUser]);
+  }, [currentUser?.uid]);
 
   // Handle real-time order updates
   const handleOrdersUpdate = useCallback((ordersData) => {
-    console.log('📡 [useOrderManagement] Real-time orders update received:', {
-      count: ordersData.length,
-      orders: ordersData.map(o => ({ id: o.id, status: o.status, title: o.title }))
-    });
+    console.log('📡 [useOrderManagement] Real-time orders update received:', ordersData.length, 'orders');
 
     // Track subscription update in monitor
-    const subscriptionId = `${currentUser?.uid}_freelancer_orders_management`;
-    subscriptionMonitor.trackSubscriptionUpdate(subscriptionId, ordersData.length);
+    if (currentUser?.uid) {
+      const subscriptionId = `${currentUser.uid}_freelancer_orders_management`;
+      subscriptionMonitor.trackSubscriptionUpdate(subscriptionId, ordersData.length);
+    }
 
     // Calculate stats
     const calculatedStats = calculateOrderStats(ordersData);
-    
-    console.log('📊 [useOrderManagement] Real-time stats calculated:', calculatedStats);
 
     setOrders(ordersData);
     setStats(calculatedStats);
     setLoading(false);
     
-    console.log('✅ [useOrderManagement] Real-time orders state updated');
-  }, [currentUser]);
+    console.log('✅ [useOrderManagement] Orders state updated:', ordersData.length, 'orders');
+  }, [currentUser?.uid]);
 
   // Update order status with deadline calculation
   const updateOrderStatus = useCallback(async (orderId, newStatus, message = '') => {
@@ -300,61 +289,104 @@ export const useOrderManagement = (currentUser, orderId = null) => {
 
   // Initialize orders with real-time subscription
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser) {
+      setLoading(false);
+      return;
+    }
 
     const subscriptionType = 'freelancer_orders_management';
+    const subscriptionKey = `${currentUser.uid}_${subscriptionType}`;
     
-    // Check if subscription already exists for this user
-    if (subscriptionRegistry.hasSubscription(currentUser.uid, subscriptionType)) {
-      console.log('⚠️ [useOrderManagement] Subscription already exists, using fallback fetch');
-      // Use fallback fetch instead of creating duplicate subscription
-      fetchOrders();
-      return;
-    }
-
-    console.log('🔄 [useOrderManagement] Setting up real-time subscription for:', currentUser.uid);
+    console.log('🔄 [useOrderManagement] Initializing subscription for:', currentUser.uid);
     
-    // Track subscription start in monitor
-    const monitoringId = `${currentUser.uid}_freelancer_orders_management`;
-    subscriptionMonitor.trackSubscriptionStart(monitoringId, subscriptionType, currentUser.uid);
+    // First, try to fetch data immediately to show something while subscription sets up
+    let isSubscriptionSuccessful = false;
     
-    // Set up real-time subscription for orders
-    const unsubscribe = orderService.subscribeToUserOrders(
-      currentUser.uid,
-      'freelancer',
-      handleOrdersUpdate
-    );
+    // Set up real-time subscription
+    const setupSubscription = async () => {
+      try {
+        // Track subscription start in monitor
+        subscriptionMonitor.trackSubscriptionStart(subscriptionKey, subscriptionType, currentUser.uid);
+        
+        // Set up real-time subscription for orders
+        const unsubscribe = orderService.subscribeToUserOrders(
+          currentUser.uid,
+          'freelancer',
+          (ordersData) => {
+            isSubscriptionSuccessful = true;
+            handleOrdersUpdate(ordersData);
+          }
+        );
 
-    // Register the subscription to prevent duplicates
-    const subscriptionId = subscriptionRegistry.registerSubscription(
-      currentUser.uid, 
-      subscriptionType, 
-      unsubscribe
-    );
+        // Register the subscription to prevent duplicates
+        const subscriptionId = subscriptionRegistry.registerSubscription(
+          currentUser.uid, 
+          subscriptionType, 
+          unsubscribe
+        );
 
-    if (!subscriptionId) {
-      console.log('⚠️ [useOrderManagement] Failed to register subscription, using fallback');
-      // If registration failed, clean up and use fallback
-      if (unsubscribe && typeof unsubscribe === 'function') {
-        unsubscribe();
+        if (subscriptionId) {
+          console.log('✅ [useOrderManagement] Real-time subscription established');
+          return subscriptionId;
+        } else {
+          console.log('⚠️ [useOrderManagement] Failed to register subscription');
+          if (unsubscribe && typeof unsubscribe === 'function') {
+            unsubscribe();
+          }
+          return null;
+        }
+      } catch (error) {
+        console.error('💥 [useOrderManagement] Error setting up subscription:', error);
+        return null;
       }
-      fetchOrders();
-      return;
-    }
-
-    console.log('✅ [useOrderManagement] Real-time subscription established and registered');
-
-    // Cleanup subscription on unmount
-    return () => {
-      console.log('🧹 [useOrderManagement] Cleaning up subscription');
-      
-      // Track cleanup in monitor
-      const monitoringId = `${currentUser.uid}_freelancer_orders_management`;
-      subscriptionMonitor.trackSubscriptionCleanup(monitoringId);
-      
-      subscriptionRegistry.unregisterSubscription(subscriptionId);
     };
-  }, [currentUser, handleOrdersUpdate, fetchOrders]);
+
+         // Setup subscription and fallback
+     const initializeData = async () => {
+       // Check if subscription already exists
+       if (subscriptionRegistry.hasSubscription(currentUser.uid, subscriptionType)) {
+         console.log('⚠️ [useOrderManagement] Subscription already exists, cleaning up first');
+         subscriptionRegistry.cleanupUserSubscriptions(currentUser.uid);
+       }
+       
+       const subscriptionId = await setupSubscription();
+       
+       // If subscription failed or takes too long, use fallback
+       const timeoutId = setTimeout(() => {
+         if (!isSubscriptionSuccessful) {
+           console.log('⚠️ [useOrderManagement] Subscription taking too long, using fallback fetch');
+           fetchOrders();
+         }
+       }, 5000); // 5 second timeout
+       
+       return subscriptionId ? { subscriptionId, timeoutId } : null;
+     };
+
+    const subscriptionPromise = initializeData();
+
+         // Cleanup subscription on unmount
+     return () => {
+       console.log('🧹 [useOrderManagement] Cleaning up subscription');
+       
+       subscriptionPromise.then((result) => {
+         if (result) {
+           const { subscriptionId, timeoutId } = result;
+           
+           // Clear timeout
+           if (timeoutId) {
+             clearTimeout(timeoutId);
+           }
+           
+           // Clean up subscription
+           if (subscriptionId) {
+             // Track cleanup in monitor
+             subscriptionMonitor.trackSubscriptionCleanup(subscriptionKey);
+             subscriptionRegistry.unregisterSubscription(subscriptionId);
+           }
+         }
+       });
+     };
+  }, [currentUser?.uid]); // Only depend on user ID to prevent excessive re-renders
 
   // Set selected order when orderId changes
   useEffect(() => {

@@ -122,21 +122,19 @@ export default function GigCard({ gig, showFavoriteButton = true, className = ""
           </div>
         </div>
         
-        {/* Skills Preview (if available) */}
-        {gig.freelancer?.skills && Array.isArray(gig.freelancer.skills) && gig.freelancer.skills.length > 0 && (
+        {/* Gig Tags (if available) */}
+        {gig.tags && Array.isArray(gig.tags) && gig.tags.length > 0 && (
           <div className="mb-2">
             <div className="flex flex-wrap gap-1">
-              {gig.freelancer.skills.slice(0, 3).map((skill, index) => {
-                // Handle both string skills and object skills safely
-                const skillText = typeof skill === 'string' ? skill : skill?.skill || String(skill);
+              {gig.tags.slice(0, 3).map((tag, index) => {
                 return (
-                  <span key={index} className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
-                    {skillText}
+                  <span key={index} className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded">
+                    #{tag}
                   </span>
                 );
               })}
-              {gig.freelancer.skills.length > 3 && (
-                <span className="text-xs text-gray-500">+{gig.freelancer.skills.length - 3} more</span>
+              {gig.tags.length > 3 && (
+                <span className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded flex items-center">+{gig.tags.length - 3} more</span>
               )}
             </div>
           </div>

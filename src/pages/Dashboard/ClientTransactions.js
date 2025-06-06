@@ -599,21 +599,35 @@ export default function ClientTransactions() {
                      selectedTransaction.packageType === 'standard' ? 'Standar' : 'Premium'}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Harga:</span>
-                  <span className="font-medium">{formatPrice(getOrderPrice(selectedTransaction))}</span>
-                </div>
+                {/* Only show price for non-cancelled orders */}
+                {selectedTransaction.status !== 'cancelled' && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Harga:</span>
+                    <span className="font-medium">{formatPrice(getOrderPrice(selectedTransaction))}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-gray-600">Tanggal Pemesanan:</span>
                   <span>{formatDate(selectedTransaction.createdAt)}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Tenggat Waktu:</span>
-                  <span className="font-medium">
-                    {selectedTransaction.dueDate ? formatDate(selectedTransaction.dueDate) : 'Tidak ditentukan'}
-                  </span>
-                </div>
-                {(selectedTransaction.revisionCount > 0 || selectedTransaction.revisions || selectedTransaction.maxRevisions) && (
+                {/* Only show deadline for non-cancelled orders */}
+                {selectedTransaction.status !== 'cancelled' && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Tenggat Waktu:</span>
+                    <span className="font-medium">
+                      {selectedTransaction.dueDate ? formatDate(selectedTransaction.dueDate) : 'Tidak ditentukan'}
+                    </span>
+                  </div>
+                )}
+                {/* Show cancellation date for cancelled orders */}
+                {selectedTransaction.status === 'cancelled' && selectedTransaction.cancelledAt && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Tanggal Dibatalkan:</span>
+                    <span>{formatDate(selectedTransaction.cancelledAt)}</span>
+                  </div>
+                )}
+                {/* Only show revision info for non-cancelled orders */}
+                {selectedTransaction.status !== 'cancelled' && (selectedTransaction.revisionCount > 0 || selectedTransaction.revisions || selectedTransaction.maxRevisions) && (
                   <div className="flex justify-between">
                     <span className="text-gray-600">Revisi:</span>
                     <span className={`font-medium ${isRevisionDisabled(selectedTransaction) ? 'text-red-600' : 'text-gray-900'}`}>
@@ -882,6 +896,22 @@ export default function ClientTransactions() {
                     </div>
                     <p className="text-sm text-orange-600 mt-1">
                       Freelancer sedang mengerjakan revisi. Silakan tunggu hasil revisi.
+                    </p>
+                  </div>
+                )}
+
+                {selectedTransaction.status === 'cancelled' && (
+                  <div className="w-full p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="flex items-center gap-2 text-red-800">
+                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="text-sm font-medium">
+                        Pesanan Dibatalkan
+                      </span>
+                    </div>
+                    <p className="text-sm text-red-600 mt-1">
+                      Pesanan ini telah dibatalkan. Tidak ada transaksi keuangan yang terjadi.
                     </p>
                   </div>
                 )}

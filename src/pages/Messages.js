@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import chatService from '../services/chatService';
@@ -71,39 +71,10 @@ export default function Messages() {
     // Listen for global cleanup events
     window.addEventListener('forceCleanupSubscriptions', handleForceCleanup);
     
-    // Infinite loading detection - if loading takes more than 10 seconds, auto-reload
-    const infiniteLoadingTimeout = setTimeout(() => {
-      if (currentUser && loading && !cleanupInProgress) {
-        console.warn('🔍 [Messages] Infinite loading detected, triggering auto-reload');
-        setCleanupInProgress(true);
-        setShowCleanupNotification(true);
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
-      }
-    }, 10000); // 10 seconds timeout
-    
-    // Periodic health check to prevent stuck state
-    const healthCheckInterval = setInterval(() => {
-      if (currentUser && !isInitialized.current && loading) {
-        const stats = window.firebaseMonitor?.getSubscriptionStats?.();
-        if (stats?.active >= 5) {
-          console.warn('🔍 [Messages] Health check: Still stuck with high subscriptions, triggering reload');
-          setCleanupInProgress(true);
-          setShowCleanupNotification(true);
-          setTimeout(() => {
-            window.location.reload();
-          }, 500);
-        }
-      }
-    }, 15000); // Check every 15 seconds
-    
     return () => {
       window.removeEventListener('forceCleanupSubscriptions', handleForceCleanup);
-      clearTimeout(infiniteLoadingTimeout);
-      clearInterval(healthCheckInterval);
     };
-  }, [currentUser, loading, cleanupInProgress]);
+  }, []);
   
   // Scroll to bottom of messages
   const scrollToBottom = (smooth = true) => {
@@ -120,193 +91,10 @@ export default function Messages() {
     }
   };
 
-  // Auto-scroll when messages change
-  useEffect(() => {
-    // Use setTimeout to ensure DOM has been updated before scrolling
-    const timeoutId = setTimeout(() => {
-      scrollToBottom();
-    }, 100);
-    
-    return () => clearTimeout(timeoutId);
-  }, [messages]);
-
-  // Auto-dismiss success messages
-  useEffect(() => {
-    if (success) {
-      const timer = setTimeout(() => {
-        setSuccess('');
-      }, 3000); // 3 seconds
-      
-      return () => clearTimeout(timer);
-    }
-  }, [success]);
-
-  // Load user chats and initialize SkillBot if needed
-  useEffect(() => {
-    if (!currentUser) return;
-
-    // Prevent StrictMode double-mounting and multiple instances
-    if (isInitialized.current) {
-      console.log('⚠️ [Messages] Already initialized, skipping (likely StrictMode double-mount)');
-      return;
-    }
-    
-    // Check if there's already an active subscription for this user (global check)
-    const existingSubscriptionCount = window.firebaseMonitor?.getSubscriptionStats?.()?.active || 0;
-    if (existingSubscriptionCount >= 5) {
-      console.error('🚨 [Messages] Too many active subscriptions detected, aborting initialization');
-      console.log('🚨 [Messages] Current subscription count:', existingSubscriptionCount);
-      
-      // Auto-reload browser to clear stuck subscriptions
-      console.log('🔄 [Messages] Auto-reloading browser to clear stuck subscriptions...');
-      setCleanupInProgress(true);
-      setShowCleanupNotification(true);
-      
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000); // Give user time to see the message
-      
-      return;
-    }
-    
-    isInitialized.current = true;
-    console.log('✅ [Messages] Initializing with subscription count:', existingSubscriptionCount);
-
-    let isMounted = true; // Flag to prevent state updates on unmounted component
-    
-    const loadChats = async () => {
-      try {
-        // Auto-send welcome message for new users
-        await skillBotService.autoSendWelcomeMessage(
-          currentUser.uid, 
-          currentUser.displayName || 'User'
-        );
-        
-        // Clean up any existing subscription before creating new one
-        if (chatsUnsubscribe) {
-          chatsUnsubscribe();
-          setChatsUnsubscribe(null);
-        }
-        
-        // Set up real-time listener for chats
-        const unsubscribe = chatService.subscribeToUserChats(currentUser.uid, (userChats) => {
-          if (!isMounted) return; // Prevent state update if component is unmounted
-          
-          setChats(userChats);
-          
-          // If chatId is provided and chat hasn't been selected yet, select it
-          if (chatId && !selectedChat) {
-            // Handle SkillBot chatId - support both 'skillbot' and 'userId_skillbot' formats
-            const isSkillBotChat = chatId === SKILLBOT_ID || chatId.includes(SKILLBOT_ID);
-            
-            if (isSkillBotChat) {
-              // Find SkillBot chat in the loaded chats
-              const skillBotChat = userChats.find(chat => 
-                chat.id.includes(SKILLBOT_ID) || chat.isSkillBot
-              );
-              if (skillBotChat) {
-                setSelectedChat(skillBotChat);
-                loadSkillBotMessages();
-              } else {
-                // Create a virtual SkillBot chat if not found in list
-                const virtualSkillBotChat = {
-                  id: `${currentUser.uid}_${SKILLBOT_ID}`,
-                  isSkillBot: true,
-                  otherParticipant: {
-                    displayName: 'SkillBot AI',
-                    profilePhoto: '/images/robot.png'
-                  }
-                };
-                setSelectedChat(virtualSkillBotChat);
-                loadSkillBotMessages();
-              }
-            } else {
-              const chat = userChats.find(c => c.id === chatId);
-              if (chat) {
-                setSelectedChat(chat);
-                loadChatMessages(chatId);
-              }
-            }
-          }
-        });
-        
-        setChatsUnsubscribe(() => unsubscribe);
-        
-      } catch (error) {
-        console.error('Error loading chats:', error);
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    loadChats();
-
-    // Cleanup on component unmount or dependency change
-    return () => {
-      isMounted = false;
-      isInitialized.current = false; // Reset for potential re-initialization
-      
-      console.log('🧹 [Messages] Cleaning up subscriptions...');
-      
-      // Clear chat selection timeout
-      if (chatSelectionTimeoutRef.current) {
-        clearTimeout(chatSelectionTimeoutRef.current);
-      }
-      
-      if (chatsUnsubscribe) {
-        console.log('🧹 [Messages] Cleaning up chats subscription');
-        chatsUnsubscribe();
-        setChatsUnsubscribe(null);
-      }
-      if (messagesUnsubscribe) {
-        console.log('🧹 [Messages] Cleaning up messages subscription');
-        messagesUnsubscribe();
-        setMessagesUnsubscribe(null);
-      }
-    };
-  }, [currentUser?.uid]); // Only depend on user ID, not chatId or selectedChat
-
-  // Separate effect for handling chatId changes
-  useEffect(() => {
-    if (!currentUser || !chatId || chats.length === 0) return;
-    
-    // Handle SkillBot chatId - support both 'skillbot' and 'userId_skillbot' formats
-    const isSkillBotChat = chatId === SKILLBOT_ID || chatId.includes(SKILLBOT_ID);
-    
-    if (isSkillBotChat) {
-      // Find SkillBot chat in the loaded chats
-      const skillBotChat = chats.find(chat => 
-        chat.id.includes(SKILLBOT_ID) || chat.isSkillBot
-      );
-      if (skillBotChat && skillBotChat.id !== selectedChat?.id) {
-        setSelectedChat(skillBotChat);
-        loadSkillBotMessages();
-      } else if (!skillBotChat && (!selectedChat || !selectedChat.isSkillBot)) {
-        // Create a virtual SkillBot chat if not found in list
-        const virtualSkillBotChat = {
-          id: `${currentUser.uid}_${SKILLBOT_ID}`,
-          isSkillBot: true,
-          otherParticipant: {
-            displayName: 'SkillBot AI',
-            profilePhoto: '/images/robot.png'
-          }
-        };
-        setSelectedChat(virtualSkillBotChat);
-        loadSkillBotMessages();
-      }
-    } else {
-      const chat = chats.find(c => c.id === chatId);
-      if (chat && chat.id !== selectedChat?.id) {
-        setSelectedChat(chat);
-        loadChatMessages(chatId);
-      }
-    }
-  }, [chatId, chats, currentUser?.uid]); // Don't include selectedChat to prevent loops
-
   // Load SkillBot messages with real-time updates
-  const loadSkillBotMessages = async () => {
+  const loadSkillBotMessages = useCallback(async () => {
+    if (!currentUser) return;
+    
     try {
       console.log('📡 [Messages] Loading SkillBot messages...');
       
@@ -356,10 +144,12 @@ export default function Messages() {
       };
       setMessages([fallbackMessage]);
     }
-  };
+  }, [currentUser]);
 
   // Load messages for selected chat with real-time updates
-  const loadChatMessages = async (chatId) => {
+  const loadChatMessages = useCallback(async (chatId) => {
+    if (!currentUser) return;
+    
     // Check if this is a SkillBot chat (support both 'skillbot' and 'userId_skillbot' formats)
     const isSkillBotChat = chatId === SKILLBOT_ID || chatId.includes(SKILLBOT_ID);
     
@@ -392,7 +182,153 @@ export default function Messages() {
     } catch (error) {
       console.error('Error loading messages:', error);
     }
-  };
+  }, [currentUser, loadSkillBotMessages]);
+
+  // Auto-scroll when messages change - with debouncing to prevent excessive scrolling
+  useEffect(() => {
+    if (messages.length === 0) return; // Don't scroll when messages are cleared
+    
+    // Use setTimeout to ensure DOM has been updated before scrolling
+    const timeoutId = setTimeout(() => {
+      scrollToBottom();
+    }, 100);
+    
+    return () => clearTimeout(timeoutId);
+  }, [messages.length]); // Only depend on message count, not the entire messages array
+
+  // Auto-dismiss success messages
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => {
+        setSuccess('');
+      }, 3000); // 3 seconds
+      
+      return () => clearTimeout(timer);
+    }
+  }, [success]);
+
+  // Load user chats and initialize SkillBot if needed
+  useEffect(() => {
+    if (!currentUser) return;
+
+    // Prevent StrictMode double-mounting and multiple instances
+    if (isInitialized.current) {
+      console.log('⚠️ [Messages] Already initialized, skipping (likely StrictMode double-mount)');
+      return;
+    }
+    
+    // Log current subscription count for debugging
+    const existingSubscriptionCount = window.firebaseMonitor?.getSubscriptionStats?.()?.active || 0;
+    console.log('📊 [Messages] Current subscription count:', existingSubscriptionCount);
+    
+    isInitialized.current = true;
+    console.log('✅ [Messages] Initializing with subscription count:', existingSubscriptionCount);
+
+    let isMounted = true; // Flag to prevent state updates on unmounted component
+    
+    const loadChats = async () => {
+      try {
+        // Auto-send welcome message for new users
+        await skillBotService.autoSendWelcomeMessage(
+          currentUser.uid, 
+          currentUser.displayName || 'User'
+        );
+        
+        // Clean up any existing subscription before creating new one
+        if (chatsUnsubscribe) {
+          chatsUnsubscribe();
+          setChatsUnsubscribe(null);
+        }
+        
+        // Set up real-time listener for chats
+        const unsubscribe = chatService.subscribeToUserChats(currentUser.uid, (userChats) => {
+          if (!isMounted) return; // Prevent state update if component is unmounted
+          
+          setChats(userChats);
+        });
+        
+        setChatsUnsubscribe(() => unsubscribe);
+        
+      } catch (error) {
+        console.error('Error loading chats:', error);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadChats();
+
+    // Cleanup on component unmount or dependency change
+    return () => {
+      isMounted = false;
+      isInitialized.current = false; // Reset for potential re-initialization
+      
+      console.log('🧹 [Messages] Cleaning up subscriptions...');
+      
+      // Clear chat selection timeout
+      if (chatSelectionTimeoutRef.current) {
+        clearTimeout(chatSelectionTimeoutRef.current);
+      }
+      
+      if (chatsUnsubscribe) {
+        console.log('🧹 [Messages] Cleaning up chats subscription');
+        chatsUnsubscribe();
+        setChatsUnsubscribe(null);
+      }
+      if (messagesUnsubscribe) {
+        console.log('🧹 [Messages] Cleaning up messages subscription');
+        messagesUnsubscribe();
+        setMessagesUnsubscribe(null);
+      }
+    };
+  }, [currentUser?.uid]); // Only depend on user ID
+
+  // Separate effect for handling chatId changes - this handles initial chat selection from URL
+  useEffect(() => {
+    if (!currentUser || !chatId || chats.length === 0) return;
+    
+    // Prevent redundant operations if chat is already selected
+    if (selectedChat && (
+      selectedChat.id === chatId || 
+      (chatId === SKILLBOT_ID && (selectedChat.isSkillBot || selectedChat.id.includes(SKILLBOT_ID)))
+    )) {
+      return;
+    }
+    
+    // Handle SkillBot chatId - support both 'skillbot' and 'userId_skillbot' formats
+    const isSkillBotChat = chatId === SKILLBOT_ID || chatId.includes(SKILLBOT_ID);
+    
+    if (isSkillBotChat) {
+      // Find SkillBot chat in the loaded chats
+      const skillBotChat = chats.find(chat => 
+        chat.id.includes(SKILLBOT_ID) || chat.isSkillBot
+      );
+      if (skillBotChat) {
+        setSelectedChat(skillBotChat);
+        loadSkillBotMessages();
+      } else {
+        // Create a virtual SkillBot chat if not found in list
+        const virtualSkillBotChat = {
+          id: `${currentUser.uid}_${SKILLBOT_ID}`,
+          isSkillBot: true,
+          otherParticipant: {
+            displayName: 'SkillBot AI',
+            profilePhoto: '/images/robot.png'
+          }
+        };
+        setSelectedChat(virtualSkillBotChat);
+        loadSkillBotMessages();
+      }
+    } else {
+      const chat = chats.find(c => c.id === chatId);
+      if (chat) {
+        setSelectedChat(chat);
+        loadChatMessages(chatId);
+      }
+    }
+     }, [chatId, chats, currentUser?.uid, loadSkillBotMessages, loadChatMessages]); // Include the functions in dependencies
 
   // Handle chat selection with debouncing
   const handleChatSelect = (chat) => {
