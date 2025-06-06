@@ -11,6 +11,7 @@ import ErrorPopup from '../components/common/ErrorPopup';
 import SuccessPopup from '../components/common/SuccessPopup';
 import GigAnalysisChat from '../components/SkillBot/GigAnalysisChat';
 import PageContainer from '../components/common/PageContainer';
+import orderService from '../services/orderService';
 
 export default function GigDetail() {
   const { gigId } = useParams();
@@ -36,6 +37,11 @@ export default function GigDetail() {
   const [showAllSkills, setShowAllSkills] = useState(false);
   const [showAllEducation, setShowAllEducation] = useState(false);
   const [showAllCertifications, setShowAllCertifications] = useState(false);
+  const [freelancerStats, setFreelancerStats] = useState({
+    completedProjects: 0,
+    successRate: 0,
+    totalOrders: 0
+  });
 
   // Check if current user is the gig owner
   const isOwnGig = currentUser && gig && currentUser.uid === gig.freelancerId;
@@ -55,6 +61,48 @@ export default function GigDetail() {
         
         setGig(gigData);
         setReviews(gigData.reviews || []);
+
+        // Load freelancer stats if freelancer data is available
+        if (gigData.freelancer?.id) {
+          try {
+            // Use the same logic as FreelancerProfile
+            const { orders } = await orderService.getFreelancerOrders(gigData.freelancer.id, { limitCount: null });
+            
+            let totalCompleted = 0;
+            let totalOrders = orders.length;
+            let acceptedOrders = 0;
+
+            orders.forEach(order => {
+              // Count completed orders
+              if (order.status === 'completed') {
+                totalCompleted++;
+              }
+              
+              // Count accepted orders (not rejected/cancelled by freelancer)
+              if (order.status !== 'rejected' && order.status !== 'cancelled_by_freelancer') {
+                acceptedOrders++;
+              }
+            });
+
+            const successRate = totalOrders > 0 ? (acceptedOrders / totalOrders) * 100 : 0;
+
+            const mappedStats = {
+              completedProjects: totalCompleted,
+              successRate: Math.round(successRate),
+              totalOrders: totalOrders
+            };
+            
+                         setFreelancerStats(mappedStats);
+          } catch (error) {
+            console.error('Error loading freelancer stats:', error);
+            // Set fallback values
+            setFreelancerStats({
+              completedProjects: 0,
+              successRate: 0,
+              totalOrders: 0
+            });
+          }
+        }
 
         // Increment view count for non-owners
         if (gigData) {
@@ -383,7 +431,7 @@ export default function GigDetail() {
                     <span className="text-gray-500 ml-1">({gig.freelancer.totalReviews})</span>
                   </div>
                   <span>•</span>
-                  <span>{gig.freelancer.completedProjects} orders completed</span>
+                  <span>{freelancerStats.completedProjects} orders completed</span>
                 </div>
               </div>
             </div>
@@ -488,7 +536,7 @@ export default function GigDetail() {
                       </span>
                       <span className="text-gray-400">•</span>
                       <span className="text-sm text-gray-500">
-                        {gig.freelancer.completedProjects || 0} orders completed
+                        {freelancerStats.completedProjects} orders completed
                       </span>
                     </div>
                     <div className="flex items-center gap-2">

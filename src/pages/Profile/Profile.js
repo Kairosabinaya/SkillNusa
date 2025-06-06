@@ -9,7 +9,7 @@ import { uploadProfilePhoto as uploadToCloudinary } from '../../services/cloudin
 import { getUserProfile, updateUserProfile } from '../../services/userProfileService';
 import { getIndonesianCities } from '../../services/profileService';
 import ProfilePhoto from '../../components/common/ProfilePhoto';
-import { getProfilePhotoUrl } from '../../utils/profilePhotoUtils';
+import { DEFAULT_PROFILE_PHOTO, isValidProfilePhoto } from '../../utils/profilePhotoUtils';
 
 export default function Profile() {
   const { userProfile, currentUser } = useAuth();
@@ -299,7 +299,7 @@ export default function Profile() {
                       ) : (
                         <ProfilePhoto 
                           user={{
-                            profilePhoto: getProfilePhotoUrl(combinedUserData?.profilePhoto),
+                            profilePhoto: isValidProfilePhoto(combinedUserData?.profilePhoto) ? combinedUserData?.profilePhoto : DEFAULT_PROFILE_PHOTO,
                             displayName: combinedUserData?.displayName,
                             email: combinedUserData?.email
                           }}
@@ -328,7 +328,7 @@ export default function Profile() {
                 ) : (
                   <ProfilePhoto 
                     user={{
-                      profilePhoto: getProfilePhotoUrl(combinedUserData?.profilePhoto),
+                      profilePhoto: isValidProfilePhoto(combinedUserData?.profilePhoto) ? combinedUserData?.profilePhoto : DEFAULT_PROFILE_PHOTO,
                       displayName: combinedUserData?.displayName,
                       email: combinedUserData?.email
                     }}

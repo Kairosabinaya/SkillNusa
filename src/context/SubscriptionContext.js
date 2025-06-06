@@ -4,6 +4,8 @@ import favoriteService from '../services/favoriteService';
 import cartService from '../services/cartService';
 import chatService from '../services/chatService';
 import skillBotService from '../services/skillBotService';
+import orderNotificationService from '../services/orderNotificationService';
+import notificationService from '../services/notificationService';
 import subscriptionRegistry from '../utils/subscriptionRegistry';
 
 const SubscriptionContext = createContext();
@@ -11,12 +13,14 @@ const SubscriptionContext = createContext();
 export const useSubscriptions = () => useContext(SubscriptionContext);
 
 export function SubscriptionProvider({ children }) {
-  const { currentUser } = useAuth();
+  const { currentUser, userProfile } = useAuth();
   const [counts, setCounts] = useState({
     favorites: 0,
     cart: 0,
     messages: 0,
-    skillbot: 0
+    skillbot: 0,
+    orders: 0,
+    notifications: 0
   });
   
   // Track active subscriptions to prevent duplicates
@@ -48,7 +52,9 @@ export function SubscriptionProvider({ children }) {
       favorites: 0,
       cart: 0,
       messages: 0,
-      skillbot: 0
+      skillbot: 0,
+      orders: 0,
+      notifications: 0
     });
   };
   
@@ -152,6 +158,43 @@ export function SubscriptionProvider({ children }) {
           console.log('⚠️ [SubscriptionContext] SkillBot subscription already exists, skipping');
         }
 
+        // Order notifications subscription (only for freelancers)
+        const isFreelancer = userProfile?.isFreelancer || userProfile?.roles?.includes('freelancer');
+        if (isFreelancer && !subscriptionRegistry.hasSubscription(currentUser.uid, 'orders')) {
+          console.log('📡 [SubscriptionContext] Setting up order notifications subscription for freelancer');
+          const ordersUnsubscribe = orderNotificationService.subscribeToOrderNotifications(
+            currentUser.uid, 
+            (count) => {
+              console.log('📊 [SubscriptionContext] Order notifications count update:', count);
+              setCounts(prev => ({ ...prev, orders: count }));
+            }
+          );
+          
+          subscriptionsRef.current.orders = ordersUnsubscribe;
+          subscriptionRegistry.registerSubscription(currentUser.uid, 'orders', ordersUnsubscribe);
+        } else if (!isFreelancer) {
+          console.log('⚠️ [SubscriptionContext] User is not a freelancer, skipping order notifications');
+        } else {
+          console.log('⚠️ [SubscriptionContext] Order notifications subscription already exists, skipping');
+        }
+
+        // General notifications subscription (for all users)
+        if (!subscriptionRegistry.hasSubscription(currentUser.uid, 'notifications')) {
+          console.log('📡 [SubscriptionContext] Setting up general notifications subscription');
+          const notificationsUnsubscribe = notificationService.subscribeToNotificationCount(
+            currentUser.uid,
+            (count) => {
+              console.log('📊 [SubscriptionContext] General notifications count update:', count);
+              setCounts(prev => ({ ...prev, notifications: count }));
+            }
+          );
+          
+          subscriptionsRef.current.notifications = notificationsUnsubscribe;
+          subscriptionRegistry.registerSubscription(currentUser.uid, 'notifications', notificationsUnsubscribe);
+        } else {
+          console.log('⚠️ [SubscriptionContext] General notifications subscription already exists, skipping');
+        }
+
         console.log('✅ [SubscriptionContext] All subscriptions set up successfully');
       } catch (error) {
         console.error('❌ [SubscriptionContext] Error setting up subscriptions:', error);
@@ -164,7 +207,7 @@ export function SubscriptionProvider({ children }) {
       clearTimeout(setupTimer);
       cleanupAllSubscriptions();
     };
-  }, [currentUser?.uid]); // Only depend on user ID to prevent unnecessary re-subscriptions
+  }, [currentUser?.uid, userProfile?.isFreelancer]); // Depend on user ID and freelancer status
   
   // Listen for forced cleanup events (e.g., during account deletion)
   useEffect(() => {

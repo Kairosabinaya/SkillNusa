@@ -15,6 +15,7 @@ import {
 import { db } from '../firebase/config';
 import chatService from '../services/chatService';
 import freelancerRatingService from '../services/freelancerRatingService';
+import reviewService from '../services/reviewService';
 import {
   StarIcon,
   MapPinIcon,
@@ -39,12 +40,63 @@ export default function FreelancerProfile() {
   const [freelancerProfile, setFreelancerProfile] = useState(null);
   const [freelancerGigs, setFreelancerGigs] = useState([]);
   const [freelancerReviews, setFreelancerReviews] = useState([]);
+  const [freelancerStats, setFreelancerStats] = useState({
+    completedProjects: 0,
+    successRate: 0,
+    totalOrders: 0
+  });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('about');
 
   useEffect(() => {
     loadFreelancerData();
   }, [freelancerId]);
+
+  // Calculate actual completed projects from orders
+  const calculateCompletedProjects = async (gigIds) => {
+    try {
+      let totalCompleted = 0;
+      let totalOrders = 0;
+      let acceptedOrders = 0;
+
+      for (const gigId of gigIds) {
+        const ordersQuery = query(
+          collection(db, 'orders'),
+          where('gigId', '==', gigId)
+        );
+        
+        const ordersSnapshot = await getDocs(ordersQuery);
+        const orders = ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        totalOrders += orders.length;
+        
+        // Count completed orders
+        const completedCount = orders.filter(order => order.status === 'completed').length;
+        totalCompleted += completedCount;
+        
+        // Count accepted orders (not rejected/cancelled by freelancer)
+        const acceptedCount = orders.filter(order => 
+          order.status !== 'rejected' && order.status !== 'cancelled_by_freelancer'
+        ).length;
+        acceptedOrders += acceptedCount;
+      }
+
+      const successRate = totalOrders > 0 ? (acceptedOrders / totalOrders) * 100 : 0;
+
+      return {
+        completedProjects: totalCompleted,
+        successRate: Math.round(successRate),
+        totalOrders
+      };
+    } catch (error) {
+      console.error('Error calculating completed projects:', error);
+      return {
+        completedProjects: 0,
+        successRate: 0,
+        totalOrders: 0
+      };
+    }
+  };
 
   const loadFreelancerData = async () => {
     try {
@@ -59,7 +111,7 @@ export default function FreelancerProfile() {
       
       const userData = { id: userDoc.id, ...userDoc.data() };
       setFreelancerData(userData);
-
+      
       // Load freelancer profile with calculated rating
       const profileQuery = query(
         collection(db, 'freelancerProfiles'),
@@ -90,6 +142,7 @@ export default function FreelancerProfile() {
       setFreelancerProfile(profileData);
 
       // Load freelancer gigs with fallback query
+      let gigIds = [];
       try {
         // Try compound query first
         try {
@@ -104,10 +157,33 @@ export default function FreelancerProfile() {
           const gigsData = [];
           
           gigsSnapshot.forEach((doc) => {
-            gigsData.push({ id: doc.id, ...doc.data() });
+            const gigData = { id: doc.id, ...doc.data() };
+            gigsData.push(gigData);
+            gigIds.push(doc.id);
           });
           
-          setFreelancerGigs(gigsData);
+          // Add rating stats to each gig
+          const gigsWithRatings = await Promise.all(
+            gigsData.map(async (gig) => {
+              try {
+                const ratingStats = await reviewService.getGigRatingStats(gig.id);
+                return {
+                  ...gig,
+                  rating: ratingStats.averageRating,
+                  totalReviews: ratingStats.totalReviews
+                };
+              } catch (error) {
+                console.error('Error getting rating stats for gig:', gig.id, error);
+                return {
+                  ...gig,
+                  rating: 0,
+                  totalReviews: 0
+                };
+              }
+            })
+          );
+          
+          setFreelancerGigs(gigsWithRatings);
         } catch (indexError) {
           console.log('Index not available for gigs query, using fallback...');
           
@@ -122,7 +198,9 @@ export default function FreelancerProfile() {
           const gigsData = [];
           
           gigsSnapshot.forEach((doc) => {
-            gigsData.push({ id: doc.id, ...doc.data() });
+            const gigData = { id: doc.id, ...doc.data() };
+            gigsData.push(gigData);
+            gigIds.push(doc.id);
           });
           
           // Client-side sorting by createdAt desc
@@ -132,12 +210,37 @@ export default function FreelancerProfile() {
             return bDate - aDate;
           });
           
-          setFreelancerGigs(gigsData);
+          // Add rating stats to each gig (fallback query)
+          const gigsWithRatings = await Promise.all(
+            gigsData.map(async (gig) => {
+              try {
+                const ratingStats = await reviewService.getGigRatingStats(gig.id);
+                return {
+                  ...gig,
+                  rating: ratingStats.averageRating,
+                  totalReviews: ratingStats.totalReviews
+                };
+              } catch (error) {
+                console.error('Error getting rating stats for gig:', gig.id, error);
+                return {
+                  ...gig,
+                  rating: 0,
+                  totalReviews: 0
+                };
+              }
+            })
+          );
+          
+          setFreelancerGigs(gigsWithRatings);
         }
       } catch (error) {
         console.error('Error loading freelancer gigs:', error);
         setFreelancerGigs([]);
       }
+
+      // Calculate real stats from orders
+      const realStats = await calculateCompletedProjects(gigIds);
+      setFreelancerStats(realStats);
 
       // Load all freelancer reviews from all gigs using new service
       const allReviews = await freelancerRatingService.getAllFreelancerReviews(freelancerId, { limit: 10 });
@@ -188,14 +291,21 @@ export default function FreelancerProfile() {
     }).format(amount);
   };
 
-  const getResponseTime = (profileData) => {
-    if (profileData?.averageResponseTime) {
-      const hours = profileData.averageResponseTime;
-      if (hours < 1) return 'Kurang dari 1 jam';
-      if (hours < 24) return `${Math.round(hours)} jam`;
-      return `${Math.round(hours / 24)} hari`;
+  const getWorkingHours = (profileData) => {
+    if (profileData?.workingHours) {
+      // If it's already a formatted string like "08:00 - 17:00 WIB"
+      if (typeof profileData.workingHours === 'string') {
+        return profileData.workingHours;
+      }
+      // If it's an object with start/end
+      if (profileData.workingHours.start && profileData.workingHours.end) {
+        return `${profileData.workingHours.start} - ${profileData.workingHours.end}`;
+      }
     }
-    return 'Tidak tersedia';
+    if (profileData?.availableHours) {
+      return profileData.availableHours;
+    }
+    return '09:00 - 17:00 WIB';
   };
 
   const renderStars = (rating) => {
@@ -247,7 +357,7 @@ export default function FreelancerProfile() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-20">
+    <div className="min-h-screen bg-gray-50">
       <PageContainer padding="px-6 py-8">
         {/* Back Button */}
         <motion.button
@@ -336,7 +446,7 @@ export default function FreelancerProfile() {
                     
                     <div className="flex items-center">
                       <ClockIcon className="w-5 h-5 mr-2" />
-                      Response time: {getResponseTime(freelancerProfile)}
+                      Working Hours: {getWorkingHours(freelancerProfile)}
                     </div>
                   </div>
 
@@ -379,7 +489,7 @@ export default function FreelancerProfile() {
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-6 border-t border-gray-200">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-gray-900">
-                    {freelancerProfile?.completedProjects || 0}
+                    {freelancerStats.completedProjects}
                   </div>
                   <div className="text-sm text-gray-600">Projects Completed</div>
                 </div>
@@ -397,7 +507,7 @@ export default function FreelancerProfile() {
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-gray-900">
-                    {Math.round(((freelancerProfile?.completedProjects || 0) / Math.max((freelancerProfile?.completedProjects || 0) + (freelancerProfile?.cancelledProjects || 0), 1)) * 100)}%
+                    {freelancerStats.successRate}%
                   </div>
                   <div className="text-sm text-gray-600">Success Rate</div>
                 </div>
@@ -489,30 +599,75 @@ export default function FreelancerProfile() {
                   </div>
                 )}
 
-                {/* Education */}
-                {freelancerData?.education && freelancerData.education.length > 0 && (
+                {/* Education & Certifications - Side by Side */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* Education */}
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Education</h3>
-                    <div className="space-y-4">
-                      {freelancerData.education.map((edu, index) => (
-                        <div key={index} className="flex items-start">
-                          <AcademicCapIcon className="w-6 h-6 text-gray-400 mr-3 mt-1" />
-                          <div>
-                            <h4 className="font-medium text-gray-900">
-                              {edu.degree || edu.title || 'Unknown Degree'}
-                            </h4>
-                            <p className="text-gray-600">
-                              {edu.institution || edu.university || edu.school || 'Unknown Institution'}
-                            </p>
-                            <p className="text-gray-500 text-sm">
-                              {edu.year || edu.graduationYear || edu.endYear || 'Unknown Year'}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    {((freelancerProfile?.education && Array.isArray(freelancerProfile.education) && freelancerProfile.education.length > 0) || 
+                      (freelancerData?.education && Array.isArray(freelancerData.education) && freelancerData.education.length > 0)) ? (
+                      <div className="space-y-4">
+                        {(freelancerProfile?.education || freelancerData?.education || []).map((edu, index) => (
+                            <div key={index} className="flex items-start">
+                              <AcademicCapIcon className="w-6 h-6 text-gray-400 mr-3 mt-1" />
+                              <div>
+                                <h4 className="font-medium text-gray-900">
+                                  {edu?.degree || edu?.title || edu?.name || edu?.major || edu?.fieldOfStudy || 'Unknown Degree'} in {edu.fieldOfStudy}
+                                </h4>
+                                <p className="text-gray-600">
+                                  {edu?.institution || edu?.university || edu?.school || edu?.college || 'Unknown Institution'} | {edu?.country}
+                                </p>
+                                <p className="text-gray-500 text-sm">
+                                  {edu?.year || edu?.graduationYear || edu?.endYear || edu?.duration || edu?.period || 'Unknown Year'} 
+                                </p>
+                                
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    ) : (
+                      <div className="text-gray-500 text-sm">
+                        No education information available
+                      </div>
+                    )}
                   </div>
-                )}
+
+                  {/* Certifications */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Certifications</h3>
+                    {((freelancerProfile?.certifications && Array.isArray(freelancerProfile.certifications) && freelancerProfile.certifications.length > 0) || 
+                      (freelancerData?.certifications && Array.isArray(freelancerData.certifications) && freelancerData.certifications.length > 0)) ? (
+                      <div className="space-y-4">
+                        {(freelancerProfile?.certifications || freelancerData?.certifications || []).map((cert, index) => (
+                            <div key={index} className="flex items-start">
+                              <TrophyIcon className="w-6 h-6 text-gray-400 mr-3 mt-1" />
+                              <div>
+                                <h4 className="font-medium text-gray-900">
+                                  {cert?.name || cert?.title || cert?.certification || 'Unknown Certification'}
+                                </h4>
+                                <p className="text-gray-600">
+                                  {cert?.issuer || cert?.issuedBy || cert?.organization || cert?.company || 'Unknown Issuer'}
+                                </p>
+                                <p className="text-gray-500 text-sm">
+                                  {cert?.year || cert?.issueYear || cert?.date || cert?.issueDate || 'Unknown Year'}
+                                </p>
+                                {cert?.description && (
+                                  <p className="text-gray-600 text-sm mt-1">{cert.description}</p>
+                                )}
+                                {cert?.credentialId && (
+                                  <p className="text-gray-500 text-xs mt-1">ID: {cert.credentialId}</p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    ) : (
+                      <div className="text-gray-500 text-sm">
+                        No certifications available
+                      </div>
+                    )}
+                  </div>
+                </div>
 
                 {/* Work Experience */}
                 {(freelancerProfile?.workExperience || freelancerData?.workExperience) && (freelancerProfile?.workExperience || freelancerData?.workExperience).length > 0 && (
@@ -529,31 +684,6 @@ export default function FreelancerProfile() {
                             {work.description && (
                               <p className="text-gray-600 text-sm mt-2">{work.description}</p>
                             )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Certifications */}
-                {freelancerData?.certifications && freelancerData.certifications.length > 0 && (
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Certifications</h3>
-                    <div className="space-y-4">
-                      {freelancerData.certifications.map((cert, index) => (
-                        <div key={index} className="flex items-start">
-                          <TrophyIcon className="w-6 h-6 text-gray-400 mr-3 mt-1" />
-                          <div>
-                            <h4 className="font-medium text-gray-900">
-                              {cert.name || cert.title || 'Unknown Certification'}
-                            </h4>
-                            <p className="text-gray-600">
-                              {cert.issuer || cert.issuedBy || cert.organization || 'Unknown Issuer'}
-                            </p>
-                            <p className="text-gray-500 text-sm">
-                              {cert.year || cert.issueYear || cert.date || 'Unknown Year'}
-                            </p>
                           </div>
                         </div>
                       ))}

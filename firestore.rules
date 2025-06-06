@@ -109,16 +109,22 @@ service cloud.firestore {
          chatId.matches('.*_' + request.auth.uid + '_.*'));
     }
 
+    // Allow querying chats by participant for finding existing chats
+    match /chats/{document=**} {
+      allow read: if request.auth != null;
+    }
+
     // Messages - only chat participants can access
     match /messages/{messageId} {
       allow read, write: if request.auth != null;
       // Note: Additional validation should be done in app logic
     }
 
-    // Notifications - users can only access their own
+    // Notifications - users can only access their own, but any authenticated user can create notifications for others
     match /notifications/{notificationId} {
-      // Allow creating notifications if user owns them
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      // Allow creating notifications by any authenticated user (for system notifications)
+      // This is necessary for cross-user notifications like order status updates
+      allow create: if request.auth != null;
       // Allow reading and updating notifications if user owns them
       allow read, update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
     }

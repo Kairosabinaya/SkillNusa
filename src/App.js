@@ -74,6 +74,7 @@ import FreelancerAnalytics from './pages/Dashboard/FreelancerAnalytics';
 import FreelancerWallet from './pages/Dashboard/FreelancerWallet';
 import FreelancerSettings from './pages/Dashboard/FreelancerSettings';
 import FreelancerNotifications from './pages/Dashboard/FreelancerNotifications';
+import Notifications from './pages/Notifications';
 
 // Admin Pages
 import AdminDashboard from './pages/Dashboard/AdminDashboard';
@@ -395,6 +396,17 @@ function App() {
           >
             <Route index element={<Messages />} />
             <Route path=":chatId" element={<Messages />} />
+          </Route>
+
+          <Route 
+            path="/notifications" 
+            element={
+              <ProtectedRoute>
+                <PublicLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Notifications />} />
           </Route>
 
           {/* Test Routes */}

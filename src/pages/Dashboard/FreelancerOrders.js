@@ -1,17 +1,25 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { 
-  collection, 
-  doc,
-  updateDoc,
   addDoc,
-  onSnapshot,
-  serverTimestamp
+  collection
 } from 'firebase/firestore';
 import { db } from '../../firebase/config';
-import orderService from '../../services/orderService';
+import { useOrderManagement } from '../../hooks/useOrderManagement';
+import { 
+  calculateTimeRemaining, 
+  getDeadlineUrgencyColor, 
+  getStatusText, 
+  getStatusColor, 
+  formatCurrency, 
+  formatDate,
+  getRevisionCountText,
+  isRevisionDisabled
+} from '../../utils/orderUtils';
+import OrderCard from '../../components/orders/OrderCard';
+import OrderStats from '../../components/orders/OrderStats';
 import {
   MagnifyingGlassIcon,
   FunnelIcon,
@@ -29,195 +37,50 @@ import {
 } from '@heroicons/react/24/outline';
 import ErrorPopup from '../../components/common/ErrorPopup';
 import SuccessPopup from '../../components/common/SuccessPopup';
+import PageContainer from '../../components/common/PageContainer';
 
 export default function FreelancerOrders() {
   const { orderId } = useParams();
   const { currentUser } = useAuth();
-  const [orders, setOrders] = useState([]);
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [deliveryMessage, setDeliveryMessage] = useState('');
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [stats, setStats] = useState({
-    total: 0,
-    active: 0,
-    completed: 0,
-    pending: 0,
-    cancelled: 0
-  });
 
-  useEffect(() => {
-    fetchOrders();
-  }, [currentUser]);
+  // Use custom hook for order management
+  const {
+    orders,
+    selectedOrder,
+    loading,
+    stats,
+    error,
+    success,
+    updateOrderStatus,
+    deliverOrder,
+    filterOrders,
+    clearMessages,
+    setError,
+    setSuccess
+  } = useOrderManagement(currentUser, orderId);
 
-  useEffect(() => {
-    if (orderId) {
-      const order = orders.find(o => o.id === orderId);
-      setSelectedOrder(order);
-    }
-  }, [orderId, orders]);
+  // Filter orders based on search and status
+  const filteredOrders = filterOrders(searchQuery, filterStatus);
 
-  const fetchOrders = async () => {
-    if (!currentUser) return;
-
-    setLoading(true);
-    try {
-      console.log('🔍 [FreelancerOrders] Fetching orders for freelancer:', currentUser.uid);
-      
-      // Use OrderService with details to get client data properly
-      const ordersData = await orderService.getOrdersWithDetails(currentUser.uid, 'freelancer');
-      
-      console.log('📥 [FreelancerOrders] Orders received:', {
-        count: ordersData.length,
-        orders: ordersData.map(o => ({ id: o.id, status: o.status, title: o.title }))
-      });
-
-      // Debug: Check client data for each order
-      ordersData.forEach((order, index) => {
-        console.log(`🧪 [FreelancerOrders] Order ${index + 1} detailed data:`, {
-          id: order.id,
-          title: order.title,
-          status: order.status,
-          price: order.price,
-          amount: order.amount,
-          totalPrice: order.totalPrice,
-          clientId: order.clientId,
-          client: order.client,
-          freelancerId: order.freelancerId,
-          allFields: Object.keys(order)
-        });
-      });
-
-      // Calculate stats with better status handling
-      let statusCounts = { total: 0, active: 0, completed: 0, pending: 0, cancelled: 0 };
-      
-      ordersData.forEach(order => {
-        statusCounts.total++;
-        console.log('📊 [FreelancerOrders] Processing order status:', { 
-          id: order.id, 
-          status: order.status, 
-          title: order.title 
-        });
-        
-        // More comprehensive status categorization
-        if (order.status === 'active' || 
-            order.status === 'in_progress' || 
-            order.status === 'in_revision' ||
-            order.status === 'delivered') {
-          statusCounts.active++;
-        } else if (order.status === 'completed') {
-          statusCounts.completed++;
-        } else if (order.status === 'pending' || order.status === 'awaiting_confirmation') {
-          statusCounts.pending++;
-        } else if (order.status === 'cancelled' || order.status === 'rejected') {
-          statusCounts.cancelled++;
-        } else {
-          // Unknown status, treat as pending for now
-          console.warn('📊 [FreelancerOrders] Unknown order status:', order.status);
-          statusCounts.pending++;
-        }
-      });
-
-      console.log('📊 [FreelancerOrders] Final status counts:', statusCounts);
-
-      setOrders(ordersData);
-      setStats(statusCounts);
-      
-      console.log('✅ [FreelancerOrders] Orders state updated:', {
-        orders: ordersData.length,
-        stats: statusCounts
-      });
-    } catch (error) {
-      console.error('💥 [FreelancerOrders] Error fetching orders:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const updateOrderStatus = async (orderId, newStatus, message = '') => {
-    try {
-      console.log('🔄 [FreelancerOrders] Updating order status:', { orderId, newStatus, message });
-      
-      await orderService.updateOrderStatus(orderId, newStatus, currentUser.uid, {
-        statusMessage: message
-      });
-
-      // Update local state
-      setOrders(prevOrders => 
-        prevOrders.map(order => 
-          order.id === orderId 
-            ? { ...order, status: newStatus, statusMessage: message }
-            : order
-        )
-      );
-
-      // Update selected order if it's the current one
-      if (selectedOrder?.id === orderId) {
-        setSelectedOrder(prev => ({ 
-          ...prev, 
-          status: newStatus, 
-          statusMessage: message 
-        }));
-      }
-      
-      // Refresh orders to get updated data
-      fetchOrders();
-      
-      setSuccess('Status pesanan berhasil diupdate');
-    } catch (error) {
-      console.error('💥 [FreelancerOrders] Error updating order status:', error);
-      setError('Gagal mengupdate status pesanan. Silakan coba lagi.');
-    }
-  };
-
-  const deliverOrder = async () => {
-    if (!deliveryMessage.trim()) {
-      setError('Pesan delivery harus diisi');
+  // Handle delivery with our custom hook
+  const handleDeliverOrder = async () => {
+    if (!selectedOrder || !deliveryMessage.trim()) {
+      setError('Pesan delivery tidak boleh kosong');
       return;
     }
 
+    setIsUploading(true);
     try {
-      setIsUploading(true);
-      
-      // Prepare delivery data
-      const deliveryData = {
-        deliveryMessage: deliveryMessage,
-        deliveredAt: serverTimestamp()
-      };
-      
-      // Add file information if files are attached
-      if (attachedFiles.length > 0) {
-        deliveryData.attachedFiles = attachedFiles.map(file => ({
-          name: file.name,
-          size: file.size,
-          type: file.type,
-          lastModified: file.lastModified
-        }));
-        deliveryData.hasAttachments = true;
-      }
-
-      // Update order status to delivered using orderService
-      await orderService.updateOrderStatus(selectedOrder.id, 'delivered', currentUser.uid, {
-        statusMessage: deliveryMessage,
-        ...deliveryData
-      });
-
-      // Reset form
+      await deliverOrder(selectedOrder.id, deliveryMessage, attachedFiles);
       setDeliveryMessage('');
       setAttachedFiles([]);
-      
-      // Refresh data
-      fetchOrders();
-      
-      setSuccess('Hasil pekerjaan berhasil dikirim!');
     } catch (error) {
       console.error('Error delivering order:', error);
-      setError('Gagal mengirim hasil pekerjaan. Silakan coba lagi.');
     } finally {
       setIsUploading(false);
     }
@@ -255,62 +118,6 @@ export default function FreelancerOrders() {
     setAttachedFiles(prev => prev.filter((_, index) => index !== indexToRemove));
   };
 
-  const getStatusText = (status) => {
-    switch (status) {
-      case 'pending': return 'Menunggu Konfirmasi';
-      case 'active': return 'Sedang Dikerjakan';
-      case 'in_revision': return 'Dalam Revisi';
-      case 'delivered': return 'Terkirim';
-      case 'completed': return 'Selesai';
-      case 'cancelled': return 'Dibatalkan';
-      default: return status;
-    }
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'active':
-        return 'bg-blue-100 text-blue-800';
-      case 'in_revision':
-        return 'bg-orange-100 text-orange-800';
-      case 'delivered':
-        return 'bg-purple-100 text-purple-800';
-      case 'completed':
-        return 'bg-green-100 text-green-800';
-      case 'cancelled':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
-    }).format(amount);
-  };
-
-  const formatDate = (date) => {
-    if (!date) return '';
-    const dateObj = date.toDate ? date.toDate() : new Date(date);
-    return dateObj.toLocaleDateString('id-ID', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
-
-  const filteredOrders = orders.filter(order => {
-    const matchesSearch = order.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         order.client?.displayName?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || order.status === filterStatus;
-    return matchesSearch && matchesStatus;
-  });
 
   if (loading) {
     return (
@@ -323,7 +130,7 @@ export default function FreelancerOrders() {
   // Single order view
   if (orderId && selectedOrder) {
     return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <PageContainer maxWidth="max-w-7xl" padding="px-4 py-16">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
           <Link 
@@ -375,7 +182,28 @@ export default function FreelancerOrders() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Deadline:</span>
-                  <span>{formatDate(selectedOrder.deadline)}</span>
+                  <div className="text-right">
+                    <span className="font-medium">{formatDate(selectedOrder.deadline)}</span>
+                    {selectedOrder.deadline && (
+                      <div className={`text-xs mt-1 ${
+                        calculateTimeRemaining(selectedOrder.deadline).includes('Terlambat') 
+                          ? 'text-red-600' 
+                          : calculateTimeRemaining(selectedOrder.deadline).includes('jam') && !calculateTimeRemaining(selectedOrder.deadline).includes('hari')
+                          ? 'text-orange-600' 
+                          : 'text-gray-500'
+                      }`}>
+                        Sisa: {calculateTimeRemaining(selectedOrder.deadline)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Revisi:</span>
+                  <span className={`font-medium ${
+                    isRevisionDisabled(selectedOrder) ? 'text-red-600' : 'text-gray-900'
+                  }`}>
+                    {getRevisionCountText(selectedOrder)}
+                  </span>
                 </div>
               </div>
             </motion.div>
@@ -396,7 +224,7 @@ export default function FreelancerOrders() {
             )}
 
             {/* Delivery Section */}
-            {selectedOrder.status === 'active' && (
+            {(selectedOrder.status === 'active' || selectedOrder.status === 'in_revision') && (
               <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -404,7 +232,7 @@ export default function FreelancerOrders() {
                 className="bg-white rounded-lg shadow p-6"
               >
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                  Kirim Hasil Pekerjaan
+                  {selectedOrder.status === 'in_revision' ? 'Kirim Perbaikan Revisi' : 'Kirim Hasil Pekerjaan'}
                 </h2>
                 <div className="space-y-4">
                   <div>
@@ -415,7 +243,7 @@ export default function FreelancerOrders() {
                       value={deliveryMessage}
                       onChange={(e) => setDeliveryMessage(e.target.value)}
                       rows={4}
-                      placeholder="Jelaskan hasil pekerjaan Anda..."
+                      placeholder={selectedOrder.status === 'in_revision' ? 'Jelaskan perbaikan yang telah dilakukan...' : 'Jelaskan hasil pekerjaan Anda...'}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042]"
                     />
                   </div>
@@ -469,11 +297,13 @@ export default function FreelancerOrders() {
                   )}
                   
                   <button 
-                    onClick={deliverOrder}
-                    disabled={!deliveryMessage.trim() || isUploading}
+                    onClick={handleDeliverOrder}
+                    disabled={!deliveryMessage.trim() || isUploading || !['active', 'in_revision'].includes(selectedOrder.status)}
                     className="w-full bg-[#010042] text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isUploading ? 'Mengirim...' : 'Kirim Hasil Pekerjaan'}
+                    {isUploading ? 'Mengirim...' : 
+                     !['active', 'in_revision'].includes(selectedOrder.status) ? 'Pesanan Tidak Aktif' : 
+                     selectedOrder.status === 'in_revision' ? 'Kirim Perbaikan' : 'Kirim Hasil Pekerjaan'}
                   </button>
                 </div>
               </motion.div>
@@ -498,6 +328,60 @@ export default function FreelancerOrders() {
                 )}
               </motion.div>
             )}
+
+            {/* Revision History */}
+            {selectedOrder.revisionRequests && selectedOrder.revisionRequests.length > 0 && (
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="bg-white rounded-lg shadow p-6"
+              >
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                  Riwayat Permintaan Revisi ({selectedOrder.revisionRequests.length})
+                </h2>
+                <div className="space-y-4">
+                  {selectedOrder.revisionRequests
+                    .slice()
+                    .reverse()
+                    .map((revision, index) => (
+                    <div key={index} className="border-l-4 border-orange-400 pl-4 py-3 bg-orange-50 rounded-r-lg">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <p className="text-sm font-medium text-orange-900">
+                            Revisi #{selectedOrder.revisionRequests.length - index}
+                          </p>
+                          <span className="px-2 py-1 text-xs font-medium bg-orange-100 text-orange-800 rounded-full flex-shrink-0">
+                            Diminta
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 flex-shrink-0 ml-4 pr-2">
+                          {formatDate(revision.requestedAt?.toDate ? revision.requestedAt.toDate() : revision.requestedAt)}
+                        </p>
+                      </div>
+                      <p className="text-gray-700 text-sm">
+                        {revision.message}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                
+                {selectedOrder.status === 'in_revision' && (
+                  <div className="space-y-3">                   
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-center gap-2 text-blue-800">
+                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-sm font-medium">
+                          Gunakan form "Kirim Perbaikan Revisi" di atas untuk mengirim hasil perbaikan.
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            )}
           </div>
 
           {/* Sidebar */}
@@ -509,23 +393,17 @@ export default function FreelancerOrders() {
               className="bg-white rounded-lg shadow p-6"
             >
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Informasi Client
+                Client
               </h3>
               <div className="flex items-center mb-4">
-                <div className="h-12 w-12 rounded-full bg-[#010042]/10 flex items-center justify-center">
-                  {selectedOrder.client?.profilePhoto ? (
-                    <img 
-                      src={selectedOrder.client.profilePhoto} 
-                      alt={selectedOrder.client.displayName}
-                      className="h-12 w-12 rounded-full object-cover"
-                    />
-                  ) : (
-                    <UserIcon className="h-6 w-6 text-[#010042]" />
-                  )}
-                </div>
+                <img 
+                  src={selectedOrder.client?.profilePhoto || 'https://picsum.photos/48/48'} 
+                  alt={selectedOrder.client?.displayName}
+                  className="h-12 w-12 rounded-full object-cover"
+                />
                 <div className="ml-3">
                   <p className="font-medium text-gray-900">
-                    {selectedOrder.client?.displayName || 'User'}
+                    {selectedOrder.client?.displayName || 'Freelancer'}
                   </p>
                   <p className="text-sm text-gray-500">
                     {selectedOrder.client?.email}
@@ -565,7 +443,7 @@ export default function FreelancerOrders() {
                 }}
               >
                 <ChatBubbleLeftRightIcon className="h-5 w-5" />
-                Chat dengan Client
+                Chat
               </Link>
             </motion.div>
 
@@ -609,7 +487,8 @@ export default function FreelancerOrders() {
                     </p>
                   </div>
                 )}
-                
+
+
                 {selectedOrder.status === 'delivered' && (
                   <div className="text-center p-4 bg-green-50 rounded-lg">
                     <div className="text-green-800 font-medium mb-2">
@@ -622,13 +501,15 @@ export default function FreelancerOrders() {
                 )}
                 
                 {selectedOrder.status === 'in_revision' && (
-                  <div className="text-center p-4 bg-orange-50 rounded-lg">
-                    <div className="text-orange-800 font-medium mb-2">
-                      Revisi Diminta
+                  <div className="space-y-3">
+                    <div className="text-center p-4 bg-orange-50 rounded-lg">
+                      <div className="text-orange-800 font-medium mb-2">
+                        Revisi Diminta
+                      </div>
+                      <p className="text-sm text-orange-600">
+                        Client meminta revisi. Silakan perbaiki pekerjaan.
+                      </p>
                     </div>
-                    <p className="text-sm text-orange-600">
-                      Client meminta revisi. Silakan perbaiki pekerjaan dan kirim ulang.
-                    </p>
                   </div>
                 )}
                 
@@ -646,7 +527,7 @@ export default function FreelancerOrders() {
             </motion.div>
           </div>
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
@@ -655,13 +536,13 @@ export default function FreelancerOrders() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <ErrorPopup 
         message={error} 
-        onClose={() => setError('')} 
+        onClose={clearMessages} 
         duration={3000}
       />
       
       <SuccessPopup 
         message={success} 
-        onClose={() => setSuccess('')} 
+        onClose={clearMessages} 
         duration={3000}
       />
 
@@ -680,52 +561,7 @@ export default function FreelancerOrders() {
       </motion.div>
 
       {/* Stats Cards */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8"
-      >
-        <div className="bg-gray-50 p-4 rounded-lg shadow">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-gray-600">Total Pesanan</p>
-            <DocumentTextIcon className="h-5 w-5 text-gray-400" />
-          </div>
-          <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-        </div>
-
-        <div className="bg-yellow-50 p-4 rounded-lg shadow">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-gray-600">Menunggu</p>
-            <ClockIcon className="h-5 w-5 text-yellow-500" />
-          </div>
-          <p className="text-2xl font-bold text-gray-900">{stats.pending}</p>
-        </div>
-
-        <div className="bg-blue-50 p-4 rounded-lg shadow">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-gray-600">Aktif</p>
-            <CheckCircleIcon className="h-5 w-5 text-blue-500" />
-          </div>
-          <p className="text-2xl font-bold text-gray-900">{stats.active}</p>
-        </div>
-
-        <div className="bg-green-50 p-4 rounded-lg shadow">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-gray-600">Selesai</p>
-            <CheckCircleIcon className="h-5 w-5 text-green-500" />
-          </div>
-          <p className="text-2xl font-bold text-gray-900">{stats.completed}</p>
-        </div>
-
-        <div className="bg-red-50 p-4 rounded-lg shadow">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-gray-600">Dibatalkan</p>
-            <XCircleIcon className="h-5 w-5 text-red-500" />
-          </div>
-          <p className="text-2xl font-bold text-gray-900">{stats.cancelled}</p>
-        </div>
-      </motion.div>
+      <OrderStats stats={stats} />
 
       {/* Search and Filter */}
       <motion.div 
@@ -768,116 +604,19 @@ export default function FreelancerOrders() {
       </motion.div>
 
       {/* Orders List */}
-      <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredOrders.length > 0 ? (
           filteredOrders.map((order, index) => (
-            <motion.div
+            <OrderCard
               key={order.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow"
-            >
-              <div className="p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        {order.title}
-                      </h3>
-                      <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(order.status)}`}>
-                        {getStatusText(order.status)}
-                      </span>
-                    </div>
-                    
-                    <div className="flex items-center gap-6 text-sm text-gray-600 mb-4">
-                      <div className="flex items-center gap-1">
-                        <UserIcon className="h-4 w-4" />
-                        <span>{order.client?.displayName || 'Client'}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <CurrencyDollarIcon className="h-4 w-4" />
-                        <span>{formatCurrency(order.price || order.amount || order.totalPrice || 0)}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <CalendarIcon className="h-4 w-4" />
-                        <span>{formatDate(order.createdAt)}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <ClockIcon className="h-4 w-4" />
-                        <span>Deadline: {formatDate(order.deadline)}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <Link 
-                        to={`/dashboard/freelancer/orders/${order.id}`}
-                        className="px-4 py-2 bg-[#010042] text-white rounded-lg hover:bg-blue-700"
-                      >
-                        Lihat Detail
-                      </Link>
-                      
-                      <Link 
-                        to={`/dashboard/freelancer/messages/${order.conversationId || order.id}`}
-                        className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
-                        onClick={async (e) => {
-                          // Prevent default navigation
-                          e.preventDefault();
-                          
-                          if (order.clientId) {
-                            try {
-                              // Import chatService dynamically
-                              const { default: chatService } = await import('../../services/chatService');
-                              
-                              // Create or get chat with this client
-                              const chat = await chatService.createOrGetChat(
-                                currentUser.uid, 
-                                order.clientId
-                              );
-                              
-                              // Navigate to the chat
-                              window.location.href = `/dashboard/freelancer/messages?chatId=${chat.id}`;
-                            } catch (error) {
-                              console.error('Error creating chat:', error);
-                              // Fallback to basic messages page
-                              window.location.href = `/dashboard/freelancer/messages`;
-                            }
-                          } else {
-                            // Fallback if no clientId
-                            window.location.href = `/dashboard/freelancer/messages`;
-                          }
-                        }}
-                      >
-                        <ChatBubbleLeftRightIcon className="h-4 w-4" />
-                        Chat
-                      </Link>
-
-                      {order.status === 'pending' && (
-                        <>
-                          <button 
-                            onClick={() => updateOrderStatus(order.id, 'active')}
-                            className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200"
-                          >
-                            <CheckCircleIcon className="h-4 w-4" />
-                            Terima
-                          </button>
-                          <button 
-                            onClick={() => updateOrderStatus(order.id, 'cancelled')}
-                            className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200"
-                          >
-                            <XCircleIcon className="h-4 w-4" />
-                            Tolak
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
+              order={order}
+              index={index}
+              onStatusUpdate={updateOrderStatus}
+              userType="freelancer"
+            />
           ))
         ) : (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
+          <div className="col-span-full bg-white rounded-lg shadow p-12 text-center">
             <DocumentTextIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
               Belum ada pesanan

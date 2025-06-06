@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
+import { useSubscriptions } from '../../context/SubscriptionContext';
 import { 
   collection, 
   query, 
@@ -43,6 +44,7 @@ import freelancerRatingService from '../../services/freelancerRatingService';
 
 export default function FreelancerDashboard() {
   const { currentUser, userProfile } = useAuth();
+  const { counts } = useSubscriptions();
   
   // Count renders to detect excessive re-renders
   const renderCount = useRef(0);
@@ -560,16 +562,20 @@ export default function FreelancerDashboard() {
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 mb-1">Tingkat Respon</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.responseRate}%</p>
+              <p className="text-sm text-gray-600 mb-1">Notifikasi</p>
+              <p className="text-2xl font-bold text-gray-900">{counts.notifications || 0}</p>
             </div>
             <div className="p-3 bg-purple-100 rounded-full">
-              <ClockIcon className="h-6 w-6 text-purple-600" />
+              <BellIcon className="h-6 w-6 text-purple-600" />
             </div>
           </div>
-          <p className="mt-4 text-sm text-gray-500">
-            Waktu respon: {stats.responseTime}
-          </p>
+          <Link 
+            to="/notifications" 
+            className="mt-4 flex items-center text-sm text-[#010042] hover:text-blue-700"
+          >
+            Lihat semua notifikasi
+            <ArrowRightIcon className="h-4 w-4 ml-1" />
+          </Link>
         </motion.div>
       </div>
 

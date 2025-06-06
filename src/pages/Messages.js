@@ -764,7 +764,12 @@ export default function Messages() {
         </div>
       )}
       
-      <PageContainer padding="px-4 py-6">
+      <PageContainer padding="px-6 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Percakapan</h1>
+          <p className="text-gray-600">Kelola semua percakapan Anda</p>
+        </div>
         <div className="bg-white rounded-lg shadow-sm h-[80vh] flex">
           {/* Chat List */}
           <div className="w-1/3 border-r border-gray-200 flex flex-col">

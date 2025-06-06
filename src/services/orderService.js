@@ -11,14 +11,17 @@ import {
   orderBy,
   limit,
   startAfter,
-  serverTimestamp
+  serverTimestamp,
+  onSnapshot
 } from 'firebase/firestore';
 import { Order } from '../models/Order';
 import chatService from './chatService';
+import notificationService from './notificationService';
 
 class OrderService {
   constructor() {
     this.collectionName = 'orders';
+    this.subscriptions = new Map(); // Store active subscriptions
   }
 
   // Generate order number
@@ -46,6 +49,19 @@ class OrderService {
       const platformFee = Math.round(totalAmount * 0.1);
       const freelancerEarning = totalAmount - platformFee;
 
+      // Get revision limit from package data if available
+      let maxRevisions = 3; // default
+      if (orderData.gig && orderData.packageType) {
+        const packageData = orderData.gig.packages?.[orderData.packageType];
+        if (packageData) {
+          if (packageData.revisions === 'Unlimited') {
+            maxRevisions = 999; // Use large number for unlimited
+          } else if (typeof packageData.revisions === 'number') {
+            maxRevisions = packageData.revisions;
+          }
+        }
+      }
+
       const order = {
         ...orderData,
         orderNumber,
@@ -72,10 +88,12 @@ class OrderService {
           ]
         },
         
-        // Delivery and revisions
+        // Delivery and revisions - FIXED FIELD NAMES
         deliveries: [],
         revisionCount: 0,
-        maxRevisions: orderData.revisions || 3,
+        revisions: maxRevisions, // Store as 'revisions' for consistency
+        maxRevisions: maxRevisions, // Keep both for backward compatibility
+        revisionRequests: [], // Initialize empty array
         
         // Financial
         totalAmount,
@@ -271,7 +289,7 @@ class OrderService {
       // Update order in database
       await updateDoc(doc(db, this.collectionName, orderId), updateData);
 
-      // Send status update notification
+      // Send status update notification via chat
       try {
         const chat = await chatService.findChatBetweenUsers(order.clientId, order.freelancerId);
         if (chat) {
@@ -282,9 +300,66 @@ class OrderService {
             newStatus,
             additionalData.statusMessage || ''
           );
+          console.log('✅ [OrderService] Chat status message sent successfully');
+        } else {
+          console.log('ℹ️ [OrderService] No chat found between users - skipping chat notification');
         }
       } catch (chatError) {
-        console.error('Error sending status notification:', chatError);
+        console.error('❌ [OrderService] Error sending chat status notification (non-blocking):', chatError);
+        // Don't block the main operation - chat notification is supplementary
+      }
+
+      // Create notifications for status changes
+      try {
+        // Determine who to notify (the other party)
+        const isClientUpdating = userId === order.clientId;
+        const notifyUserId = isClientUpdating ? order.freelancerId : order.clientId;
+        const notifyUserType = isClientUpdating ? 'freelancer' : 'client';
+
+        // Validate notification data before sending
+        if (!notifyUserId || !orderId || !newStatus) {
+          console.error('❌ [OrderService] Invalid notification data:', {
+            notifyUserId, orderId, newStatus, notifyUserType
+          });
+        } else {
+          console.log('📤 [OrderService] Sending order status notification:', {
+            orderId, notifyUserId, notifyUserType, newStatus
+          });
+          
+          // Send notification (don't let notification errors block the main operation)
+          const notificationId = await notificationService.createOrderStatusNotification(
+            orderId, 
+            notifyUserId, 
+            notifyUserType, 
+            newStatus, 
+            additionalData
+          );
+          
+          if (notificationId) {
+            console.log('✅ [OrderService] Status notification sent successfully', notificationId);
+          } else {
+            console.warn('⚠️ [OrderService] Notification creation returned null - may have failed silently');
+          }
+        }
+      } catch (error) {
+        console.error('❌ [OrderService] Error creating status notification (non-blocking):', error);
+        
+        // Log specific error details for debugging
+        if (error.code === 'permission-denied') {
+          console.error('❌ [OrderService] Permission denied creating notification - check Firebase rules');
+        } else if (error.code === 'unauthenticated') {
+          console.error('❌ [OrderService] User not authenticated for notification creation');
+        }
+        
+        console.error('❌ [OrderService] Order context:', {
+          orderId,
+          currentStatus: order.status,
+          newStatus,
+          clientId: order.clientId,
+          freelancerId: order.freelancerId,
+          updatingUserId: userId
+        });
+        // Don't throw - notification failure shouldn't block the main operation
       }
 
       return await this.getOrder(orderId);
@@ -298,10 +373,10 @@ class OrderService {
   getValidStatusTransitions(currentStatus) {
     const transitions = {
       'pending': ['active', 'cancelled'],
-      'active': ['delivered', 'cancelled'],
+      'active': ['in_progress', 'delivered', 'completed', 'cancelled'],
+      'in_progress': ['delivered', 'cancelled'],
       'delivered': ['completed', 'in_revision', 'cancelled'],
-      'in_revision': ['delivered', 'cancelled'],
-      'in_progress': ['delivered', 'cancelled'], // Legacy status support
+      'in_revision': ['in_progress', 'delivered', 'completed', 'cancelled'],
       'in_review': ['completed', 'in_revision', 'cancelled'], // Legacy status support
       'completed': [], // Final state
       'cancelled': [] // Final state
@@ -324,7 +399,7 @@ class OrderService {
         id: Date.now().toString(),
         message: deliveryData.message,
         attachments: deliveryData.attachments || [],
-        deliveredAt: serverTimestamp(),
+        deliveredAt: new Date(), // Use regular Date instead of serverTimestamp inside array
         isRevision: deliveryData.isRevision || false
       };
 
@@ -348,6 +423,64 @@ class OrderService {
     }
   }
 
+  // Deliver order (wrapper for addDelivery with delivered status)
+  async deliverOrder(orderId, userId, deliveryData) {
+    try {
+      const order = await this.getOrder(orderId);
+      
+      // Validate user is the freelancer
+      if (order.freelancerId !== userId) {
+        throw new Error('Only the freelancer can deliver orders');
+      }
+
+      // Check if order can be delivered (must be active or in_revision)
+      if (!['active', 'in_revision'].includes(order.status)) {
+        throw new Error(`Cannot deliver order with status '${order.status}'. Order must be active or in revision.`);
+      }
+
+      const delivery = {
+        id: Date.now().toString(),
+        message: deliveryData.message,
+        attachments: deliveryData.files || deliveryData.attachments || [],
+        deliveredAt: new Date(), // Use regular Date instead of serverTimestamp inside array
+        isRevision: deliveryData.isRevision || false
+      };
+
+      const deliveries = [...(order.deliveries || []), delivery];
+
+      // Check if revisions are exhausted to determine final status
+      const maxRevisions = order.revisions || order.maxRevisions || 3;
+      const currentRevisions = order.revisionCount || 0;
+      const isRevisionExhausted = currentRevisions >= maxRevisions;
+      
+      // If revisions are exhausted, complete the order automatically
+      // Otherwise, set to delivered for client review
+      const newStatus = isRevisionExhausted ? 'completed' : 'delivered';
+      const statusMessage = isRevisionExhausted 
+        ? `Pekerjaan selesai - Jatah revisi habis (${currentRevisions}/${maxRevisions}). ${deliveryData.message}`
+        : deliveryData.message;
+
+      console.log(`📋 [OrderService] Delivering order - Revision status: ${currentRevisions}/${maxRevisions}, New status: ${newStatus}`);
+
+      // Update status using the proper status transition method
+      await this.updateOrderStatus(orderId, newStatus, userId, {
+        statusMessage: statusMessage
+      });
+
+      // Update order with delivery data
+      await updateDoc(doc(db, this.collectionName, orderId), {
+        deliveries,
+        deliveredAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+
+      return await this.getOrder(orderId);
+    } catch (error) {
+      console.error('Error delivering order:', error);
+      throw error;
+    }
+  }
+
   // Request revision
   async requestRevision(orderId, userId, revisionData) {
     try {
@@ -358,25 +491,37 @@ class OrderService {
         throw new Error('Only the client can request revisions');
       }
 
-      // Check if revisions are available
-      if (order.revisionCount >= order.maxRevisions) {
-        throw new Error('Maximum revisions exceeded');
+      // Check if order status allows revision requests
+      if (order.status !== 'delivered') {
+        throw new Error(`Cannot request revision with status '${order.status}'. Order must be delivered first.`);
       }
 
-      const revisionCount = (order.revisionCount || 0) + 1;
+      // Get max revisions - check multiple field names for backward compatibility
+      const maxRevisions = order.revisions || order.maxRevisions || 3;
+      const currentRevisions = order.revisionCount || 0;
 
+      // Check if revisions are available
+      if (currentRevisions >= maxRevisions) {
+        throw new Error(`Maximum revisions (${maxRevisions}) exceeded. Current: ${currentRevisions}`);
+      }
+
+      const revisionCount = currentRevisions + 1;
+      const newRevisionRequest = {
+        message: revisionData.message,
+        requestedAt: new Date(),
+        revisionNumber: revisionCount
+      };
+
+      // Update order document with revision data
       await updateDoc(doc(db, this.collectionName, orderId), {
         revisionCount,
-        revisionRequests: [...(order.revisionRequests || []), {
-          message: revisionData.message,
-          requestedAt: serverTimestamp()
-        }],
+        revisionRequests: [...(order.revisionRequests || []), newRevisionRequest],
         updatedAt: serverTimestamp()
       });
 
-      // Update status back to in_progress
-      await this.updateOrderStatus(orderId, 'in_progress', userId, {
-        statusMessage: `Revisi diminta: ${revisionData.message}`
+      // Update status to in_revision - THIS IS CORRECT
+      await this.updateOrderStatus(orderId, 'in_revision', userId, {
+        statusMessage: `Revisi #${revisionCount} diminta: ${revisionData.message}`
       });
 
       return await this.getOrder(orderId);
@@ -811,6 +956,120 @@ class OrderService {
     } catch (error) {
       console.error('Error cancelling order:', error);
       throw error;
+    }
+  }
+
+  // Subscribe to real-time order updates for a user
+  subscribeToUserOrders(userId, userType, callback) {
+    try {
+      const subscriptionKey = `${userId}_${userType}_orders`;
+      
+      // Prevent duplicate subscriptions
+      if (this.subscriptions.has(subscriptionKey)) {
+        console.log('⚠️ [OrderService] Subscription already exists:', subscriptionKey);
+        return this.subscriptions.get(subscriptionKey);
+      }
+
+      const userField = userType === 'freelancer' ? 'freelancerId' : 'clientId';
+      
+      const q = query(
+        collection(db, this.collectionName),
+        where(userField, '==', userId),
+        orderBy('createdAt', 'desc')
+      );
+
+      const unsubscribe = onSnapshot(q, 
+        async (snapshot) => {
+          console.log(`📊 [OrderService] Orders update for ${userId} (${userType}):`, snapshot.size);
+          
+          try {
+            // Get orders with enhanced details
+            const orders = [];
+            for (const docSnapshot of snapshot.docs) {
+              const orderData = { id: docSnapshot.id, ...docSnapshot.data() };
+              
+              // Get enhanced order details
+              const enhancedOrder = await this.getOrderWithDetails(orderData);
+              orders.push(enhancedOrder);
+            }
+            
+            callback(orders);
+          } catch (error) {
+            console.error('❌ [OrderService] Error processing order updates:', error);
+            callback([]);
+          }
+        },
+        (error) => {
+          console.error('❌ [OrderService] Error in order subscription:', error);
+          callback([]);
+        }
+      );
+
+      this.subscriptions.set(subscriptionKey, unsubscribe);
+      return unsubscribe;
+    } catch (error) {
+      console.error('❌ [OrderService] Error setting up order subscription:', error);
+      callback([]);
+      return () => {};
+    }
+  }
+
+  // Helper method to get order with details (used by subscription)
+  async getOrderWithDetails(orderData) {
+    try {
+      // Get gig details
+      let gigData = null;
+      if (orderData.gigId) {
+        const gigDoc = await getDoc(doc(db, 'gigs', orderData.gigId));
+        if (gigDoc.exists()) {
+          gigData = { id: gigDoc.id, ...gigDoc.data() };
+        }
+      }
+
+      // Get client details
+      let clientData = null;
+      if (orderData.clientId) {
+        const clientDoc = await getDoc(doc(db, 'users', orderData.clientId));
+        if (clientDoc.exists()) {
+          clientData = { id: clientDoc.id, ...clientDoc.data() };
+        }
+      }
+
+      // Get freelancer details
+      let freelancerData = null;
+      if (orderData.freelancerId) {
+        const freelancerDoc = await getDoc(doc(db, 'users', orderData.freelancerId));
+        if (freelancerDoc.exists()) {
+          freelancerData = { id: freelancerDoc.id, ...freelancerDoc.data() };
+        }
+      }
+
+      return {
+        ...orderData,
+        gig: gigData,
+        client: clientData,
+        freelancer: freelancerData
+      };
+    } catch (error) {
+      console.error('❌ [OrderService] Error getting order details:', error);
+      return orderData;
+    }
+  }
+
+  // Clean up subscriptions
+  cleanup(userId = null) {
+    if (userId) {
+      // Clean up specific user subscriptions
+      for (const [key, unsubscribe] of this.subscriptions.entries()) {
+        if (key.startsWith(userId)) {
+          unsubscribe();
+          this.subscriptions.delete(key);
+        }
+      }
+    } else {
+      // Clean up all subscriptions
+      this.subscriptions.forEach(unsubscribe => unsubscribe());
+      this.subscriptions.clear();
     }
   }
 }

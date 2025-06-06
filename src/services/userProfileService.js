@@ -9,12 +9,22 @@ import {
   getDoc, 
   setDoc, 
   updateDoc, 
-  serverTimestamp
+  serverTimestamp,
+  collection,
+  query,
+  where,
+  getDocs,
+  limit
 } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
 import { db, auth } from '../firebase/config';
 import { COLLECTIONS } from '../utils/constants';
-import { DEFAULT_PROFILE_PHOTO, ensureDefaultProfilePhoto } from '../utils/profilePhotoUtils';
+import { 
+  DEFAULT_PROFILE_PHOTO, 
+  ensureDefaultProfilePhoto, 
+  isValidProfilePhoto,
+  ensureDefaultProfilePhotoInDatabase
+} from '../utils/profilePhotoUtils';
 
 /**
  * Get complete user profile data from all collections
@@ -31,9 +41,19 @@ export const getUserProfile = async (userId) => {
     const userDoc = await getDoc(doc(db, COLLECTIONS.USERS, userId));
     if (userDoc.exists()) {
       const userData = userDoc.data();
+      
       // Ensure user has default profile photo if none exists
       const userDataWithDefaults = ensureDefaultProfilePhoto(userData);
       Object.assign(profileData, userDataWithDefaults);
+      
+      // Auto-fix null profile photo in database if needed
+      if (!isValidProfilePhoto(userData.profilePhoto)) {
+        console.log(`🔧 [UserProfileService] Auto-fixing null profile photo for user: ${userId}`);
+        // Don't await this to avoid blocking the main operation
+        ensureDefaultProfilePhotoInDatabase(userId).catch(error => {
+          console.error('Error auto-fixing profile photo:', error);
+        });
+      }
     }
     
     // Check clientProfiles collection (string format)
@@ -49,33 +69,17 @@ export const getUserProfile = async (userId) => {
       Object.assign(profileData, clientProfileDoc.data());
     }
     
-    // Get freelancer profile data if user is a freelancer
+    // Check freelancer_profiles collection if user is freelancer
     if (profileData.isFreelancer) {
-      // Check both potential collection names for freelancer profiles
-      let freelancerProfileDoc = await getDoc(doc(db, 'freelancerProfiles', userId));
-      
-      if (!freelancerProfileDoc.exists()) {
-        freelancerProfileDoc = await getDoc(doc(db, COLLECTIONS.FREELANCER_PROFILES, userId));
-      }
-      
+      const freelancerProfileDoc = await getDoc(doc(db, COLLECTIONS.FREELANCER_PROFILES, userId));
       if (freelancerProfileDoc.exists()) {
-        // Merge specific fields we want from freelancer profile
-        const freelancerData = freelancerProfileDoc.data();
-        profileData.skills = freelancerData.skills;
-        profileData.experienceLevel = freelancerData.experienceLevel;
-        profileData.portfolioLinks = freelancerData.portfolioLinks;
-        profileData.hourlyRate = freelancerData.hourlyRate;
-        profileData.availability = freelancerData.availability;
-        // Only override bio if not already set and if freelancer bio exists
-        if (!profileData.bio && freelancerData.bio) {
-          profileData.bio = freelancerData.bio;
-        }
+        Object.assign(profileData, freelancerProfileDoc.data());
       }
     }
     
-    return profileData;
+    return Object.keys(profileData).length > 0 ? profileData : null;
   } catch (error) {
-    console.error('Error fetching user profile:', error);
+    console.error('Error getting user profile:', error);
     return null;
   }
 };
@@ -130,6 +134,21 @@ export const updateUserProfile = async (userId, profileData, updateAuthProfile =
       }
     });
     
+    // Ensure profile photo is never null when updating
+    if ('profilePhoto' in userData) {
+      const profilePhotoToSave = isValidProfilePhoto(userData.profilePhoto) 
+        ? userData.profilePhoto 
+        : DEFAULT_PROFILE_PHOTO;
+        
+      userData.profilePhoto = profilePhotoToSave;
+      
+      console.log(`🖼️ [UserProfileService] Updating profile photo for ${userId}:`, {
+        provided: profileData.profilePhoto,
+        saving: profilePhotoToSave,
+        isDefault: profilePhotoToSave === DEFAULT_PROFILE_PHOTO
+      });
+    }
+    
     // Add timestamps
     if (Object.keys(userData).length > 0) {
       userData.updatedAt = serverTimestamp();
@@ -181,9 +200,13 @@ export const updateUserProfile = async (userId, profileData, updateAuthProfile =
         (profileData.displayName || profileData.profilePhoto)) {
       const updateData = {};
       if (profileData.displayName) updateData.displayName = profileData.displayName;
-      if (profileData.profilePhoto) updateData.photoURL = profileData.profilePhoto;
+      if (profileData.profilePhoto && isValidProfilePhoto(profileData.profilePhoto)) {
+        updateData.photoURL = profileData.profilePhoto;
+      }
       
-      await updateProfile(auth.currentUser, updateData);
+      if (Object.keys(updateData).length > 0) {
+        await updateProfile(auth.currentUser, updateData);
+      }
     }
     
     return true;
@@ -193,7 +216,56 @@ export const updateUserProfile = async (userId, profileData, updateAuthProfile =
   }
 };
 
+/**
+ * Batch fix users with null profile photos
+ * @param {number} batchSize - Number of users to process at once
+ * @returns {Promise<number>} Number of users fixed
+ */
+export const batchFixNullProfilePhotos = async (batchSize = 50) => {
+  try {
+    console.log('🔧 [UserProfileService] Starting batch fix for null profile photos...');
+    
+    // Query users with null or invalid profile photos
+    const usersQuery = query(
+      collection(db, COLLECTIONS.USERS),
+      limit(batchSize)
+    );
+    
+    const snapshot = await getDocs(usersQuery);
+    const usersToFix = [];
+    
+    snapshot.forEach(doc => {
+      const userData = doc.data();
+      if (!isValidProfilePhoto(userData.profilePhoto)) {
+        usersToFix.push(doc.id);
+      }
+    });
+    
+    if (usersToFix.length === 0) {
+      console.log('✅ [UserProfileService] No users found with null profile photos');
+      return 0;
+    }
+    
+    console.log(`🔧 [UserProfileService] Found ${usersToFix.length} users with null profile photos, fixing...`);
+    
+    // Fix them in parallel
+    const results = await Promise.allSettled(
+      usersToFix.map(userId => ensureDefaultProfilePhotoInDatabase(userId, true))
+    );
+    
+    const successCount = results.filter(result => result.status === 'fulfilled' && result.value).length;
+    
+    console.log(`✅ [UserProfileService] Batch fix completed: ${successCount}/${usersToFix.length} users fixed`);
+    return successCount;
+    
+  } catch (error) {
+    console.error('❌ [UserProfileService] Error in batch fix:', error);
+    return 0;
+  }
+};
+
 export default {
   getUserProfile,
-  updateUserProfile
+  updateUserProfile,
+  batchFixNullProfilePhotos
 };

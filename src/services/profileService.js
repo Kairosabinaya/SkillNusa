@@ -18,6 +18,20 @@ export const createUserProfile = async (userId, profileData) => {
   }
   
   try {
+    // Ensure profile photo is never null - always set to default if not provided
+    const profilePhotoToSave = profileData.profilePhoto && 
+                              profileData.profilePhoto !== null && 
+                              profileData.profilePhoto !== '' && 
+                              profileData.profilePhoto !== 'null' 
+      ? profileData.profilePhoto 
+      : DEFAULT_PROFILE_PHOTO;
+
+    console.log(`🖼️ [ProfileService] Setting profile photo for user ${userId}:`, {
+      provided: profileData.profilePhoto,
+      saving: profilePhotoToSave,
+      isDefault: profilePhotoToSave === DEFAULT_PROFILE_PHOTO
+    });
+    
     // Update user document with only the 15 required fields
     await firebaseService.updateDocument(COLLECTIONS.USERS, userId, {
       // Basic info - only include the 15 required fields
@@ -30,7 +44,7 @@ export const createUserProfile = async (userId, profileData) => {
       roles: profileData.roles || ['client'],
       isFreelancer: profileData.isFreelancer || false,
       hasInteractedWithSkillBot: profileData.hasInteractedWithSkillBot || false,
-      profilePhoto: profileData.profilePhoto || DEFAULT_PROFILE_PHOTO,
+      profilePhoto: profilePhotoToSave, // Always ensure this is never null
       updatedAt: serverTimestamp()
     });
     
@@ -57,7 +71,10 @@ export const createUserProfile = async (userId, profileData) => {
       });
     }
     
+    console.log(`✅ [ProfileService] User profile created successfully for ${userId} with profile photo: ${profilePhotoToSave}`);
+    
   } catch (error) {
+    console.error(`❌ [ProfileService] Error creating user profile for ${userId}:`, error);
     throw error;
   }
 };

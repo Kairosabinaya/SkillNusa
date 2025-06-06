@@ -24,6 +24,7 @@ import { auth, db } from '../firebase/config';
 import firebaseService from '../services/firebaseService';
 import { getUserProfile } from '../services/userProfileService';
 import { COLLECTIONS, USER_ROLES } from '../utils/constants';
+import { DEFAULT_PROFILE_PHOTO } from '../utils/profilePhotoUtils';
 import Logger from '../utils/logger';
 import { AuthError, ValidationError, ErrorHandler } from '../utils/errors';
 
@@ -43,6 +44,19 @@ export function AuthProvider({ children }) {
     try {
       Logger.operationStart('createUserDocument', { userId });
       
+      // Ensure profile photo is never null - always set to default if not provided
+      const profilePhotoToSave = userData.profilePhoto && 
+                                userData.profilePhoto !== null && 
+                                userData.profilePhoto !== '' && 
+                                userData.profilePhoto !== 'null' 
+        ? userData.profilePhoto 
+        : DEFAULT_PROFILE_PHOTO;
+
+      console.log(`🖼️ [AuthContext] createUserDocument - Setting profile photo for ${userId}:`, {
+        provided: userData.profilePhoto,
+        saving: profilePhotoToSave
+      });
+      
       // Add multi-role fields if not provided - only include the 15 required fields
       const multiRoleData = {
         uid: userData.uid || userId,
@@ -56,7 +70,7 @@ export function AuthProvider({ children }) {
         roles: userData.roles || [USER_ROLES.CLIENT],
         isFreelancer: userData.isFreelancer || false,
         hasInteractedWithSkillBot: userData.hasInteractedWithSkillBot || false,
-        profilePhoto: userData.profilePhoto || null,
+        profilePhoto: profilePhotoToSave, // Always ensure this is never null
         emailVerified: userData.emailVerified || false,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
@@ -94,6 +108,11 @@ export function AuthProvider({ children }) {
       const result = await createUserWithEmailAndPassword(auth, email, password);
       const { user } = result;
       
+      // Ensure profile photo is always set to default, never null
+      const profilePhotoToSave = DEFAULT_PROFILE_PHOTO;
+      
+      console.log(`🖼️ [AuthContext] Creating user ${user.uid} with default profile photo: ${profilePhotoToSave}`);
+      
       // Create user profile in Firestore with only the 15 required fields
       await createUserDocument(user.uid, {
         uid: user.uid,
@@ -107,7 +126,7 @@ export function AuthProvider({ children }) {
         roles: [role],
         isFreelancer: role === USER_ROLES.FREELANCER,
         hasInteractedWithSkillBot: false,
-        profilePhoto: null,
+        profilePhoto: profilePhotoToSave, // Always set default, never null
         emailVerified: user.emailVerified
       });
       
@@ -134,6 +153,8 @@ export function AuthProvider({ children }) {
       
       // Send verification email
       await sendEmailVerification(user);
+      
+      console.log(`✅ [AuthContext] User signup completed successfully for ${user.uid}`);
       
       return user;
     } catch (error) {
@@ -202,6 +223,20 @@ export function AuthProvider({ children }) {
   const logout = async () => {
     setError(null);
     try {
+      // Clean up notification subscriptions before logout
+      if (currentUser) {
+        console.log('🧹 [AuthContext] Cleaning up subscriptions before logout');
+        
+        // Import notification service and clean up subscriptions
+        const { default: notificationService } = await import('../services/notificationService');
+        notificationService.cleanup(currentUser.uid);
+        
+        // Dispatch cleanup event for other services
+        window.dispatchEvent(new CustomEvent('forceCleanupSubscriptions', {
+          detail: { userId: currentUser.uid, reason: 'logout' }
+        }));
+      }
+      
       // Clear all form data from localStorage
       localStorage.removeItem('skillnusa_register_form');
       

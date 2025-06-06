@@ -176,6 +176,12 @@ class ChatService {
   // Find chat between two users
   async findChatBetweenUsers(user1Id, user2Id) {
     try {
+      // Validate parameters
+      if (!user1Id || !user2Id) {
+        console.error('❌ [ChatService] Invalid parameters for findChatBetweenUsers:', { user1Id, user2Id });
+        return null;
+      }
+
       const q = query(
         collection(db, this.chatsCollection),
         where('participants', 'array-contains', user1Id)
@@ -185,14 +191,22 @@ class ChatService {
       
       for (const doc of querySnapshot.docs) {
         const chatData = doc.data();
-        if (chatData.participants.includes(user2Id)) {
+        if (chatData.participants && chatData.participants.includes(user2Id)) {
           return { id: doc.id, ...chatData };
         }
       }
       
       return null;
     } catch (error) {
-      console.error('Error finding chat between users:', error);
+      console.error('❌ [ChatService] Error finding chat between users:', error);
+      
+      // Check if it's a permission error and handle gracefully
+      if (error.code === 'permission-denied') {
+        console.warn('⚠️ [ChatService] Permission denied finding chat - this may be normal if chat doesn\'t exist yet');
+        return null; // Return null instead of throwing for permission errors
+      }
+      
+      // For other errors, still throw
       throw error;
     }
   }

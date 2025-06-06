@@ -3,29 +3,24 @@
  * Provides centralized logic for default profile photo handling
  */
 
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../firebase/config';
+import { COLLECTIONS } from './constants';
+
 // Default profile photo path
 export const DEFAULT_PROFILE_PHOTO = '/images/default-profile.jpg';
 
 /**
- * Get profile photo URL with fallback to default
- * @param {string|null} profilePhoto - User's profile photo URL
- * @returns {string} Profile photo URL or default image
+ * Check if profile photo URL is valid (not null, empty, or 'null' string)
+ * @param {string} profilePhoto - Profile photo URL
+ * @returns {boolean} True if valid, false if needs default
  */
-export const getProfilePhotoUrl = (profilePhoto) => {
-  // Return default image if profilePhoto is null, undefined, or empty string
-  if (!profilePhoto || profilePhoto === null || profilePhoto === '' || profilePhoto === 'null') {
-    return DEFAULT_PROFILE_PHOTO;
-  }
-  return profilePhoto;
-};
-
-/**
- * Check if a profile photo is the default image
- * @param {string} profilePhoto - Profile photo URL to check
- * @returns {boolean} True if it's the default image
- */
-export const isDefaultProfilePhoto = (profilePhoto) => {
-  return profilePhoto === DEFAULT_PROFILE_PHOTO;
+export const isValidProfilePhoto = (profilePhoto) => {
+  return profilePhoto && 
+         profilePhoto !== null && 
+         profilePhoto !== '' && 
+         profilePhoto !== 'null' && 
+         profilePhoto !== 'undefined';
 };
 
 /**
@@ -57,9 +52,7 @@ export const getUserInitials = (displayName, email = '') => {
  */
 export const needsDefaultProfilePhoto = (user) => {
   if (!user) return false;
-  
-  const { profilePhoto } = user;
-  return !profilePhoto || profilePhoto === null || profilePhoto === '' || profilePhoto === 'null';
+  return !isValidProfilePhoto(user.profilePhoto);
 };
 
 /**
@@ -85,8 +78,8 @@ export const getProfilePhotoDisplay = (user, options = {}) => {
   
   const { profilePhoto, displayName, email } = user;
   
-  // If user has a custom profile photo
-  if (profilePhoto && profilePhoto !== null && profilePhoto !== '' && profilePhoto !== 'null') {
+  // If user has a valid custom profile photo
+  if (isValidProfilePhoto(profilePhoto)) {
     return {
       type: 'custom',
       src: profilePhoto,
@@ -118,7 +111,7 @@ export const getProfilePhotoDisplay = (user, options = {}) => {
 };
 
 /**
- * Update user profile photo to default if null
+ * Update user profile photo to default if null (for data processing)
  * @param {Object} userData - User data object
  * @returns {Object} Updated user data with default profile photo if needed
  */
@@ -132,4 +125,87 @@ export const ensureDefaultProfilePhoto = (userData) => {
   }
   
   return updatedData;
+};
+
+/**
+ * Update user's profile photo to default in database if currently null
+ * @param {string} userId - User ID
+ * @param {boolean} force - Whether to force update even if photo exists
+ * @returns {Promise<boolean>} True if updated, false if no update needed
+ */
+export const ensureDefaultProfilePhotoInDatabase = async (userId, force = false) => {
+  if (!userId) {
+    console.warn('[ProfilePhotoUtils] No userId provided for database update');
+    return false;
+  }
+
+  try {
+    // Get current user data to check profile photo
+    const { getDoc } = await import('firebase/firestore');
+    const userDoc = await getDoc(doc(db, COLLECTIONS.USERS, userId));
+    
+    if (!userDoc.exists()) {
+      console.warn('[ProfilePhotoUtils] User document not found:', userId);
+      return false;
+    }
+
+    const userData = userDoc.data();
+    const currentPhoto = userData.profilePhoto;
+
+    // Check if update is needed
+    if (!force && isValidProfilePhoto(currentPhoto)) {
+      console.log('[ProfilePhotoUtils] User already has valid profile photo, skipping update');
+      return false;
+    }
+
+    // Update user document with default profile photo
+    await updateDoc(doc(db, COLLECTIONS.USERS, userId), {
+      profilePhoto: DEFAULT_PROFILE_PHOTO,
+      updatedAt: serverTimestamp()
+    });
+
+    console.log(`✅ [ProfilePhotoUtils] Updated user ${userId} profile photo to default`);
+    return true;
+
+  } catch (error) {
+    console.error('[ProfilePhotoUtils] Error updating profile photo in database:', error);
+    return false;
+  }
+};
+
+/**
+ * Batch update multiple users to have default profile photos
+ * @param {Array<string>} userIds - Array of user IDs
+ * @returns {Promise<number>} Number of users updated
+ */
+export const batchEnsureDefaultProfilePhotos = async (userIds) => {
+  if (!Array.isArray(userIds) || userIds.length === 0) {
+    return 0;
+  }
+
+  let updateCount = 0;
+  
+  try {
+    // Process in batches to avoid overwhelming Firebase
+    const batchSize = 10;
+    for (let i = 0; i < userIds.length; i += batchSize) {
+      const batch = userIds.slice(i, i + batchSize);
+      
+      // Process batch in parallel
+      const promises = batch.map(async (userId) => {
+        const updated = await ensureDefaultProfilePhotoInDatabase(userId);
+        return updated ? 1 : 0;
+      });
+      
+      const results = await Promise.all(promises);
+      updateCount += results.reduce((sum, result) => sum + result, 0);
+    }
+    
+    console.log(`✅ [ProfilePhotoUtils] Batch update completed: ${updateCount}/${userIds.length} users updated`);
+    return updateCount;
+    
+  } catch (error) {
+    console.error('[ProfilePhotoUtils] Error in batch update:', error);
+    return updateCount;
+  }
 }; 

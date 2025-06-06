@@ -94,7 +94,9 @@ export default function FreelancerNotifications() {
       ) : (
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <ul className="divide-y divide-gray-200">
-            {notifications.map((notification) => (
+            {notifications
+              .filter(notification => notification && notification.id) // Ensure valid notifications with IDs
+              .map((notification) => (
               <li key={notification.id} className="p-4 hover:bg-gray-50">
                 <div className="flex items-start">
                   <div className="flex-shrink-0 pt-0.5">
