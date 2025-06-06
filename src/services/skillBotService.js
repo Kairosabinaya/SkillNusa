@@ -60,7 +60,7 @@ class SkillBotService {
       }, { merge: true });
 
       // Also create/update entry in regular chats collection for notification system
-      await this.createOrUpdateChatEntry(userId, welcomeMessage);
+      await this.createOrUpdateChatEntry(userId, welcomeMessage, true);
 
       return {
         id: conversationId,
@@ -224,7 +224,24 @@ class SkillBotService {
 
       // Wait for AI response
       const aiResponse = await aiResponsePromise;
-      botMessageObj.content = aiResponse;
+      
+      // Check if we should show gig recommendations based on conversation
+      const shouldShowGigs = this.shouldShowGigRecommendations(conversationHistory, userMessage);
+      
+      if (shouldShowGigs) {
+        // Get suitable gigs and generate recommendations
+        const gigs = await this.findSuitableGigs(userMessage, conversationHistory);
+        if (gigs.length > 0) {
+          const gigRecommendations = await this.generateGigRecommendations(userMessage, gigs);
+          botMessageObj.content = gigRecommendations.content;
+          botMessageObj.recommendedGigs = gigRecommendations.recommendedGigs;
+          botMessageObj.messageType = 'gig_recommendations';
+        } else {
+          botMessageObj.content = aiResponse;
+        }
+      } else {
+        botMessageObj.content = aiResponse;
+      }
 
       // Update conversation in SkillBot collection with batch operation
       const updatedMessages = [...conversationHistory, userMessageObj, botMessageObj];
@@ -247,10 +264,22 @@ class SkillBotService {
       // Update chat entry for notifications
       const chatId = `${userId}_${SKILLBOT_ID}`;
       const chatRef = doc(db, 'chats', chatId);
+      
+      // Get current chat data to update unread count
+      const chatDoc = await getDoc(chatRef);
+      let newUnreadCount = { [userId]: 1, [SKILLBOT_ID]: 0 };
+      
+      if (chatDoc.exists()) {
+        const existingData = chatDoc.data();
+        newUnreadCount = { ...existingData.unreadCount };
+        newUnreadCount[userId] = (newUnreadCount[userId] || 0) + 1;
+      }
+      
       batch.update(chatRef, {
-        lastMessage: aiResponse,
+        lastMessage: botMessageObj.content,
         lastMessageTime: serverTimestamp(),
         lastMessageSender: SKILLBOT_ID,
+        unreadCount: newUnreadCount,
         updatedAt: serverTimestamp()
       });
 
@@ -294,21 +323,26 @@ class SkillBotService {
   // Handle project discussion and gig recommendations
   async handleProjectDiscussion(userMessage, conversationHistory, context) {
     try {
-      // Extract potential keywords for gig search
-      const searchKeywords = this.extractSearchKeywords(userMessage);
+      const messageCount = conversationHistory.length;
       
-      // Search for relevant gigs
+      // If this is early in conversation, ask clarifying questions first
+      if (messageCount <= 2 && !this.hasSpecificProjectRequirements(userMessage)) {
+        return await this.generateClarifyingQuestions(userMessage, conversationHistory);
+      }
+      
+      // If user has provided details or specific requirements, proceed with gig search
+      const searchKeywords = this.extractSearchKeywords(userMessage);
       const relevantGigs = await this.findRelevantGigs(searchKeywords, userMessage);
       
       // Create conversation context for the AI
       const conversationContext = conversationHistory.length > 0 
-        ? `\n\nPercakapan sebelumnya:\n${conversationHistory.slice(-2).map(msg => `${msg.sender}: ${msg.content}`).join('\n')}`
+        ? `\n\nPercakapan sebelumnya:\n${conversationHistory.slice(-2).map(msg => `${msg.senderId === SKILLBOT_ID ? 'SkillBot' : 'User'}: ${msg.content}`).join('\n')}`
         : '';
 
       // Prepare gigs context if any are found
       const gigsContext = relevantGigs.length > 0 
         ? `\n\nGigs tersedia yang relevan:\n${relevantGigs.slice(0, 5).map(gig => 
-            `- ${gig.title} (Rp ${gig.packages?.basic?.price?.toLocaleString('id-ID')}) - ${gig.packages?.basic?.deliveryTime} hari`
+            `- ${gig.title} (Rp ${gig.packages?.basic?.price?.toLocaleString('id-ID') || 'N/A'}) - ${gig.packages?.basic?.deliveryTime || 'N/A'} hari`
           ).join('\n')}`
         : '\n\nBelum ada gigs tersedia yang sesuai.';
 
@@ -319,7 +353,7 @@ User bilang: "${userMessage}"${conversationContext}${gigsContext}
 
 ${relevantGigs.length > 0 ? 
   'Analisis projectnya secara SINGKAT, lalu rekomendasikan 2-3 gigs terbaik yang paling relevan. Fokus pada yang paling cocok saja. Maksimal 4 kalimat total.' :
-  'Analisis projectnya secara SINGKAT dan tanya 1-2 hal yang paling penting aja untuk membantu cari freelancer yang tepat. Maksimal 3 kalimat.'
+  'Analisis projectnya secara SINGKAT dan kasih saran umum. Maksimal 3 kalimat.'
 }`;
 
       // Make a single API call to get comprehensive response
@@ -329,7 +363,7 @@ ${relevantGigs.length > 0 ?
       
     } catch (error) {
       console.error('Error handling project discussion:', error);
-      return geminiService.getFallbackProjectAnalysis();
+      return this.getFallbackProjectAnalysis();
     }
   }
 
@@ -404,37 +438,227 @@ ${relevantGigs.length > 0 ?
     return projectKeywords.some(keyword => message.includes(keyword));
   }
 
+  // Check if we should show gig recommendations
+  shouldShowGigRecommendations(conversationHistory, userMessage) {
+    // Show gig recommendations ONLY after user has answered clarifying questions
+    // or after specific project details are provided
+    const messageCount = conversationHistory.length;
+    
+    // If this is the first or second message, don't show gigs yet
+    if (messageCount <= 2) return false;
+    
+    // Check if SkillBot has already asked clarifying questions
+    const hasAskedQuestions = conversationHistory.some(msg => 
+      msg.senderId === SKILLBOT_ID && 
+      (msg.content.includes('?') || msg.content.includes('berapa budget') || 
+       msg.content.includes('berapa lama') || msg.content.includes('fitur apa'))
+    );
+    
+    // Check if user has provided answers to clarifying questions
+    const hasProvidedDetails = conversationHistory.some(msg => 
+      msg.senderId !== SKILLBOT_ID && 
+      (msg.content.toLowerCase().includes('budget') || 
+       msg.content.toLowerCase().includes('juta') || 
+       msg.content.toLowerCase().includes('ribu') ||
+       msg.content.toLowerCase().includes('minggu') ||
+       msg.content.toLowerCase().includes('bulan') ||
+       msg.content.toLowerCase().includes('hari'))
+    );
+    
+    // Show recommendations only if:
+    // 1. SkillBot has asked questions AND user has provided details, OR
+    // 2. User provides very specific requirements in their message
+    const hasSpecificRequirements = this.hasSpecificProjectRequirements(userMessage);
+    
+    return (hasAskedQuestions && hasProvidedDetails) || hasSpecificRequirements;
+  }
+
+  // Check if user message contains specific project requirements
+  hasSpecificProjectRequirements(message) {
+    const specificKeywords = [
+      'budget', 'rp', 'ribu', 'juta', 'rupiah',
+      'deadline', 'minggu', 'bulan', 'hari',
+      'fitur', 'feature', 'fungsi', 'halaman',
+      'responsive', 'mobile', 'admin panel',
+      'database', 'payment', 'pembayaran'
+    ];
+    
+    const lowerMessage = message.toLowerCase();
+    const hasSpecificKeywords = specificKeywords.filter(keyword => 
+      lowerMessage.includes(keyword)
+    ).length >= 2; // Need at least 2 specific keywords
+    
+    return hasSpecificKeywords;
+  }
+
+  // Generate clarifying questions based on user's initial project description
+  async generateClarifyingQuestions(userMessage, conversationHistory) {
+    try {
+      const projectType = this.detectProjectType(userMessage);
+      
+      // Generate targeted questions based on project type
+      const questions = {
+        'website': [
+          "Menarik! Website seperti apa yang kamu butuhkan? E-commerce, company profile, atau blog?",
+          "Kira-kira budget berapa yang kamu siapkan untuk project ini?"
+        ],
+        'mobile': [
+          "Aplikasi mobile yang menarik! Untuk platform apa nih - Android, iOS, atau keduanya?", 
+          "Aplikasi ini untuk bisnis atau personal use?"
+        ],
+        'design': [
+          "Design apa yang kamu butuhkan? Logo, banner, atau design produk?",
+          "Ada style atau referensi tertentu yang kamu suka?"
+        ],
+        'content': [
+          "Content untuk platform apa ini? Blog, social media, atau website?",
+          "Berapa artikel atau post yang kamu butuhkan?"
+        ],
+        'general': [
+          "Bisa cerita lebih detail tentang project yang kamu butuhkan?",
+          "Kira-kira timeline dan budget seperti apa yang kamu harapkan?"
+        ]
+      };
+      
+      const selectedQuestions = questions[projectType] || questions['general'];
+      
+      // Pick one question randomly to keep it conversational
+      const randomQuestion = selectedQuestions[Math.floor(Math.random() * selectedQuestions.length)];
+      
+      return randomQuestion;
+      
+    } catch (error) {
+      console.error('Error generating clarifying questions:', error);
+      return "Bisa cerita lebih detail tentang project yang kamu butuhkan? Misalnya budget dan timeline-nya seperti apa? 😊";
+    }
+  }
+
+  // Detect project type from user message
+  detectProjectType(message) {
+    const lowerMessage = message.toLowerCase();
+    
+    if (lowerMessage.includes('website') || lowerMessage.includes('web') || lowerMessage.includes('landing page')) {
+      return 'website';
+    } else if (lowerMessage.includes('aplikasi') || lowerMessage.includes('app') || lowerMessage.includes('mobile')) {
+      return 'mobile';
+    } else if (lowerMessage.includes('design') || lowerMessage.includes('logo') || lowerMessage.includes('grafis')) {
+      return 'design';
+    } else if (lowerMessage.includes('content') || lowerMessage.includes('artikel') || lowerMessage.includes('blog')) {
+      return 'content';
+    } else {
+      return 'general';
+    }
+  }
+
+  // Find suitable gigs based on user requirements
+  async findSuitableGigs(userMessage, conversationHistory) {
+    try {
+      // Import gigService here to avoid circular dependency
+      const { searchGigs } = await import('./gigService');
+      
+      // Extract keywords from user message and conversation
+      const allMessages = conversationHistory.concat([{ content: userMessage }]);
+      const fullContext = allMessages.map(msg => msg.content).join(' ');
+      
+      // Simple keyword matching for gig categories
+      const categoryMapping = {
+        'website': ['Web Development', 'UI/UX Design'],
+        'web': ['Web Development', 'UI/UX Design'],
+        'app': ['Mobile Development', 'UI/UX Design'],
+        'aplikasi': ['Mobile Development', 'Web Development'],
+        'mobile': ['Mobile Development'],
+        'design': ['UI/UX Design', 'Graphic Design'],
+        'logo': ['Graphic Design', 'Brand Design'],
+        'video': ['Video Editing', 'Animation'],
+        'editing': ['Video Editing', 'Content Writing'],
+        'content': ['Content Writing', 'Digital Marketing'],
+        'artikel': ['Content Writing'],
+        'blog': ['Content Writing'],
+        'marketing': ['Digital Marketing', 'Content Writing'],
+        'sosmed': ['Digital Marketing', 'Graphic Design'],
+        'social media': ['Digital Marketing', 'Graphic Design'],
+        'e-commerce': ['Web Development', 'Digital Marketing'],
+        'toko online': ['Web Development', 'Digital Marketing']
+      };
+      
+      let searchCategories = [];
+      Object.keys(categoryMapping).forEach(keyword => {
+        if (fullContext.toLowerCase().includes(keyword)) {
+          searchCategories.push(...categoryMapping[keyword]);
+        }
+      });
+      
+      // Remove duplicates
+      searchCategories = [...new Set(searchCategories)];
+      
+      // If no specific categories found, return popular gigs
+      if (searchCategories.length === 0) {
+        const popularGigs = await searchGigs('', '', 'popular', 5);
+        return popularGigs || [];
+      }
+      
+      // Search for gigs in relevant categories
+      let foundGigs = [];
+      for (const category of searchCategories) {
+        const categoryGigs = await searchGigs('', category, 'popular', 3);
+        if (categoryGigs) {
+          foundGigs.push(...categoryGigs);
+        }
+      }
+      
+      // Remove duplicates and limit to 5
+      const uniqueGigs = foundGigs.filter((gig, index, self) => 
+        index === self.findIndex(g => g.id === gig.id)
+      );
+      
+      return uniqueGigs.slice(0, 5);
+    } catch (error) {
+      console.error('Error finding suitable gigs:', error);
+      return [];
+    }
+  }
+
   // Generate gig recommendations with action buttons
   async generateGigRecommendations(userRequirements, gigs) {
     try {
-      const recommendations = await geminiService.recommendGigs(userRequirements, gigs);
+      // Generate shorter, more focused recommendations with actual gig data
+      const gigSummaries = gigs.map(gig => 
+        `${gig.title} - ${gig.packages?.basic?.price ? `Rp ${gig.packages.basic.price.toLocaleString('id-ID')}` : 'Mulai dari Rp 100k'} (⭐ ${gig.averageRating || gig.rating || 4.8})`
+      ).join('\n');
       
-      // Format with action buttons
-      const formattedRecommendations = {
-        content: recommendations,
-        recommendedGigs: gigs.slice(0, 5).map(gig => ({
-          id: gig.id,
-          title: gig.title,
-          category: gig.category,
-          price: gig.packages?.basic?.price,
-          rating: gig.rating,
-          deliveryTime: gig.packages?.basic?.deliveryTime
-        })),
+      const recommendationText = `Nih, saya nemuin beberapa freelancer yang cocok buat kebutuhan kamu:\n\n${gigSummaries}\n\nTinggal pilih yang mana nih? 😊`;
+      
+              // Format with action buttons
+        const formattedRecommendations = {
+          content: recommendationText,
+          recommendedGigs: gigs.map(gig => ({
+            id: gig.id,
+            title: gig.title,
+            category: gig.category,
+            price: gig.packages?.basic?.price || 100000,
+            rating: gig.averageRating || gig.rating || 4.8,
+            deliveryTime: gig.packages?.basic?.deliveryTime || 7,
+            freelancer: gig.freelancer,
+            image: gig.images?.[0] || gig.image,
+            description: gig.description,
+            tags: gig.tags,
+            reviewCount: gig.reviewCount || 0
+          })),
         actionButtons: [
-          {
-            type: 'add_to_cart',
-            label: 'Tambah ke Keranjang',
-            action: 'add_to_cart'
-          },
           {
             type: 'view_details',
             label: 'Lihat Detail',
             action: 'view_details'
           },
           {
-            type: 'contact_freelancer',
-            label: 'Hubungi Freelancer',
-            action: 'contact_freelancer'
+            type: 'add_to_favorites',
+            label: 'Favorit',
+            action: 'add_to_favorites'
+          },
+          {
+            type: 'add_to_cart',
+            label: 'Tambah ke Keranjang',
+            action: 'add_to_cart'
           }
         ]
       };
@@ -443,7 +667,7 @@ ${relevantGigs.length > 0 ?
     } catch (error) {
       console.error('Error generating gig recommendations:', error);
       return {
-        content: 'Maaf, terjadi kesalahan saat menganalisis rekomendasi. Silakan coba lagi.',
+        content: 'Maaf, terjadi kesalahan saat mencari rekomendasi. Coba ceritain kebutuhan project kamu lagi ya!',
         recommendedGigs: [],
         actionButtons: []
       };
@@ -495,6 +719,33 @@ ${relevantGigs.length > 0 ?
     }
   }
 
+  // Subscribe to SkillBot unread count (real-time)
+  subscribeToSkillBotUnreadCount(userId, callback) {
+    try {
+      const chatId = `${userId}_${SKILLBOT_ID}`;
+      const chatRef = doc(db, 'chats', chatId);
+      
+      const unsubscribe = onSnapshot(chatRef, (docSnapshot) => {
+        if (docSnapshot.exists()) {
+          const chatData = docSnapshot.data();
+          const unreadCount = chatData.unreadCount?.[userId] || 0;
+          callback(unreadCount);
+        } else {
+          callback(0);
+        }
+      }, (error) => {
+        console.error('Error in SkillBot unread count subscription:', error);
+        callback(0);
+      });
+      
+      return unsubscribe;
+    } catch (error) {
+      console.error('Error setting up SkillBot unread count subscription:', error);
+      callback(0);
+      return () => {}; // Return empty unsubscribe function
+    }
+  }
+
   // Subscribe to SkillBot conversation changes (real-time)
   subscribeToSkillBotConversation(conversationId, callback) {
     try {
@@ -519,6 +770,11 @@ ${relevantGigs.length > 0 ?
       console.error('Error setting up SkillBot conversation subscription:', error);
       return () => {}; // Return empty unsubscribe function
     }
+  }
+
+  // Fallback response when AI fails
+  getFallbackProjectAnalysis() {
+    return "Saya akan bantu carikan freelancer yang cocok untuk project kamu! Bisa cerita lebih detail tentang kebutuhan dan budget yang kamu punya? 😊";
   }
 }
 

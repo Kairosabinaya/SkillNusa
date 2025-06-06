@@ -202,6 +202,14 @@ class FirebaseMonitor {
       if (stats.active > 8) {
         console.warn(`🚨 [FirebaseMonitor] CRITICAL: ${stats.active} active subscriptions!`);
         console.table(stats.byCollection);
+        
+        // Auto-trigger cleanup after critical threshold
+        console.log('🔄 [FirebaseMonitor] Auto-triggering cleanup due to critical subscription count');
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('forceCleanupSubscriptions', {
+            detail: { reason: 'critical_threshold', count: stats.active, timestamp: Date.now() }
+          }));
+        }
       } else if (stats.active > 5) {
         console.warn(`⚠️ [FirebaseMonitor] Warning: ${stats.active} active subscriptions`);
       }

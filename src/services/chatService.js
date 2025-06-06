@@ -449,6 +449,14 @@ class ChatService {
 
       // Sort by lastMessageTime in JavaScript instead of Firestore
       chats.sort((a, b) => {
+        // SkillBot chats should always be at the top
+        const aIsSkillBot = a.isSkillBot || a.id.includes('skillbot');
+        const bIsSkillBot = b.isSkillBot || b.id.includes('skillbot');
+        
+        if (aIsSkillBot && !bIsSkillBot) return -1; // a comes first
+        if (!aIsSkillBot && bIsSkillBot) return 1;  // b comes first
+        
+        // If both are SkillBot or both are regular chats, sort by time
         const aTime = a.lastMessageTime?.toDate?.() || a.lastMessageTime || new Date(0);
         const bTime = b.lastMessageTime?.toDate?.() || b.lastMessageTime || new Date(0);
         return bTime - aTime; // desc order (newest first)
@@ -655,6 +663,14 @@ class ChatService {
 
       // Sort by lastMessageTime in JavaScript instead of Firestore
       chats.sort((a, b) => {
+        // SkillBot chats should always be at the top
+        const aIsSkillBot = a.isSkillBot || a.id.includes('skillbot');
+        const bIsSkillBot = b.isSkillBot || b.id.includes('skillbot');
+        
+        if (aIsSkillBot && !bIsSkillBot) return -1; // a comes first
+        if (!aIsSkillBot && bIsSkillBot) return 1;  // b comes first
+        
+        // If both are SkillBot or both are regular chats, sort by time
         const aTime = a.lastMessageTime?.toDate?.() || a.lastMessageTime || new Date(0);
         const bTime = b.lastMessageTime?.toDate?.() || b.lastMessageTime || new Date(0);
         return bTime - aTime; // desc order (newest first)

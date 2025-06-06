@@ -3,6 +3,8 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import chatService from '../services/chatService';
 import skillBotService from '../services/skillBotService';
+import cartService from '../services/cartService';
+import favoriteService from '../services/favoriteService';
 import { MarkdownText } from '../utils/markdownUtils';
 import PageContainer from '../components/common/PageContainer';
 
@@ -23,13 +25,108 @@ export default function Messages() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [skillBotTyping, setSkillBotTyping] = useState(false);
+  const [cleanupInProgress, setCleanupInProgress] = useState(false);
+  const [showCleanupNotification, setShowCleanupNotification] = useState(false);
+  const [actionLoading, setActionLoading] = useState(null);
+  const [messagesLoading, setMessagesLoading] = useState(false);
   
   // Real-time listeners cleanup functions
   const [chatsUnsubscribe, setChatsUnsubscribe] = useState(null);
   const [messagesUnsubscribe, setMessagesUnsubscribe] = useState(null);
   
+  // Message templates for SkillBot
+  const skillBotTemplates = [
+    "Saya butuh website e-commerce",
+    "Cari freelancer untuk design logo",
+    "Perlu mobile app development",
+    "Butuh content writer untuk blog",
+    "Cari video editor profesional",
+    "Perlu design banner social media"
+  ];
+  
   // Flag to prevent StrictMode double-mounting issues
   const isInitialized = useRef(false);
+  
+  // Ref for scrolling to bottom of messages
+  const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
+  
+  // Ref for debouncing chat selection
+  const chatSelectionTimeoutRef = useRef(null);
+  
+    // Auto-reload handler for subscription cleanup and infinite loading detection
+  useEffect(() => {
+    const handleForceCleanup = (event) => {
+      console.log('🔄 [Messages] Received force cleanup event, reloading page...');
+      setCleanupInProgress(true);
+      setShowCleanupNotification(true);
+      
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    };
+
+    // Listen for global cleanup events
+    window.addEventListener('forceCleanupSubscriptions', handleForceCleanup);
+    
+    // Infinite loading detection - if loading takes more than 10 seconds, auto-reload
+    const infiniteLoadingTimeout = setTimeout(() => {
+      if (currentUser && loading && !cleanupInProgress) {
+        console.warn('🔍 [Messages] Infinite loading detected, triggering auto-reload');
+        setCleanupInProgress(true);
+        setShowCleanupNotification(true);
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+      }
+    }, 10000); // 10 seconds timeout
+    
+    // Periodic health check to prevent stuck state
+    const healthCheckInterval = setInterval(() => {
+      if (currentUser && !isInitialized.current && loading) {
+        const stats = window.firebaseMonitor?.getSubscriptionStats?.();
+        if (stats?.active >= 5) {
+          console.warn('🔍 [Messages] Health check: Still stuck with high subscriptions, triggering reload');
+          setCleanupInProgress(true);
+          setShowCleanupNotification(true);
+          setTimeout(() => {
+            window.location.reload();
+          }, 500);
+        }
+      }
+    }, 15000); // Check every 15 seconds
+    
+    return () => {
+      window.removeEventListener('forceCleanupSubscriptions', handleForceCleanup);
+      clearTimeout(infiniteLoadingTimeout);
+      clearInterval(healthCheckInterval);
+    };
+  }, [currentUser, loading, cleanupInProgress]);
+  
+  // Scroll to bottom of messages
+  const scrollToBottom = (smooth = true) => {
+    // Use scrollTop instead of scrollIntoView to keep scroll within the messages container
+    if (messagesContainerRef.current) {
+      if (smooth) {
+        messagesContainerRef.current.scrollTo({
+          top: messagesContainerRef.current.scrollHeight,
+          behavior: 'smooth'
+        });
+      } else {
+        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+      }
+    }
+  };
+
+  // Auto-scroll when messages change
+  useEffect(() => {
+    // Use setTimeout to ensure DOM has been updated before scrolling
+    const timeoutId = setTimeout(() => {
+      scrollToBottom();
+    }, 100);
+    
+    return () => clearTimeout(timeoutId);
+  }, [messages]);
 
   // Load user chats and initialize SkillBot if needed
   useEffect(() => {
@@ -46,6 +143,16 @@ export default function Messages() {
     if (existingSubscriptionCount >= 5) {
       console.error('🚨 [Messages] Too many active subscriptions detected, aborting initialization');
       console.log('🚨 [Messages] Current subscription count:', existingSubscriptionCount);
+      
+      // Auto-reload browser to clear stuck subscriptions
+      console.log('🔄 [Messages] Auto-reloading browser to clear stuck subscriptions...');
+      setCleanupInProgress(true);
+      setShowCleanupNotification(true);
+      
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000); // Give user time to see the message
+      
       return;
     }
     
@@ -130,6 +237,11 @@ export default function Messages() {
       
       console.log('🧹 [Messages] Cleaning up subscriptions...');
       
+      // Clear chat selection timeout
+      if (chatSelectionTimeoutRef.current) {
+        clearTimeout(chatSelectionTimeoutRef.current);
+      }
+      
       if (chatsUnsubscribe) {
         console.log('🧹 [Messages] Cleaning up chats subscription');
         chatsUnsubscribe();
@@ -183,13 +295,11 @@ export default function Messages() {
   // Load SkillBot messages with real-time updates
   const loadSkillBotMessages = async () => {
     try {
-      // Clean up existing message listener first
-      if (messagesUnsubscribe) {
-        console.log('🧹 [Messages] Cleaning up existing SkillBot subscription');
-        messagesUnsubscribe();
-        setMessagesUnsubscribe(null);
-      }
-
+      console.log('📡 [Messages] Loading SkillBot messages...');
+      
+      // Set loading state
+      setMessages([]); // Clear immediately
+      
       const conversation = await skillBotService.getSkillBotConversation(currentUser.uid);
       if (conversation && conversation.messages) {
         setMessages(conversation.messages);
@@ -210,7 +320,11 @@ export default function Messages() {
       console.log('📡 [Messages] Setting up SkillBot subscription for:', conversationId);
       
       const unsubscribe = skillBotService.subscribeToSkillBotConversation(conversationId, (conversationData) => {
+        console.log('📡 [Messages] Received SkillBot conversation update:', conversationData?.messages?.length || 0, 'messages');
+        
+        // Direct update - the cleanup in handleChatSelect should prevent conflicts
         if (conversationData && conversationData.messages) {
+          console.log('📡 [Messages] Updating SkillBot messages');
           setMessages(conversationData.messages);
         }
       });
@@ -242,18 +356,20 @@ export default function Messages() {
     }
 
     try {
-      // Clean up existing message listener first
-      if (messagesUnsubscribe) {
-        console.log('🧹 [Messages] Cleaning up existing chat subscription');
-        messagesUnsubscribe();
-        setMessagesUnsubscribe(null);
-      }
+      console.log('📡 [Messages] Loading regular chat messages for:', chatId);
+      
+      // Set loading state
+      setMessages([]); // Clear immediately
 
       console.log('📡 [Messages] Setting up chat subscription for:', chatId);
 
       // Set up real-time listener for regular chat messages
       const unsubscribe = chatService.subscribeToChatMessages(chatId, (chatMessages) => {
-        setMessages(chatMessages);
+        console.log('📡 [Messages] Received chat messages:', chatMessages?.length || 0, 'messages for chatId:', chatId);
+        
+        // Direct update - the cleanup in handleChatSelect should prevent conflicts
+        console.log('📡 [Messages] Updating messages for regular chat:', chatId);
+        setMessages(chatMessages || []);
       });
       
       setMessagesUnsubscribe(() => unsubscribe);
@@ -265,9 +381,24 @@ export default function Messages() {
     }
   };
 
-  // Handle chat selection
+  // Handle chat selection with debouncing
   const handleChatSelect = (chat) => {
+    // Clear any pending chat selection
+    if (chatSelectionTimeoutRef.current) {
+      clearTimeout(chatSelectionTimeoutRef.current);
+    }
+    
+    // Immediately update UI
     setSelectedChat(chat);
+    setMessages([]);
+    setMessagesLoading(true);
+    
+    // Clean up existing subscription first
+    if (messagesUnsubscribe) {
+      console.log('🧹 [Messages] Cleaning up previous message subscription before switching chat');
+      messagesUnsubscribe();
+      setMessagesUnsubscribe(null);
+    }
     
     // Use consistent chatId format for navigation
     let navigationChatId = chat.id;
@@ -277,12 +408,102 @@ export default function Messages() {
     }
     
     navigate(`/messages?chatId=${navigationChatId}`);
-    loadChatMessages(chat.id);
     
-    // Mark SkillBot as read if selecting SkillBot chat
-    if (chat.isSkillBot || chat.id.includes(SKILLBOT_ID)) {
-      skillBotService.markSkillBotAsRead(currentUser.uid);
+    // Debounce the actual message loading to prevent rapid switching issues
+    chatSelectionTimeoutRef.current = setTimeout(() => {
+      loadChatMessages(chat.id).finally(() => {
+        setMessagesLoading(false);
+        // Scroll to bottom immediately when switching chats (no smooth animation)
+        setTimeout(() => scrollToBottom(false), 50);
+      });
+      
+      // Mark SkillBot as read if selecting SkillBot chat
+      if (chat.isSkillBot || chat.id.includes(SKILLBOT_ID)) {
+        skillBotService.markSkillBotAsRead(currentUser.uid);
+      }
+    }, 100); // Small delay to prevent rapid switching
+  };
+
+  // Handle template message click
+  const handleTemplateClick = (template) => {
+    setNewMessage(template);
+  };
+
+  // Handle gig card actions
+  const handleGigAction = async (action, gig) => {
+    if (!currentUser) {
+      navigate('/login');
+      return;
     }
+
+    setActionLoading(`${action}-${gig.id}`);
+
+    try {
+      switch (action) {
+        case 'view_details':
+          navigate(`/gig/${gig.id}`);
+          break;
+          
+        case 'add_to_favorites':
+          await favoriteService.addToFavorites(currentUser.uid, gig.id);
+          
+          // Send success message to SkillBot
+          const favMessage = {
+            id: `fav-${Date.now()}`,
+            content: `✅ Gig "${gig.title}" berhasil ditambahkan ke favorit!`,
+            senderId: SKILLBOT_ID,
+            createdAt: new Date(),
+            messageType: 'system_notification'
+          };
+          setMessages(prev => [...prev, favMessage]);
+          setTimeout(() => scrollToBottom(), 50);
+          break;
+          
+        case 'add_to_cart':
+          await cartService.addToCart(currentUser.uid, {
+            gigId: gig.id,
+            packageType: 'basic'
+          });
+          
+          // Send success message to SkillBot
+          const cartMessage = {
+            id: `cart-${Date.now()}`,
+            content: `🛒 Gig "${gig.title}" berhasil ditambahkan ke keranjang!`,
+            senderId: SKILLBOT_ID,
+            createdAt: new Date(),
+            messageType: 'system_notification'
+          };
+          setMessages(prev => [...prev, cartMessage]);
+          setTimeout(() => scrollToBottom(), 50);
+          break;
+          
+        default:
+          console.warn('Unknown gig action:', action);
+      }
+    } catch (error) {
+      console.error('Error handling gig action:', error);
+      
+      // Send error message to SkillBot
+      const errorMessage = {
+        id: `error-${Date.now()}`,
+        content: `❌ Maaf, terjadi kesalahan saat memproses aksi. Silakan coba lagi.`,
+        senderId: SKILLBOT_ID,
+        createdAt: new Date(),
+        messageType: 'system_notification'
+      };
+      setMessages(prev => [...prev, errorMessage]);
+      setTimeout(() => scrollToBottom(), 50);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const formatPrice = (price) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0,
+    }).format(price || 0);
   };
 
   // Send message
@@ -310,6 +531,9 @@ export default function Messages() {
         
         setMessages(prev => [...prev, userMessage]);
         setSkillBotTyping(true);
+        
+        // Scroll to show user's message immediately
+        setTimeout(() => scrollToBottom(), 50);
         
         try {
           // Handle SkillBot chat with real AI
@@ -387,12 +611,19 @@ export default function Messages() {
     }
   };
 
-  if (loading) {
+  if (loading || cleanupInProgress) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#010042] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Memuat percakapan...</p>
+          {cleanupInProgress ? (
+            <div className="mt-4">
+              <p className="text-gray-900 font-medium">Membersihkan koneksi...</p>
+              <p className="text-sm text-gray-600 mt-1">Halaman akan dimuat ulang secara otomatis</p>
+            </div>
+          ) : (
+            <p className="mt-4 text-gray-600">Memuat percakapan...</p>
+          )}
         </div>
       </div>
     );
@@ -400,6 +631,17 @@ export default function Messages() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Cleanup Notification Toast */}
+      {showCleanupNotification && (
+        <div className="fixed top-4 right-4 bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center space-x-3">
+          <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+          <div>
+            <p className="font-medium">Membersihkan Koneksi</p>
+            <p className="text-sm opacity-90">Halaman akan dimuat ulang...</p>
+          </div>
+        </div>
+      )}
+      
       <PageContainer padding="px-4 py-6">
         <div className="bg-white rounded-lg shadow-sm h-[80vh] flex">
           {/* Chat List */}
@@ -430,7 +672,7 @@ export default function Messages() {
                         </div>
                       ) : (
                         <img
-                          src={chat.otherParticipant?.profilePhoto || '/images/default-avatar.png'}
+                          src={chat.otherParticipant?.profilePhoto || '/images/default-profile.jpg'}
                           alt={chat.otherParticipant?.displayName}
                           className="w-10 h-10 rounded-full object-cover"
                         />
@@ -449,6 +691,15 @@ export default function Messages() {
                         {chat.lastMessage}
                       </p>
                     </div>
+                    
+                    {/* Unread Count Badge */}
+                    {chat.unreadCount?.[currentUser?.uid] > 0 && (
+                      <div className="flex-shrink-0">
+                        <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full">
+                          {chat.unreadCount[currentUser.uid] > 9 ? '9+' : chat.unreadCount[currentUser.uid]}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -474,7 +725,7 @@ export default function Messages() {
                         </div>
                       ) : (
                         <img
-                          src={selectedChat.otherParticipant?.profilePhoto || '/images/default-avatar.png'}
+                          src={selectedChat.otherParticipant?.profilePhoto || '/images/default-profile.jpg'}
                           alt={selectedChat.otherParticipant?.displayName}
                           className="w-10 h-10 rounded-full object-cover"
                         />
@@ -494,7 +745,15 @@ export default function Messages() {
                 </div>
 
                 {/* Messages */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4">
+                  {messagesLoading && (
+                    <div className="flex justify-center items-center py-8">
+                      <div className="flex items-center space-x-3">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#010042]"></div>
+                        <span className="text-gray-600">Memuat pesan...</span>
+                      </div>
+                    </div>
+                  )}
                   {messages.map((message) => {
                     const isSkillBot = message.senderId === SKILLBOT_ID;
                     const isCurrentUser = message.senderId === currentUser.uid;
@@ -505,7 +764,9 @@ export default function Messages() {
                           isCurrentUser 
                             ? 'bg-[#010042] text-white' 
                             : isSkillBot 
-                            ? 'bg-gradient-to-br from-blue-50 to-purple-50 text-gray-900 border border-blue-200 skillbot-message shadow-md'
+                            ? message.messageType === 'system_notification'
+                              ? 'bg-gradient-to-br from-green-50 to-blue-50 text-gray-800 border border-green-200 shadow-sm'
+                              : 'bg-gradient-to-br from-blue-50 to-purple-50 text-gray-900 border border-blue-200 skillbot-message shadow-md'
                             : 'bg-gray-100 text-gray-900'
                         }`}>
                           {isSkillBot && (
@@ -535,6 +796,72 @@ export default function Messages() {
                     );
                   })}
                   
+                  {/* Gig Recommendation Cards */}
+                  {messages.filter(msg => msg.messageType === 'gig_recommendations' && msg.recommendedGigs).map((recMsg) => (
+                    <div key={`${recMsg.id}-gigs`} className="flex justify-start">
+                      <div className="max-w-full w-full">
+                        <div className="space-y-3 mt-3">
+                          {recMsg.recommendedGigs?.map((gig) => (
+                            <div key={gig.id} className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                              <div className="p-4">
+                                <div className="flex items-start space-x-4">
+                                  <img 
+                                    src={gig.image || '/images/default-gig.jpg'} 
+                                    alt={gig.title}
+                                    className="w-20 h-20 rounded-lg object-cover flex-shrink-0"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className="font-medium text-gray-900 text-base line-clamp-2 mb-2">
+                                      {gig.title}
+                                    </h4>
+                                    <p className="text-sm text-gray-600 mb-2">
+                                      oleh {gig.freelancer?.displayName || 'Freelancer'}
+                                    </p>
+                                                                         <div className="flex items-center space-x-3 text-sm text-gray-500 mb-3">
+                                       <span className="flex items-center">
+                                         ⭐ {gig.rating || 4.8} {gig.reviewCount ? `(${gig.reviewCount} review)` : ''}
+                                       </span>
+                                       <span>•</span>
+                                       <span>{gig.deliveryTime || 7} hari pengerjaan</span>
+                                     </div>
+                                    <p className="text-lg font-bold text-gray-900 mb-3">
+                                      {formatPrice(gig.price)}
+                                    </p>
+                                    
+                                                                         {/* Action Buttons */}
+                                     <div className="flex space-x-3">
+                                       <button
+                                         onClick={() => handleGigAction('view_details', gig)}
+                                         disabled={actionLoading === `view_details-${gig.id}`}
+                                         className="flex-1 px-4 py-2 text-sm font-medium bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors disabled:opacity-50"
+                                       >
+                                         {actionLoading === `view_details-${gig.id}` ? 'Loading...' : 'Lihat Detail'}
+                                       </button>
+                                       <button
+                                         onClick={() => handleGigAction('add_to_favorites', gig)}
+                                         disabled={actionLoading === `add_to_favorites-${gig.id}`}
+                                         className="px-4 py-2 text-sm font-medium bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors disabled:opacity-50"
+                                       >
+                                         {actionLoading === `add_to_favorites-${gig.id}` ? '⏳' : '❤️'} Favorit
+                                       </button>
+                                       <button
+                                         onClick={() => handleGigAction('add_to_cart', gig)}
+                                         disabled={actionLoading === `add_to_cart-${gig.id}`}
+                                         className="px-4 py-2 text-sm font-medium bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors disabled:opacity-50"
+                                       >
+                                         {actionLoading === `add_to_cart-${gig.id}` ? '⏳' : '🛒'} Keranjang
+                                       </button>
+                                     </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  
                   {skillBotTyping && (
                     <div className="flex justify-start">
                       <div className="bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-200 px-4 py-2 rounded-lg shadow-md">
@@ -554,7 +881,26 @@ export default function Messages() {
                       </div>
                     </div>
                   )}
+                  <div ref={messagesEndRef} />
                 </div>
+
+                {/* Message Templates for SkillBot */}
+                {(selectedChat?.isSkillBot || selectedChat?.id.includes(SKILLBOT_ID)) && messages.length <= 2 && (
+                  <div className="p-4 border-t border-gray-100 bg-gray-50">
+                    <p className="text-sm text-gray-600 mb-3">💡 Coba mulai dengan:</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {skillBotTemplates.map((template, index) => (
+                        <button
+                          key={index}
+                          onClick={() => handleTemplateClick(template)}
+                          className="text-left text-sm p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-colors"
+                        >
+                          {template}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Message Input */}
                 <div className="p-4 border-t border-gray-200 bg-white">

@@ -3,6 +3,7 @@ import { useAuth } from './AuthContext';
 import favoriteService from '../services/favoriteService';
 import cartService from '../services/cartService';
 import chatService from '../services/chatService';
+import skillBotService from '../services/skillBotService';
 import subscriptionRegistry from '../utils/subscriptionRegistry';
 
 const SubscriptionContext = createContext();
@@ -14,7 +15,8 @@ export function SubscriptionProvider({ children }) {
   const [counts, setCounts] = useState({
     favorites: 0,
     cart: 0,
-    messages: 0
+    messages: 0,
+    skillbot: 0
   });
   
   // Track active subscriptions to prevent duplicates
@@ -45,7 +47,8 @@ export function SubscriptionProvider({ children }) {
     setCounts({
       favorites: 0,
       cart: 0,
-      messages: 0
+      messages: 0,
+      skillbot: 0
     });
   };
   
@@ -130,6 +133,23 @@ export function SubscriptionProvider({ children }) {
           subscriptionRegistry.registerSubscription(currentUser.uid, 'messages', messagesUnsubscribe);
         } else {
           console.log('⚠️ [SubscriptionContext] Messages subscription already exists, skipping');
+        }
+
+        // SkillBot count subscription (single instance)
+        if (!subscriptionRegistry.hasSubscription(currentUser.uid, 'skillbot')) {
+          console.log('📡 [SubscriptionContext] Setting up SkillBot subscription');
+          const skillbotUnsubscribe = skillBotService.subscribeToSkillBotUnreadCount(
+            currentUser.uid, 
+            (count) => {
+              console.log('📊 [SubscriptionContext] SkillBot count update:', count);
+              setCounts(prev => ({ ...prev, skillbot: count }));
+            }
+          );
+          
+          subscriptionsRef.current.skillbot = skillbotUnsubscribe;
+          subscriptionRegistry.registerSubscription(currentUser.uid, 'skillbot', skillbotUnsubscribe);
+        } else {
+          console.log('⚠️ [SubscriptionContext] SkillBot subscription already exists, skipping');
         }
 
         console.log('✅ [SubscriptionContext] All subscriptions set up successfully');

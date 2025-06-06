@@ -58,7 +58,9 @@ PENTING:
 - Maksimal 2-3 kalimat per poin
 - Hindari format panjang seperti daftar bertingkat
 - Fokus pada 1-2 hal paling penting saja
-- Tanya balik jika perlu info lebih lanjut
+- JANGAN tanya terlalu banyak detail - cukup info dasar untuk cari gigs
+- Kalau user udah kasih info project, langsung carikan gigs yang cocok
+- Tanya balik HANYA jika benar-benar perlu info lebih lanjut
 
 Gaya bicara: Casual, ramah, seperti ngobrol dengan teman.`,
 
@@ -250,22 +252,22 @@ INGAT: Respons maksimal 3-4 kalimat saja!`;
 
 User bilang: "${userMessage}"${contextInfo}
 
-Balas dengan SINGKAT dan NATURAL seperti ngobrol biasa. Maksimal 2-3 kalimat. Hindari format daftar atau analisis panjang.`;
+PENTING: 
+- Jangan tanya terlalu banyak detail
+- Kalau user udah mention project (website, app, design, dll), langsung bantu carikan gigs
+- Maksimal 1-2 pertanyaan follow-up kalau memang perlu
+- Fokus ke solusi, bukan ke detail yang berlebihan
+- Respons maksimal 3 kalimat
 
-        console.log(`🤖 GeminiService: Sending request to Gemini API (attempt ${attempt}/${maxRetries})...`);
-        
-        // Add timeout and connection handling
-        const result = await Promise.race([
-          this.model.generateContent(prompt),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Request timeout after 30 seconds')), 30000)
-          )
-        ]);
-        
+Berikan respons yang helpful dan to-the-point!`;
+
+        console.log('🤖 GeminiService: Sending request to Gemini API...');
+        const result = await this.model.generateContent(prompt);
         const response = await result.response;
         const text = response.text();
         
         console.log('✅ GeminiService: Successfully generated response');
+        console.log('🤖 GeminiService: Response length:', text.length);
         return text;
         
       } catch (error) {
