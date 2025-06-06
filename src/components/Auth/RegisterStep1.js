@@ -57,6 +57,22 @@ export default function RegisterStep1({ formikProps }) {
     return () => clearTimeout(timer);
   }, [values.username, touched.username, setFieldError]);
   
+  // Handler for email input to enforce proper email format
+  const handleEmailChange = (e) => {
+    const rawValue = e.target.value;
+    
+    // Hanya izinkan karakter yang valid untuk email
+    const sanitizedValue = rawValue.toLowerCase().replace(/[^a-z0-9@._+-]/g, '');
+    
+    // Update field value manually if it changed
+    if (rawValue !== sanitizedValue) {
+      e.target.value = sanitizedValue;
+    }
+    
+    // Call the original handler
+    handleChange(e);
+  };
+
   // Handler for username input to force lowercase
   const handleUsernameChange = (e) => {
     // Convert to lowercase and remove special characters
@@ -108,6 +124,7 @@ export default function RegisterStep1({ formikProps }) {
             type="email"
             autoComplete="email"
             placeholder="Masukkan email Anda"
+            onChange={handleEmailChange}
             className={`appearance-none block w-full px-3 py-2 border ${
               errors.email && touched.email ? 'border-red-300' : 'border-gray-300'
             } rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#010042] focus:border-[#010042] sm:text-sm`}
@@ -199,7 +216,7 @@ export default function RegisterStep1({ formikProps }) {
           )}
           <ErrorMessage name="username" component="div" className="mt-1 text-sm text-red-600" />
           <p className="mt-1 text-xs text-gray-500">
-            Username hanya boleh menggunakan huruf kecil dan angka. Tidak boleh mengandung spasi, tanda hubung (-), atau garis bawah (_).
+            Username hanya boleh menggunakan huruf kecil dan angka.
           </p>
         </div>
       </div>

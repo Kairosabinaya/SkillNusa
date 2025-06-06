@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { sendEmailVerification } from 'firebase/auth';
-import PageContainer from '../../components/common/PageContainer';
 
 export default function VerifyEmail() {
   const { currentUser, logout, syncEmailVerifiedStatus } = useAuth();
@@ -102,10 +101,8 @@ export default function VerifyEmail() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 relative">
-      <PageContainer maxWidth="max-w-md" padding="px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-center min-h-[calc(100vh-6rem)]">
-          <div className="w-full space-y-8 bg-white p-8 rounded-xl shadow-md">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-md">
             <div>
               <div className="flex justify-center">
                 <a href="#" onClick={handleHomeClick} className="block text-center">
@@ -196,9 +193,7 @@ export default function VerifyEmail() {
                 Setelah verifikasi email, Anda dapat mulai menggunakan akun SkillNusa Anda.
               </p>
             </div>
-          </div>
         </div>
-      </PageContainer>
 
       {/* Warning Modal */}
       {showWarning && (

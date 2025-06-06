@@ -9,7 +9,6 @@ import RegisterStep3 from '../../components/Auth/RegisterStep3';
 import { USER_ROLES } from '../../utils/constants';
 import { createUserProfile } from '../../services/profileService';
 import ParticleBackground from '../../components/UI/ParticleBackground';
-import PageContainer from '../../components/common/PageContainer';
 
 export default function Register() {
   const location = useLocation();
@@ -207,11 +206,9 @@ export default function Register() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 relative">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 py-8 px-4 sm:px-6 lg:px-8 relative">
       <ParticleBackground variant="login" />
-      <PageContainer maxWidth="max-w-md" padding="px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)]">
-          <div className="w-full space-y-6 bg-white p-8 rounded-xl shadow-md relative z-10">
+      <div className="max-w-md w-full space-y-6 bg-white p-8 rounded-xl shadow-md relative z-10">
             <div>
               <div className="flex justify-center">
                 <Link 
@@ -389,9 +386,7 @@ export default function Register() {
                 );
               }}
             </Formik>
-          </div>
-        </div>
-      </PageContainer>
+      </div>
     </div>
   );
 } 

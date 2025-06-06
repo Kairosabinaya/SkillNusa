@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { applyActionCode, verifyPasswordResetCode, confirmPasswordReset } from 'firebase/auth';
 import { auth } from '../../firebase/config';
-import PageContainer from '../../components/common/PageContainer';
 
 export default function AuthAction() {
   const [searchParams] = useSearchParams();
@@ -113,10 +112,8 @@ export default function AuthAction() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 relative">
-      <PageContainer maxWidth="max-w-md" padding="px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-center min-h-[calc(100vh-6rem)]">
-          <div className="w-full space-y-8 bg-white p-8 rounded-xl shadow-md">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-md">
             {/* Header */}
             <div>
               <div className="flex justify-center">
@@ -254,9 +251,7 @@ export default function AuthAction() {
                 Kembali ke halaman login
               </Link>
             </div>
-          </div>
         </div>
-      </PageContainer>
     </div>
   );
 } 

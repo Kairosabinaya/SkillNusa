@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import PageContainer from '../../components/common/PageContainer';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -27,10 +26,8 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 relative">
-      <PageContainer maxWidth="max-w-md" padding="px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-center min-h-[calc(100vh-6rem)]">
-          <div className="w-full space-y-8 bg-white p-8 rounded-xl shadow-md">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-md">
             <div>
               <div className="flex justify-center">
                 <Link to="/" className="block text-center">
@@ -110,9 +107,7 @@ export default function ForgotPassword() {
                 </div>
               </div>
             </form>
-          </div>
         </div>
-      </PageContainer>
     </div>
   );
 }
