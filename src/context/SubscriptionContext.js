@@ -160,7 +160,7 @@ export function SubscriptionProvider({ children }) {
 
         // Order notifications subscription (only for freelancers)
         const isFreelancer = userProfile?.isFreelancer || userProfile?.roles?.includes('freelancer');
-        if (isFreelancer && !subscriptionRegistry.hasSubscription(currentUser.uid, 'orders')) {
+        if (isFreelancer && !subscriptionRegistry.hasSubscription(currentUser.uid, 'order_notifications')) {
           console.log('📡 [SubscriptionContext] Setting up order notifications subscription for freelancer');
           const ordersUnsubscribe = orderNotificationService.subscribeToOrderNotifications(
             currentUser.uid, 
@@ -171,7 +171,7 @@ export function SubscriptionProvider({ children }) {
           );
           
           subscriptionsRef.current.orders = ordersUnsubscribe;
-          subscriptionRegistry.registerSubscription(currentUser.uid, 'orders', ordersUnsubscribe);
+          subscriptionRegistry.registerSubscription(currentUser.uid, 'order_notifications', ordersUnsubscribe);
         } else if (!isFreelancer) {
           console.log('⚠️ [SubscriptionContext] User is not a freelancer, skipping order notifications');
         } else {

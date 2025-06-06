@@ -70,8 +70,13 @@ export default class AuthService {
       // Update auth profile
       await updateProfile(user, { displayName: username });
       
-      // Send verification email
-      await sendEmailVerification(user);
+      // Send verification email with custom settings
+      const actionCodeSettings = {
+        url: `${window.location.origin}/auth-action?continueUrl=${encodeURIComponent(window.location.origin + '/login')}`,
+        handleCodeInApp: true
+      };
+      
+      await sendEmailVerification(user, actionCodeSettings);
       
       return user;
     } catch (error) {

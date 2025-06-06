@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import NavigationRoleHandler from './components/NavigationRoleHandler';
 import { AuthProvider } from './context/AuthContext';
 import { SubscriptionProvider } from './context/SubscriptionContext';
+import subscriptionMonitor from './utils/subscriptionMonitor';
 import { ROUTES } from './routes';
 import ErrorBoundary from './components/common/ErrorBoundary';
 
@@ -29,6 +30,7 @@ import Login from './pages/Auth/Login';
 import Register from './pages/Auth/Register';
 import ForgotPassword from './pages/Auth/ForgotPassword';
 import VerifyEmail from './pages/Auth/VerifyEmail';
+import AuthAction from './pages/Auth/AuthAction';
 
 // Profile Pages
 import Profile from './pages/Profile/Profile';
@@ -85,6 +87,11 @@ import AdminGigs from './pages/Dashboard/AdminGigs';
 import Settings from './pages/Settings';
 
 function App() {
+  // Start subscription health monitoring in development
+  if (process.env.NODE_ENV === 'development') {
+    subscriptionMonitor.startHealthCheck();
+  }
+
   return (
     <ErrorBoundary>
       <AuthProvider>
@@ -418,6 +425,7 @@ function App() {
           <Route path={ROUTES.REGISTER} element={<Register />} />
           <Route path={ROUTES.FORGOT_PASSWORD} element={<ForgotPassword />} />
           <Route path={ROUTES.VERIFY_EMAIL} element={<VerifyEmail />} />
+          <Route path="/auth-action" element={<AuthAction />} />
 
           {/* Profile Routes */}
           <Route 

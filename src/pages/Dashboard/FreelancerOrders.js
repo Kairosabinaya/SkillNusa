@@ -38,6 +38,8 @@ import {
 import ErrorPopup from '../../components/common/ErrorPopup';
 import SuccessPopup from '../../components/common/SuccessPopup';
 import PageContainer from '../../components/common/PageContainer';
+import subscriptionRegistry from '../../utils/subscriptionRegistry';
+import orderService from '../../services/orderService';
 
 export default function FreelancerOrders() {
   const { orderId } = useParams();
@@ -118,11 +120,39 @@ export default function FreelancerOrders() {
     setAttachedFiles(prev => prev.filter((_, index) => index !== indexToRemove));
   };
 
+  // Debug utility - cleanup subscriptions if needed (can be called from console)
+  if (typeof window !== 'undefined' && currentUser) {
+    window.debugCleanupFreelancerOrders = () => {
+      console.log('🧹 [FreelancerOrders] Manual cleanup triggered');
+      
+      // Clean up from subscription registry
+      const cleanedCount = subscriptionRegistry.cleanupUserSubscriptions(currentUser.uid);
+      
+      // Clean up from order service
+      orderService.forceCleanupSubscription(currentUser.uid, 'freelancer');
+      
+      console.log('✅ [FreelancerOrders] Manual cleanup completed, cleaned subscriptions:', cleanedCount);
+      
+      // Refresh the page to restart subscriptions cleanly
+      if (window.confirm('Cleanup completed. Refresh page to restart cleanly?')) {
+        window.location.reload();
+      }
+    };
+  }
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#010042]"></div>
+        <div className="ml-4 text-gray-600">
+          Memuat pesanan...
+          {/* Debug info in development */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="text-xs text-gray-400 mt-2">
+              Jika loading terlalu lama, buka console dan jalankan: debugCleanupFreelancerOrders()
+            </div>
+          )}
+        </div>
       </div>
     );
   }

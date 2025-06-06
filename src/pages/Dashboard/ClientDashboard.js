@@ -448,10 +448,15 @@ export default function ClientDashboard() {
 
       {/* Welcome Header */}
       <motion.div className="mb-8" variants={itemVariants}>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          Selamat datang, {combinedUserData?.displayName || currentUser?.displayName || 'Client'}!
-        </h1>
-        <p className="text-gray-600">Kelola profil dan aktivitas Anda di SkillNusa</p>
+        <div className="flex items-center space-x-3 mb-2">
+          <h1 className="text-3xl font-bold text-gray-900">
+            Dashboard Client
+          </h1>
+        </div>
+        <p className="text-gray-600">
+          Selamat datang, <span className="font-semibold text-blue-600">{combinedUserData?.displayName || currentUser?.displayName || 'Client'}</span>! 
+          Kelola pesanan dan temukan layanan terbaik di SkillNusa
+        </p>
       </motion.div>
 
       {/* Quick Stats */}

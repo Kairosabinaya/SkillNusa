@@ -17,8 +17,10 @@ class SubscriptionRegistry {
     
     // Check if this type already exists for this user
     if (this.hasSubscription(userId, type)) {
-      console.warn(`⚠️ [SubscriptionRegistry] Subscription type "${type}" already exists for user ${userId}`);
-      return null; // Don't register duplicate
+      console.warn(`⚠️ [SubscriptionRegistry] Subscription type "${type}" already exists for user ${userId}. Cleaning up old subscription first.`);
+      
+      // Clean up existing subscription of the same type
+      this.forceCleanupSubscriptionType(userId, type);
     }
 
     // Register the subscription
@@ -105,6 +107,24 @@ class SubscriptionRegistry {
     });
 
     return stats;
+  }
+
+  // Force cleanup specific subscription type for a user
+  forceCleanupSubscriptionType(userId, type) {
+    console.log(`🧹 [SubscriptionRegistry] Force cleaning up subscription type "${type}" for user ${userId}`);
+    
+    const subscriptionsToRemove = [];
+    this.activeSubscriptions.forEach((subscription, id) => {
+      if (subscription.userId === userId && subscription.type === type) {
+        subscriptionsToRemove.push(id);
+      }
+    });
+
+    subscriptionsToRemove.forEach(id => {
+      this.unregisterSubscription(id);
+    });
+
+    return subscriptionsToRemove.length;
   }
 
   // Force cleanup all subscriptions (emergency)

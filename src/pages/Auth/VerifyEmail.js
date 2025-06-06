@@ -24,7 +24,12 @@ export default function VerifyEmail() {
     setError('');
 
     try {
-      await sendEmailVerification(currentUser);
+      const actionCodeSettings = {
+        url: `${window.location.origin}/auth-action?continueUrl=${encodeURIComponent(window.location.origin + '/login')}`,
+        handleCodeInApp: true
+      };
+      
+      await sendEmailVerification(currentUser, actionCodeSettings);
       setMessage('Email verifikasi berhasil dikirim ulang. Silakan periksa kotak masuk Anda.');
     } catch (error) {
       setError('Gagal mengirim ulang email verifikasi. Silakan coba lagi nanti.');

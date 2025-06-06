@@ -966,7 +966,9 @@ class OrderService {
       
       // Prevent duplicate subscriptions
       if (this.subscriptions.has(subscriptionKey)) {
-        console.log('⚠️ [OrderService] Subscription already exists:', subscriptionKey);
+        console.warn('⚠️ [OrderService] Subscription already exists:', subscriptionKey);
+        // Return existing subscription but also immediately call callback with empty array to reset loading state
+        callback([]);
         return this.subscriptions.get(subscriptionKey);
       }
 
@@ -1062,15 +1064,37 @@ class OrderService {
       // Clean up specific user subscriptions
       for (const [key, unsubscribe] of this.subscriptions.entries()) {
         if (key.startsWith(userId)) {
-          unsubscribe();
+          console.log('🧹 [OrderService] Cleaning up subscription:', key);
+          if (typeof unsubscribe === 'function') {
+            unsubscribe();
+          }
           this.subscriptions.delete(key);
         }
       }
     } else {
       // Clean up all subscriptions
-      this.subscriptions.forEach(unsubscribe => unsubscribe());
+      console.log('🧹 [OrderService] Cleaning up all subscriptions');
+      this.subscriptions.forEach((unsubscribe, key) => {
+        console.log('🧹 [OrderService] Cleaning up subscription:', key);
+        if (typeof unsubscribe === 'function') {
+          unsubscribe();
+        }
+      });
       this.subscriptions.clear();
     }
+  }
+
+  // Force cleanup specific subscription
+  forceCleanupSubscription(userId, userType) {
+    const subscriptionKey = `${userId}_${userType}_orders`;
+    const unsubscribe = this.subscriptions.get(subscriptionKey);
+    if (unsubscribe && typeof unsubscribe === 'function') {
+      console.log('🧹 [OrderService] Force cleaning up subscription:', subscriptionKey);
+      unsubscribe();
+      this.subscriptions.delete(subscriptionKey);
+      return true;
+    }
+    return false;
   }
 }
 

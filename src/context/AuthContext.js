@@ -151,8 +151,13 @@ export function AuthProvider({ children }) {
       // Update auth profile
       await updateProfile(user, { displayName: username });
       
-      // Send verification email
-      await sendEmailVerification(user);
+      // Send verification email with custom settings
+      const actionCodeSettings = {
+        url: `${window.location.origin}/auth-action?continueUrl=${encodeURIComponent(window.location.origin + '/login')}`,
+        handleCodeInApp: true
+      };
+      
+      await sendEmailVerification(user, actionCodeSettings);
       
       console.log(`✅ [AuthContext] User signup completed successfully for ${user.uid}`);
       

@@ -237,27 +237,25 @@ export default function Browse() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-14">
+    <div className="min-h-screen bg-gray-50">
       {/* Breadcrumb */}
-      <div className="bg-gray-50 mt-[17px] mb-2">
-        <PageContainer>
-          <nav className="flex items-center space-x-2 text-sm text-gray-500 py-2">
-            <Link to="/" className="hover:text-gray-900">Home</Link>
-            <span className="text-gray-400 mx-1">›</span>
-            {filters.category ? (
-              <>
-                <Link to="/browse" className="hover:text-gray-900">Browse</Link>
-                <span className="text-gray-400 mx-1">›</span>
-                <span className="text-gray-900">{filters.category}</span>
-              </>
-            ) : (
-              <span className="text-gray-900">Browse Gigs</span>
-            )}
-          </nav>
-        </PageContainer>
-      </div>
+      <PageContainer padding="px-6 py-3">
+        <nav className="flex items-center space-x-2 text-sm text-gray-500 py-2">
+          <Link to="/" className="hover:text-gray-900">Home</Link>
+          <span className="text-gray-400 mx-1">›</span>
+          {filters.category ? (
+            <>
+              <Link to="/browse" className="hover:text-gray-900">Browse</Link>
+              <span className="text-gray-400 mx-1">›</span>
+              <span className="text-gray-900">{filters.category}</span>
+            </>
+          ) : (
+            <span className="text-gray-900">Browse Gigs</span>
+          )}
+        </nav>
+      </PageContainer>
 
-      <PageContainer>
+      <PageContainer padding="px-6">
         <div className="flex gap-6">
           {/* Left Sidebar - Filters */}
           <div className="w-80 bg-white rounded-lg p-6 h-fit sticky top-6">

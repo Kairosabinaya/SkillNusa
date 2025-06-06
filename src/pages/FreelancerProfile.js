@@ -23,9 +23,7 @@ import {
   CheckBadgeIcon,
   ChatBubbleLeftRightIcon,
   GlobeAltIcon,
-  AcademicCapIcon,
   BriefcaseIcon,
-  TrophyIcon,
   ArrowLeftIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
@@ -47,6 +45,8 @@ export default function FreelancerProfile() {
   });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('about');
+  const [showAllEducation, setShowAllEducation] = useState(false);
+  const [showAllCertifications, setShowAllCertifications] = useState(false);
 
   useEffect(() => {
     loadFreelancerData();
@@ -601,71 +601,133 @@ export default function FreelancerProfile() {
 
                 {/* Education & Certifications - Side by Side */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  {/* Education */}
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Education</h3>
-                    {((freelancerProfile?.education && Array.isArray(freelancerProfile.education) && freelancerProfile.education.length > 0) || 
-                      (freelancerData?.education && Array.isArray(freelancerData.education) && freelancerData.education.length > 0)) ? (
-                      <div className="space-y-4">
-                        {(freelancerProfile?.education || freelancerData?.education || []).map((edu, index) => (
-                            <div key={index} className="flex items-start">
-                              <AcademicCapIcon className="w-6 h-6 text-gray-400 mr-3 mt-1" />
-                              <div>
-                                <h4 className="font-medium text-gray-900">
-                                  {edu?.degree || edu?.title || edu?.name || edu?.major || edu?.fieldOfStudy || 'Unknown Degree'} in {edu.fieldOfStudy}
-                                </h4>
-                                <p className="text-gray-600">
-                                  {edu?.institution || edu?.university || edu?.school || edu?.college || 'Unknown Institution'} | {edu?.country}
-                                </p>
-                                <p className="text-gray-500 text-sm">
-                                  {edu?.year || edu?.graduationYear || edu?.endYear || edu?.duration || edu?.period || 'Unknown Year'} 
-                                </p>
-                                
-                              </div>
+                  {/* Education Card */}
+                  <div className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <svg className="h-5 w-5 mr-2 text-[#010042]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                      </svg>
+                      Education
+                    </h3>
+                    <div className="space-y-4">
+                      {((freelancerProfile?.education && Array.isArray(freelancerProfile.education) && freelancerProfile.education.length > 0) || 
+                        (freelancerData?.education && Array.isArray(freelancerData.education) && freelancerData.education.length > 0)) ? (
+                        <>
+                          {(showAllEducation 
+                            ? (freelancerProfile?.education || freelancerData?.education || [])
+                            : (freelancerProfile?.education || freelancerData?.education || []).slice(0, 3)
+                          ).map((edu, index) => (
+                            <div key={index} className="bg-gray-50 p-4 rounded-lg">
+                              <h4 className="font-semibold text-gray-900">
+                                {edu?.degree || edu?.title || edu?.name || edu?.major || edu?.fieldOfStudy || 'Unknown Degree'}
+                                {edu?.fieldOfStudy && edu?.fieldOfStudy !== (edu?.degree || edu?.title || edu?.name || edu?.major) ? ` in ${edu.fieldOfStudy}` : ''}
+                              </h4>
+                              <p className="text-gray-600">
+                                {edu?.institution || edu?.university || edu?.school || edu?.college || 'Unknown Institution'}
+                                {edu?.country ? ` (${edu.country})` : ''}
+                              </p>
+                              <p className="text-gray-500 text-sm">
+                                ({edu?.year || edu?.graduationYear || edu?.endYear || edu?.duration || edu?.period || 'Unknown Year'})
+                              </p>
                             </div>
                           ))}
-                      </div>
-                    ) : (
-                      <div className="text-gray-500 text-sm">
-                        No education information available
-                      </div>
-                    )}
+                          {(freelancerProfile?.education || freelancerData?.education || []).length > 3 && (
+                            <button
+                              onClick={() => setShowAllEducation(!showAllEducation)}
+                              className="w-full mt-3 px-4 py-2 text-sm font-medium text-[#010042] bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors flex items-center justify-center"
+                            >
+                              {showAllEducation ? (
+                                <>
+                                  <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                  </svg>
+                                  Show less
+                                </>
+                              ) : (
+                                <>
+                                  <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                  </svg>
+                                  Show more ({(freelancerProfile?.education || freelancerData?.education || []).length - 3} more)
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </>
+                      ) : (
+                        <div className="bg-gray-50 p-4 rounded-lg text-center">
+                          <p className="text-gray-500 italic">No education information available</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Certifications */}
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Certifications</h3>
-                    {((freelancerProfile?.certifications && Array.isArray(freelancerProfile.certifications) && freelancerProfile.certifications.length > 0) || 
-                      (freelancerData?.certifications && Array.isArray(freelancerData.certifications) && freelancerData.certifications.length > 0)) ? (
-                      <div className="space-y-4">
-                        {(freelancerProfile?.certifications || freelancerData?.certifications || []).map((cert, index) => (
-                            <div key={index} className="flex items-start">
-                              <TrophyIcon className="w-6 h-6 text-gray-400 mr-3 mt-1" />
-                              <div>
-                                <h4 className="font-medium text-gray-900">
-                                  {cert?.name || cert?.title || cert?.certification || 'Unknown Certification'}
-                                </h4>
-                                <p className="text-gray-600">
-                                  {cert?.issuer || cert?.issuedBy || cert?.organization || cert?.company || 'Unknown Issuer'}
-                                </p>
-                                <p className="text-gray-500 text-sm">
-                                  {cert?.year || cert?.issueYear || cert?.date || cert?.issueDate || 'Unknown Year'}
-                                </p>
-                                {cert?.description && (
-                                  <p className="text-gray-600 text-sm mt-1">{cert.description}</p>
-                                )}
-                                {cert?.credentialId && (
-                                  <p className="text-gray-500 text-xs mt-1">ID: {cert.credentialId}</p>
-                                )}
-                              </div>
+                  {/* Certifications Card */}
+                  <div className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <svg className="h-5 w-5 mr-2 text-[#010042]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                      </svg>
+                      Certifications
+                    </h3>
+                    <div className="space-y-4">
+                      {((freelancerProfile?.certifications && Array.isArray(freelancerProfile.certifications) && freelancerProfile.certifications.length > 0) || 
+                        (freelancerData?.certifications && Array.isArray(freelancerData.certifications) && freelancerData.certifications.length > 0)) ? (
+                        <>
+                          {(showAllCertifications 
+                            ? (freelancerProfile?.certifications || freelancerData?.certifications || [])
+                            : (freelancerProfile?.certifications || freelancerData?.certifications || []).slice(0, 3)
+                          ).map((cert, index) => (
+                            <div key={index} className="bg-gray-50 p-4 rounded-lg">
+                              <h4 className="font-semibold text-gray-900">
+                                {cert?.name || cert?.title || cert?.certification || 'Unknown Certification'}
+                              </h4>
+                              <p className="text-gray-600">
+                                {cert?.issuer || cert?.issuedBy || cert?.organization || cert?.company ? 
+                                  `dari ${cert?.issuer || cert?.issuedBy || cert?.organization || cert?.company}` : 
+                                  'Penerbit tidak disebutkan'}
+                              </p>
+                              <p className="text-gray-500 text-sm">
+                                ({cert?.year || cert?.issueYear || cert?.date || cert?.issueDate || 'Tahun tidak disebutkan'})
+                              </p>
+                              {cert?.description && (
+                                <p className="text-gray-600 text-sm mt-2">{cert.description}</p>
+                              )}
+                              {cert?.credentialId && (
+                                <p className="text-gray-500 text-xs mt-1">ID: {cert.credentialId}</p>
+                              )}
                             </div>
                           ))}
-                      </div>
-                    ) : (
-                      <div className="text-gray-500 text-sm">
-                        No certifications available
-                      </div>
-                    )}
+                          {(freelancerProfile?.certifications || freelancerData?.certifications || []).length > 3 && (
+                            <button
+                              onClick={() => setShowAllCertifications(!showAllCertifications)}
+                              className="w-full mt-3 px-4 py-2 text-sm font-medium text-[#010042] bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors flex items-center justify-center"
+                            >
+                              {showAllCertifications ? (
+                                <>
+                                  <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                  </svg>
+                                  Show less
+                                </>
+                              ) : (
+                                <>
+                                  <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                  </svg>
+                                  Show more ({(freelancerProfile?.certifications || freelancerData?.certifications || []).length - 3} more)
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </>
+                      ) : (
+                        <div className="bg-gray-50 p-4 rounded-lg text-center">
+                          <p className="text-gray-500 italic">No certifications available</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 

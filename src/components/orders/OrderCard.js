@@ -152,12 +152,6 @@ export default function OrderCard({ order, index, onStatusUpdate, userType = 'fr
         {order.gig && order.packageType && (
           <div className="flex items-center justify-between text-sm text-gray-600 mb-4">
             <span>Revisi: {getRevisionCountText(order)}</span>
-            {isRevisionDisabled(order) && (
-              <span className="text-red-500 text-xs flex items-center">
-                <ExclamationTriangleIcon className="h-3 w-3 mr-1" />
-                Limit tercapai
-              </span>
-            )}
           </div>
         )}
 

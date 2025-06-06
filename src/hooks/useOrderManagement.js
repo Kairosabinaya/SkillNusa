@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import orderService from '../services/orderService';
+import subscriptionRegistry from '../utils/subscriptionRegistry';
+import subscriptionMonitor from '../utils/subscriptionMonitor';
 import { calculateDeadline, calculateOrderStats } from '../utils/orderUtils';
 
 /**
@@ -66,6 +68,10 @@ export const useOrderManagement = (currentUser, orderId = null) => {
       orders: ordersData.map(o => ({ id: o.id, status: o.status, title: o.title }))
     });
 
+    // Track subscription update in monitor
+    const subscriptionId = `${currentUser?.uid}_freelancer_orders_management`;
+    subscriptionMonitor.trackSubscriptionUpdate(subscriptionId, ordersData.length);
+
     // Calculate stats
     const calculatedStats = calculateOrderStats(ordersData);
     
@@ -76,7 +82,7 @@ export const useOrderManagement = (currentUser, orderId = null) => {
     setLoading(false);
     
     console.log('✅ [useOrderManagement] Real-time orders state updated');
-  }, []);
+  }, [currentUser]);
 
   // Update order status with deadline calculation
   const updateOrderStatus = useCallback(async (orderId, newStatus, message = '') => {
@@ -296,7 +302,21 @@ export const useOrderManagement = (currentUser, orderId = null) => {
   useEffect(() => {
     if (!currentUser) return;
 
+    const subscriptionType = 'freelancer_orders_management';
+    
+    // Check if subscription already exists for this user
+    if (subscriptionRegistry.hasSubscription(currentUser.uid, subscriptionType)) {
+      console.log('⚠️ [useOrderManagement] Subscription already exists, using fallback fetch');
+      // Use fallback fetch instead of creating duplicate subscription
+      fetchOrders();
+      return;
+    }
+
     console.log('🔄 [useOrderManagement] Setting up real-time subscription for:', currentUser.uid);
+    
+    // Track subscription start in monitor
+    const monitoringId = `${currentUser.uid}_freelancer_orders_management`;
+    subscriptionMonitor.trackSubscriptionStart(monitoringId, subscriptionType, currentUser.uid);
     
     // Set up real-time subscription for orders
     const unsubscribe = orderService.subscribeToUserOrders(
@@ -305,16 +325,36 @@ export const useOrderManagement = (currentUser, orderId = null) => {
       handleOrdersUpdate
     );
 
-    console.log('✅ [useOrderManagement] Real-time subscription established');
+    // Register the subscription to prevent duplicates
+    const subscriptionId = subscriptionRegistry.registerSubscription(
+      currentUser.uid, 
+      subscriptionType, 
+      unsubscribe
+    );
+
+    if (!subscriptionId) {
+      console.log('⚠️ [useOrderManagement] Failed to register subscription, using fallback');
+      // If registration failed, clean up and use fallback
+      if (unsubscribe && typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+      fetchOrders();
+      return;
+    }
+
+    console.log('✅ [useOrderManagement] Real-time subscription established and registered');
 
     // Cleanup subscription on unmount
     return () => {
       console.log('🧹 [useOrderManagement] Cleaning up subscription');
-      if (unsubscribe && typeof unsubscribe === 'function') {
-        unsubscribe();
-      }
+      
+      // Track cleanup in monitor
+      const monitoringId = `${currentUser.uid}_freelancer_orders_management`;
+      subscriptionMonitor.trackSubscriptionCleanup(monitoringId);
+      
+      subscriptionRegistry.unregisterSubscription(subscriptionId);
     };
-  }, [currentUser, handleOrdersUpdate]);
+  }, [currentUser, handleOrdersUpdate, fetchOrders]);
 
   // Set selected order when orderId changes
   useEffect(() => {

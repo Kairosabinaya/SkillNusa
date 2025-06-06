@@ -10,6 +10,7 @@ export const ROUTES = {
   REGISTER: '/register',
   FORGOT_PASSWORD: '/forgot-password',
   VERIFY_EMAIL: '/verify-email',
+  AUTH_ACTION: '/auth-action',
   PROFILE: {
     ROOT: '/profile',
     EDIT: '/profile/edit'

@@ -473,56 +473,69 @@ ${relevantGigs.length > 0 ?
 
   // Check if we should show gig recommendations
   shouldShowGigRecommendations(conversationHistory, userMessage) {
-    // Show gig recommendations when:
-    // 1. User has provided project details and we have relevant gigs
-    // 2. After clarifying questions have been asked and user responds
-    // 3. User provides specific project requirements
+    // Show gig recommendations ONLY when user has provided CLEAR project details
+    // Don't show gigs just because they mentioned general keywords
     
     const messageCount = conversationHistory.length;
     const lowercaseMessage = userMessage.toLowerCase();
     
-    // If this is the very first message (welcome), don't show gigs yet
-    if (messageCount <= 1) return false;
-    
-    // Check if SkillBot has already asked clarifying questions
-    const hasAskedQuestions = conversationHistory.some(msg => 
-      msg.senderId === SKILLBOT_ID && 
-      (msg.content.includes('?') || msg.content.includes('berapa budget') || 
-       msg.content.includes('berapa lama') || msg.content.includes('fitur apa') ||
-       msg.content.includes('detail tentang project') || msg.content.includes('jenis'))
-    );
-    
-    // Check if user has provided project-related keywords
-    const hasProjectKeywords = ['testing', 'aplikasi', 'app', 'website', 'web', 'design', 'logo', 
-                               'content', 'artikel', 'blog', 'marketing', 'video', 'editing',
-                               'e-commerce', 'toko online', 'sistem', 'platform', 'mobile'].some(keyword => 
-      lowercaseMessage.includes(keyword)
-    );
-    
-    // Check if user has provided answers to clarifying questions
-    const hasProvidedDetails = conversationHistory.some(msg => 
-      msg.senderId !== SKILLBOT_ID && 
-      (msg.content.toLowerCase().includes('budget') || 
-       msg.content.toLowerCase().includes('juta') || 
-       msg.content.toLowerCase().includes('ribu') ||
-       msg.content.toLowerCase().includes('minggu') ||
-       msg.content.toLowerCase().includes('bulan') ||
-       msg.content.toLowerCase().includes('hari') ||
-       ['mau', 'ingin', 'butuh', 'perlu', 'ya', 'iya', 'ok', 'oke'].some(word => 
-         msg.content.toLowerCase().includes(word)
-       ))
-    );
-    
-    // Check if user provides very specific requirements
+    // Check if user provides very specific project requirements
     const hasSpecificRequirements = this.hasSpecificProjectRequirements(userMessage);
     
-    // Show recommendations if:
-    // 1. User has specific requirements, OR
-    // 2. SkillBot asked questions AND user has provided ANY response (not just detailed), OR  
-    // 3. User mentions project keywords after message 2
-    return hasSpecificRequirements || 
-           (hasAskedQuestions && hasProvidedDetails) || 
-           (messageCount >= 2 && hasProjectKeywords);
+    // Check if user has explicitly described their project needs
+    const hasExplicitProjectDescription = this.hasExplicitProjectDescription(userMessage, conversationHistory);
+    
+    // Check if SkillBot has asked about project type and user has responded
+    const hasAskedAboutProject = conversationHistory.some(msg => 
+      msg.senderId === SKILLBOT_ID && 
+      (msg.content.toLowerCase().includes('project apa') || 
+       msg.content.toLowerCase().includes('layanan apa') ||
+       msg.content.toLowerCase().includes('butuh apa') ||
+       msg.content.toLowerCase().includes('butuhkan apa'))
+    );
+    
+    const hasRespondedToProjectQuestion = hasAskedAboutProject && 
+      conversationHistory.slice(-2).some(msg => 
+        msg.senderId !== SKILLBOT_ID && 
+        (msg.content.toLowerCase().includes('website') ||
+         msg.content.toLowerCase().includes('aplikasi') ||
+         msg.content.toLowerCase().includes('design') ||
+         msg.content.toLowerCase().includes('app') ||
+         msg.content.toLowerCase().includes('mobile') ||
+         msg.content.toLowerCase().includes('content') ||
+         msg.content.toLowerCase().includes('blog') ||
+         msg.content.toLowerCase().includes('logo') ||
+         msg.content.toLowerCase().includes('video') ||
+         msg.content.toLowerCase().includes('marketing'))
+      );
+    
+    // Special case: if user is very early but has explicit project description, allow it
+    if (hasExplicitProjectDescription || hasSpecificRequirements) {
+      return true;
+    }
+    
+    // For other cases, need more conversation context
+    if (messageCount <= 2) return false;
+    
+    // Show recommendations if user has responded to project question
+    return hasRespondedToProjectQuestion;
+  }
+
+  // Check if user has explicitly described their project 
+  hasExplicitProjectDescription(userMessage, conversationHistory) {
+    const lowerMessage = userMessage.toLowerCase();
+    
+    // Look for explicit project descriptions like:
+    // "saya mau bikin website e-commerce", "butuh aplikasi mobile untuk bisnis", etc.
+    const explicitPatterns = [
+      /saya (mau|ingin|butuh|perlu) (bikin|buat|develop|design).+(website|aplikasi|app|mobile|design|logo|video|content|blog|marketing)/,
+      /butuh.+(website|aplikasi|app|mobile|design|logo|video|content|blog|marketing).+(untuk|buat|dengan)/,
+      /mau (bikin|buat).+(website|aplikasi|app|mobile|toko online|e-commerce|landing page)/,
+      /project.+(website|aplikasi|app|mobile|design|logo|video|content|blog|marketing)/,
+      /develop.+(website|aplikasi|app|mobile|sistem|platform)/
+    ];
+    
+    return explicitPatterns.some(pattern => pattern.test(lowerMessage));
   }
 
   // Check if user message contains specific project requirements
@@ -546,43 +559,70 @@ ${relevantGigs.length > 0 ?
   // Generate clarifying questions based on user's initial project description
   async generateClarifyingQuestions(userMessage, conversationHistory) {
     try {
+      const lowerMessage = userMessage.toLowerCase();
+      
+      // If user asks about "gig apa yang cocok" but hasn't mentioned specific project
+      if ((lowerMessage.includes('gig apa') || lowerMessage.includes('cocok untuk project')) && 
+          !this.hasProjectTypeInMessage(userMessage)) {
+        return "Project apa yang lagi kamu butuhkan? Website, aplikasi mobile, design, atau yang lain?";
+      }
+      
+      // If user mentions project but vague, ask for more specific type
+      if (lowerMessage.includes('project') && !this.hasProjectTypeInMessage(userMessage)) {
+        return "Menarik! Project seperti apa yang kamu rencanakan? Bisa kasih tau lebih detail?";
+      }
+      
+      // If user has mentioned project type, then can ask for details
       const projectType = this.detectProjectType(userMessage);
       
-      // Generate targeted questions based on project type
-      const questions = {
+      const typeSpecificQuestions = {
         'website': [
-          "Menarik! Website seperti apa yang kamu butuhkan? E-commerce, company profile, atau blog?",
-          "Kira-kira budget berapa yang kamu siapkan untuk project ini?"
+          "Website seperti apa yang kamu butuhkan? Company profile, e-commerce, atau blog?",
+          "Ada fitur khusus yang diperlukan untuk website ini?"
         ],
         'mobile': [
-          "Aplikasi mobile yang menarik! Untuk platform apa nih - Android, iOS, atau keduanya?", 
-          "Aplikasi ini untuk bisnis atau personal use?"
+          "Aplikasi mobile untuk platform apa? Android, iOS, atau keduanya?", 
+          "Aplikasi ini untuk keperluan bisnis atau personal?"
         ],
         'design': [
           "Design apa yang kamu butuhkan? Logo, banner, atau design produk?",
-          "Ada style atau referensi tertentu yang kamu suka?"
+          "Ada style tertentu yang kamu inginkan?"
         ],
         'content': [
-          "Content untuk platform apa ini? Blog, social media, atau website?",
-          "Berapa artikel atau post yang kamu butuhkan?"
+          "Content untuk platform apa? Blog, social media, atau website?",
+          "Berapa banyak content yang kamu butuhkan?"
         ],
         'general': [
-          "Bisa cerita lebih detail tentang project yang kamu butuhkan?",
-          "Kira-kira timeline dan budget seperti apa yang kamu harapkan?"
+          "Bisa cerita lebih detail tentang layanan yang kamu butuhkan?",
+          "Project apa yang sedang kamu rencanakan?"
         ]
       };
       
-      const selectedQuestions = questions[projectType] || questions['general'];
-      
-      // Pick one question randomly to keep it conversational
-      const randomQuestion = selectedQuestions[Math.floor(Math.random() * selectedQuestions.length)];
+      const questions = typeSpecificQuestions[projectType] || typeSpecificQuestions['general'];
+      const randomQuestion = questions[Math.floor(Math.random() * questions.length)];
       
       return randomQuestion;
       
     } catch (error) {
       console.error('Error generating clarifying questions:', error);
-      return "Bisa cerita lebih detail tentang project yang kamu butuhkan? Misalnya budget dan timeline-nya seperti apa? 😊";
+      return "Project apa yang lagi kamu butuhkan? Bisa kasih tau lebih detail? 😊";
     }
+  }
+
+  // Check if message contains specific project type
+  hasProjectTypeInMessage(message) {
+    const lowerMessage = message.toLowerCase();
+    const projectTypes = [
+      'website', 'web', 'landing page', 'company profile', 'e-commerce', 'toko online',
+      'aplikasi', 'app', 'mobile', 'android', 'ios',
+      'design', 'logo', 'banner', 'grafis', 'poster',
+      'content', 'artikel', 'blog', 'copywriting',
+      'video', 'editing', 'animation', 'motion',
+      'marketing', 'sosmed', 'social media', 'digital marketing',
+      'testing', 'qa', 'quality assurance'
+    ];
+    
+    return projectTypes.some(type => lowerMessage.includes(type));
   }
 
   // Detect project type from user message

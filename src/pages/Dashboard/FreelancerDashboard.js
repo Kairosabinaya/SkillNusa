@@ -458,11 +458,14 @@ export default function FreelancerDashboard() {
         animate={{ opacity: 1, y: 0 }}
         className="mb-8"
       >
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          Selamat datang kembali, {userProfile?.displayName || 'Freelancer'}!
-        </h1>
+        <div className="flex items-center space-x-3 mb-2">
+          <h1 className="text-3xl font-bold text-gray-900">
+            Dashboard Freelancer
+          </h1>
+        </div>
         <p className="text-gray-600">
-          Berikut ringkasan performa Anda hari ini
+          Selamat datang, <span className="font-semibold text-green-600">{userProfile?.displayName || 'Freelancer'}</span>! 
+          Berikut ringkasan performa dan pesanan Anda hari ini
         </p>
       </motion.div>
 
