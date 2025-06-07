@@ -143,17 +143,16 @@ export default function Favorites() {
         </div>
 
         {favorites.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="w-24 h-24 mx-auto mb-6 bg-gray-100 rounded-full flex items-center justify-center">
-              <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-medium text-gray-900 mb-2">Belum Ada Favorit</h3>
-            <p className="text-gray-500 mb-6">Mulai simpan layanan yang menarik untuk Anda</p>
+          /* Empty Favorites */
+          <div className="bg-white rounded-lg p-12 text-center">
+            <svg className="w-24 h-24 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            </svg>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Belum Ada Favorit</h3>
+            <p className="text-gray-600 mb-6">Mulai simpan layanan yang menarik untuk Anda</p>
             <Link 
               to="/browse" 
-              className="inline-flex items-center px-6 py-3 bg-[#010042] text-white rounded-lg hover:bg-[#0100a3] transition-colors"
+              className="inline-flex items-center px-6 py-3 bg-[#010042] text-white font-medium rounded-lg hover:bg-[#000030] transition duration-200"
             >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
