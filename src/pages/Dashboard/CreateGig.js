@@ -27,7 +27,6 @@ import {
 } from '@heroicons/react/24/outline';
 import ErrorPopup from '../../components/common/ErrorPopup';
 import SuccessPopup from '../../components/common/SuccessPopup';
-import { testGigCreation, testFirebaseAuth } from '../../utils/testGigCreation';
 
 const categories = [
   'Programming & Tech',
@@ -269,14 +268,7 @@ export default function CreateGig() {
     }
   }, [gigId]);
 
-  // Add test functions to window for debugging
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      window.testGigCreation = testGigCreation;
-      window.testFirebaseAuth = testFirebaseAuth;
-      console.log('🛠️ Debug: Test functions added to window. Use window.testGigCreation() and window.testFirebaseAuth() in console.');
-    }
-  }, []);
+
 
   // Force proper initialization of array fields
   useEffect(() => {

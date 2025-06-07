@@ -126,7 +126,7 @@ export default function FreelancerWallet() {
       });
 
     } catch (error) {
-      console.error('Error fetching wallet data:', error);
+      // Silent error handling
     }
   };
 
@@ -190,7 +190,7 @@ export default function FreelancerWallet() {
 
       setTransactions(allTransactions);
     } catch (error) {
-      console.error('Error fetching transactions:', error);
+      // Silent error handling
     } finally {
       setLoading(false);
     }
@@ -264,7 +264,6 @@ export default function FreelancerWallet() {
       
       setSuccess('Permintaan penarikan berhasil diajukan');
     } catch (error) {
-      console.error('Error submitting withdrawal:', error);
       setError('Gagal mengajukan penarikan');
     } finally {
       setWithdrawing(false);

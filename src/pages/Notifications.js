@@ -18,7 +18,7 @@ export default function Notifications() {
     if (!currentUser) return;
 
     // Clean up any existing subscriptions before creating new ones
-    console.log('🧹 [Notifications] Cleaning up existing subscriptions before creating new ones');
+
     navigationCleanup.cleanupOnNavigation(currentUser.uid, 'page-mount');
 
     let unsubscribe = null;
@@ -38,10 +38,8 @@ export default function Notifications() {
     return () => {
       clearTimeout(setupTimer);
       if (unsubscribe) {
-        console.log('🧹 [Notifications] Component unmounting, cleaning up subscription');
         unsubscribe();
       }
-      console.log('🧹 [Notifications] Effect cleanup - cleaning up subscriptions');
       navigationCleanup.cleanupOnNavigation(currentUser.uid, 'page-unmount');
     };
   }, [currentUser]);
@@ -73,7 +71,7 @@ export default function Notifications() {
     try {
       await notificationService.markAsRead(notificationId);
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+      // Silent error handling
     }
   };
 
@@ -83,7 +81,7 @@ export default function Notifications() {
       setMarkingAsRead(true);
       await notificationService.markAllAsRead(currentUser.uid);
     } catch (error) {
-      console.error('Error marking all notifications as read:', error);
+      // Silent error handling
     } finally {
       setMarkingAsRead(false);
     }

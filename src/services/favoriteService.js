@@ -13,7 +13,6 @@ import {
   orderBy
 } from 'firebase/firestore';
 import { Favorite } from '../models/Favorite';
-import firebaseMonitor from '../utils/firebaseMonitor';
 
 class FavoriteService {
   constructor() {
@@ -128,46 +127,17 @@ class FavoriteService {
 
   // Get user's favorites with real-time updates
   subscribeToUserFavorites(userId, callback) {
-    console.log('🔍 [FavoriteService] subscribeToUserFavorites called for userId:', userId);
-    
     try {
       const q = query(
         collection(db, this.collectionName),
         where('userId', '==', userId)
       );
       
-      console.log('📡 [FavoriteService] Setting up Firestore listener with query:', {
-        collection: this.collectionName,
-        userId,
-        query: 'userId == userId (sorted in JavaScript)'
-      });
-      
-      // Track subscription creation
-      const subscriptionId = `favorites_${userId}_${Date.now()}`;
-      firebaseMonitor.trackSubscription(subscriptionId, this.collectionName, userId);
-      
       const unsubscribe = onSnapshot(q, (snapshot) => {
-        // Track reads
-        firebaseMonitor.trackRead('subscribeToUserFavorites', this.collectionName, snapshot.size);
-        console.log('📥 [FavoriteService] Firestore snapshot received:', {
-          size: snapshot.size,
-          empty: snapshot.empty,
-          docs: snapshot.docs.length
-        });
-        
         const favorites = [];
         
         snapshot.forEach((doc) => {
           const data = doc.data();
-          console.log('📄 [FavoriteService] Processing doc:', {
-            id: doc.id,
-            userId: data.userId,
-            gigId: data.gigId,
-            hasGigData: !!data.gigData,
-            hasFreelancerData: !!data.freelancerData,
-            createdAt: data.createdAt
-          });
-          
           favorites.push({
             id: doc.id,
             ...data
@@ -181,24 +151,15 @@ class FavoriteService {
           return bTime - aTime; // desc order
         });
         
-        console.log('✅ [FavoriteService] Processed favorites:', {
-          count: favorites.length,
-          favorites: favorites.map(f => ({
-            id: f.id,
-            gigId: f.gigId,
-            title: f.gigData?.title
-          }))
-        });
-        
         callback(favorites);
       }, (error) => {
-        console.error('💥 [FavoriteService] Error in favorites subscription:', error);
+        console.error('Error in favorites subscription:', error);
         callback([]);
       });
       
       // Return enhanced unsubscribe function that tracks cleanup
       return () => {
-        firebaseMonitor.trackSubscriptionCleanup(subscriptionId);
+
         unsubscribe();
       };
     } catch (error) {

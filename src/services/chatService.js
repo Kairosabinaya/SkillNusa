@@ -15,7 +15,6 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { Chat, Message } from '../models/Chat';
-import firebaseMonitor from '../utils/firebaseMonitor';
 
 class ChatService {
   constructor() {
@@ -42,8 +41,7 @@ class ChatService {
         const userData = { id: userDoc.id, ...userDoc.data() };
         this.userCache.set(userId, { data: userData, timestamp: now });
         
-        // Track read for monitoring
-        firebaseMonitor.trackRead('getCachedUser', 'users', 1);
+
         
         return userData;
       }
@@ -573,32 +571,12 @@ class ChatService {
 
   // Subscribe to user chats (real-time) - OPTIMIZED to reduce reads
   subscribeToUserChats(userId, callback) {
-    // Global subscription safety check
-    const currentStats = firebaseMonitor.getSubscriptionStats();
-    if (currentStats.active >= 10) {
-      console.error('🚨 [ChatService] Subscription limit reached! Blocking new subscription creation.');
-      console.error('🚨 [ChatService] Current active subscriptions:', currentStats.active);
-      console.table(currentStats.byCollection);
-      
-      // Return a dummy unsubscribe function
-      return () => {
-        console.log('🚨 [ChatService] Dummy unsubscribe called for blocked subscription');
-      };
-    }
-
     const q = query(
       collection(db, this.chatsCollection),
       where('participants', 'array-contains', userId)
     );
 
-    // Track subscription for monitoring
-    const subscriptionId = `chats_${userId}_${Date.now()}`;
-    console.log('📡 [ChatService] Creating subscription:', subscriptionId, 'Current active:', currentStats.active);
-    firebaseMonitor.trackSubscription(subscriptionId, this.chatsCollection, userId);
-
     const unsubscribe = onSnapshot(q, async (querySnapshot) => {
-      // Track reads for monitoring
-      firebaseMonitor.trackRead('subscribeToUserChats', this.chatsCollection, querySnapshot.size);
       
       const chats = [];
       
@@ -693,10 +671,8 @@ class ChatService {
       callback(chats);
     });
 
-    // Return enhanced unsubscribe function with proper logging
+    // Return unsubscribe function
     return () => {
-      console.log(`🧹 [ChatService] Cleaning up subscription: ${subscriptionId}`);
-      firebaseMonitor.trackSubscriptionCleanup(subscriptionId);
       if (typeof unsubscribe === 'function') {
         unsubscribe();
       }

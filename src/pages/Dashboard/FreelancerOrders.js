@@ -31,7 +31,7 @@ import SuccessPopup from '../../components/common/SuccessPopup';
 import PageContainer from '../../components/common/PageContainer';
 import subscriptionRegistry from '../../utils/subscriptionRegistry';
 import orderService from '../../services/orderService';
-import debugOrders from '../../utils/debugOrders';
+
 
 export default function FreelancerOrders() {
   const { orderId } = useParams();

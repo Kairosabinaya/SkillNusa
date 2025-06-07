@@ -21,7 +21,7 @@ export default function RegisterStep1({ formikProps }) {
             setFieldError('email', 'Email ini sudah terdaftar. Silakan gunakan email lain.');
           }
         } catch (error) {
-          console.error('Error checking email:', error);
+          // Silent error handling
         } finally {
           setIsCheckingEmail(false);
         }
@@ -48,7 +48,7 @@ export default function RegisterStep1({ formikProps }) {
             setFieldError('username', 'Username ini sudah digunakan. Silakan pilih username lain.');
           }
         } catch (error) {
-          console.error('Error checking username:', error);
+          // Silent error handling
         } finally {
           setIsCheckingUsername(false);
         }

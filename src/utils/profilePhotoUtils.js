@@ -135,7 +135,6 @@ export const ensureDefaultProfilePhoto = (userData) => {
  */
 export const ensureDefaultProfilePhotoInDatabase = async (userId, force = false) => {
   if (!userId) {
-    console.warn('[ProfilePhotoUtils] No userId provided for database update');
     return false;
   }
 
@@ -145,7 +144,6 @@ export const ensureDefaultProfilePhotoInDatabase = async (userId, force = false)
     const userDoc = await getDoc(doc(db, COLLECTIONS.USERS, userId));
     
     if (!userDoc.exists()) {
-      console.warn('[ProfilePhotoUtils] User document not found:', userId);
       return false;
     }
 
@@ -154,7 +152,6 @@ export const ensureDefaultProfilePhotoInDatabase = async (userId, force = false)
 
     // Check if update is needed
     if (!force && isValidProfilePhoto(currentPhoto)) {
-      console.log('[ProfilePhotoUtils] User already has valid profile photo, skipping update');
       return false;
     }
 
@@ -164,11 +161,9 @@ export const ensureDefaultProfilePhotoInDatabase = async (userId, force = false)
       updatedAt: serverTimestamp()
     });
 
-    console.log(`✅ [ProfilePhotoUtils] Updated user ${userId} profile photo to default`);
     return true;
 
   } catch (error) {
-    console.error('[ProfilePhotoUtils] Error updating profile photo in database:', error);
     return false;
   }
 };
@@ -201,11 +196,9 @@ export const batchEnsureDefaultProfilePhotos = async (userIds) => {
       updateCount += results.reduce((sum, result) => sum + result, 0);
     }
     
-    console.log(`✅ [ProfilePhotoUtils] Batch update completed: ${updateCount}/${userIds.length} users updated`);
     return updateCount;
     
   } catch (error) {
-    console.error('[ProfilePhotoUtils] Error in batch update:', error);
     return updateCount;
   }
 }; 

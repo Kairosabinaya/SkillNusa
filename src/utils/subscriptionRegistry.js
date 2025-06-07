@@ -17,8 +17,6 @@ class SubscriptionRegistry {
     
     // Check if this type already exists for this user
     if (this.hasSubscription(userId, type)) {
-      console.warn(`⚠️ [SubscriptionRegistry] Subscription type "${type}" already exists for user ${userId}. Cleaning up old subscription first.`);
-      
       // Clean up existing subscription of the same type
       this.forceCleanupSubscriptionType(userId, type);
     }
@@ -37,7 +35,6 @@ class SubscriptionRegistry {
     }
     this.userSubscriptions.get(userId).add(type);
 
-    console.log(`✅ [SubscriptionRegistry] Registered ${type} subscription for user ${userId}`);
     return subscriptionId;
   }
 
@@ -64,7 +61,6 @@ class SubscriptionRegistry {
         }
       }
 
-      console.log(`🧹 [SubscriptionRegistry] Unregistered ${type} subscription for user ${userId}`);
       return true;
     }
     return false;
@@ -72,8 +68,6 @@ class SubscriptionRegistry {
 
   // Clean up all subscriptions for a user
   cleanupUserSubscriptions(userId) {
-    console.log(`🧹 [SubscriptionRegistry] Cleaning up all subscriptions for user ${userId}`);
-    
     const subscriptionsToRemove = [];
     this.activeSubscriptions.forEach((subscription, id) => {
       if (subscription.userId === userId) {
@@ -111,8 +105,6 @@ class SubscriptionRegistry {
 
   // Force cleanup specific subscription type for a user
   forceCleanupSubscriptionType(userId, type) {
-    console.log(`🧹 [SubscriptionRegistry] Force cleaning up subscription type "${type}" for user ${userId}`);
-    
     const subscriptionsToRemove = [];
     this.activeSubscriptions.forEach((subscription, id) => {
       if (subscription.userId === userId && subscription.type === type) {
@@ -129,8 +121,6 @@ class SubscriptionRegistry {
 
   // Force cleanup all subscriptions (emergency)
   forceCleanupAll() {
-    console.warn('🚨 [SubscriptionRegistry] Force cleaning up ALL subscriptions');
-    
     this.activeSubscriptions.forEach((subscription, id) => {
       if (typeof subscription.unsubscribe === 'function') {
         subscription.unsubscribe();
@@ -139,23 +129,10 @@ class SubscriptionRegistry {
 
     this.activeSubscriptions.clear();
     this.userSubscriptions.clear();
-    
-    console.log('✅ [SubscriptionRegistry] All subscriptions cleaned up');
   }
 }
 
 // Create singleton instance
 const subscriptionRegistry = new SubscriptionRegistry();
-
-// Expose to window for debugging
-if (typeof window !== 'undefined') {
-  window.subscriptionRegistry = subscriptionRegistry;
-  
-  // Global cleanup utility
-  window.emergencyCleanupSubscriptions = () => {
-    subscriptionRegistry.forceCleanupAll();
-    return subscriptionRegistry.getStats();
-  };
-}
 
 export default subscriptionRegistry; 

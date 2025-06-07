@@ -72,7 +72,7 @@ export default function FreelancerAnalytics() {
 
   useEffect(() => {
     // Re-generate chart when orders change (7 days only)
-    console.log('📊 Regenerating chart for 7 days');
+
     const chartData = generateEarningsChart(recentOrders, 7);
     setEarningsChart(chartData);
   }, [recentOrders]);
@@ -302,7 +302,7 @@ export default function FreelancerAnalytics() {
                 gigTitle = gigDoc.data().title || gigTitle;
               }
             } catch (error) {
-              console.error('Error fetching gig:', error);
+              // Silent error handling
             }
           }
           
@@ -314,7 +314,7 @@ export default function FreelancerAnalytics() {
                 clientName = clientDoc.data().displayName || clientName;
               }
             } catch (error) {
-              console.error('Error fetching client:', error);
+              // Silent error handling
             }
           }
           
@@ -334,7 +334,7 @@ export default function FreelancerAnalytics() {
         setEarningsChart(chartData);
 
     } catch (error) {
-      console.error('Error fetching analytics:', error);
+      // Silent error handling
     } finally {
       setLoading(false);
     }
@@ -344,7 +344,7 @@ export default function FreelancerAnalytics() {
     const data = [];
     const now = new Date();
     
-    console.log(`📊 Generating chart for ${days} days with ${orders.length} orders`);
+
     
     for (let i = days - 1; i >= 0; i--) {
       const date = new Date(now.getTime() - (i * 24 * 60 * 60 * 1000));
@@ -368,7 +368,6 @@ export default function FreelancerAnalytics() {
       });
     }
     
-    console.log('📊 Generated chart data:', data);
     return data;
   };
 
@@ -799,7 +798,7 @@ export default function FreelancerAnalytics() {
                         <button 
                           onClick={() => {
                             if (window.confirm('Apakah Anda yakin ingin menghapus gig ini?')) {
-                              console.log('Delete gig:', gig.id);
+      
                             }
                           }}
                           className="flex items-center gap-1 px-3 py-1.5 text-sm text-red-600 hover:text-red-800 transition-colors"

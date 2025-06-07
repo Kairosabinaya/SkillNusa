@@ -50,15 +50,6 @@ export default function FreelancerDashboard() {
   const renderCount = useRef(0);
   renderCount.current += 1;
   
-  console.log('🚀 DEBUG: FreelancerDashboard component rendered (render #' + renderCount.current + ')');
-  console.log('🚀 DEBUG: currentUser:', currentUser?.uid);
-  console.log('🚀 DEBUG: userProfile at component render:', userProfile);
-  
-  // Warn if too many renders
-  if (renderCount.current > 10) {
-    console.error('🚨 [FreelancerDashboard] Excessive re-renders detected! Render count:', renderCount.current);
-  }
-  
   const [stats, setStats] = useState({
     totalEarnings: 0,
     activeOrders: 0,
@@ -75,31 +66,16 @@ export default function FreelancerDashboard() {
   const [showAllEducation, setShowAllEducation] = useState(false);
   const [showAllCertifications, setShowAllCertifications] = useState(false);
 
-  // Debug state changes
-  useEffect(() => {
-    console.log('📊 DEBUG: freelancerProfile state updated:', freelancerProfile);
-    if (freelancerProfile?.skills) {
-      console.log('📊 DEBUG: Skills in state:', freelancerProfile.skills);
-    }
-  }, [freelancerProfile]);
+
 
   // Check and fix user freelancer role if needed
   const checkAndFixFreelancerRole = async () => {
     if (!currentUser || !userProfile) return;
     
-    console.log('🔧 DEBUG: Checking freelancer role...');
-    console.log('🔧 DEBUG: currentUser:', currentUser?.uid);
-    console.log('🔧 DEBUG: userProfile:', userProfile);
-    console.log('🔧 DEBUG: userProfile.roles:', userProfile.roles);
-    console.log('🔧 DEBUG: userProfile.isFreelancer:', userProfile.isFreelancer);
-    
     const hasFreelancerRole = userProfile.roles?.includes('freelancer') || userProfile.isFreelancer;
-    console.log('🔧 DEBUG: hasFreelancerRole:', hasFreelancerRole);
     
     if (!hasFreelancerRole) {
-      console.log('🔧 DEBUG: User is accessing freelancer dashboard but lacks freelancer role, upgrading...');
       try {
-        console.log('🔧 DEBUG: Updating user document...');
         // Update user document to include freelancer role
         await updateDoc(doc(db, 'users', currentUser.uid), {
           isFreelancer: true,
@@ -107,11 +83,9 @@ export default function FreelancerDashboard() {
           updatedAt: serverTimestamp()
         });
         
-        console.log('🔧 DEBUG: Checking/creating freelancer profile...');
         // Create freelancer profile if it doesn't exist
         const freelancerDoc = await getDoc(doc(db, 'freelancerProfiles', currentUser.uid));
         if (!freelancerDoc.exists()) {
-          console.log('🔧 DEBUG: Creating new freelancer profile...');
           await setDoc(doc(db, 'freelancerProfiles', currentUser.uid), {
             userId: currentUser.uid,
             skills: [],
@@ -123,19 +97,13 @@ export default function FreelancerDashboard() {
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp()
           });
-          console.log('🔧 DEBUG: Freelancer profile created successfully');
-        } else {
-          console.log('🔧 DEBUG: Freelancer profile already exists');
         }
         
-        console.log('🔧 DEBUG: User role upgraded to freelancer successfully');
         // Reload the page to get updated user data
         window.location.reload();
       } catch (error) {
-        console.error('🔧 DEBUG: Error upgrading user to freelancer:', error);
+        // Silent error handling
       }
-    } else {
-      console.log('🔧 DEBUG: User already has freelancer role');
     }
   };
 
@@ -154,30 +122,13 @@ export default function FreelancerDashboard() {
       if (!currentUser) return;
       
       try {
-        console.log('🔍 DEBUG: Fetching freelancer profile for user:', currentUser.uid);
         const profileDoc = await getDoc(doc(db, 'freelancerProfiles', currentUser.uid));
         if (profileDoc.exists()) {
           const profileData = profileDoc.data();
-          console.log('📄 DEBUG: Raw freelancer profile data:', profileData);
-          console.log('🎯 DEBUG: Skills data from profile:', profileData.skills);
-          console.log('🎯 DEBUG: Skills data type:', typeof profileData.skills);
-          console.log('🎯 DEBUG: Is skills an array?', Array.isArray(profileData.skills));
-          
-          if (profileData.skills) {
-            console.log('🎯 DEBUG: Skills array length:', profileData.skills.length);
-            profileData.skills.forEach((skill, index) => {
-              console.log(`🎯 DEBUG: Skill[${index}]:`, skill);
-              console.log(`🎯 DEBUG: Skill[${index}] type:`, typeof skill);
-              console.log(`🎯 DEBUG: Skill[${index}] keys:`, typeof skill === 'object' ? Object.keys(skill) : 'N/A');
-            });
-          }
-          
           setFreelancerProfile(profileData);
-        } else {
-          console.log('❌ DEBUG: No freelancer profile found');
         }
       } catch (error) {
-        console.error('❌ DEBUG: Error fetching freelancer profile:', error);
+        // Silent error handling
       }
     }
     
@@ -218,7 +169,6 @@ export default function FreelancerDashboard() {
             if (!processedOrderIds.has(doc.id)) {
               processedOrderIds.add(doc.id);
               const order = doc.data();
-              console.log('📊 FreelancerDashboard: Processing order:', { id: doc.id, status: order.status, freelancerEarning: order.freelancerEarning });
               
               if (order.status === 'completed') {
                 // Use freelancerEarning field instead of amount
@@ -230,12 +180,6 @@ export default function FreelancerDashboard() {
               }
             }
           });
-        });
-
-        console.log('📊 FreelancerDashboard: Order stats calculated:', { 
-          totalEarnings, 
-          activeOrders, 
-          completedOrders 
         });
 
         // Fetch reviews using the new freelancer rating service
@@ -271,10 +215,6 @@ export default function FreelancerDashboard() {
             }
           });
         });
-        
-        console.log(`📊 FreelancerDashboard: Found ${gigsData.length} gigs for user ${currentUser.uid}`);
-        console.log('Dashboard gigs data:', gigsData);
-        console.log('📊 Rating stats from new service:', ratingStats);
         
         setGigs(gigsData);
 
@@ -334,7 +274,6 @@ export default function FreelancerDashboard() {
             }
           }
         } catch (error) {
-          console.log('Could not calculate response metrics:', error);
           // Keep default values
         }
 
@@ -355,7 +294,7 @@ export default function FreelancerDashboard() {
         fetchRecentActivities();
         
       } catch (error) {
-        console.error('Error fetching dashboard data:', error);
+        // Silent error handling
       } finally {
         setLoading(false);
       }
@@ -684,7 +623,6 @@ export default function FreelancerDashboard() {
                               skillName = String(skillName).trim();
                               experienceLevel = String(experienceLevel).trim();
                             } catch (error) {
-                              console.error(`Error processing skill[${index}]:`, skillItem, error);
                               skillName = 'Invalid Skill';
                               experienceLevel = 'Pemula';
                             }

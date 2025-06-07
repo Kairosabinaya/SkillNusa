@@ -13,7 +13,6 @@ import {
   orderBy,
   updateDoc
   } from 'firebase/firestore';
-import firebaseMonitor from '../utils/firebaseMonitor';
 
 /**
  * Enhanced Cart Service for managing shopping cart functionality with Firestore
@@ -194,50 +193,17 @@ class CartService {
    * @returns {Function} Unsubscribe function
    */
   subscribeToCartItems(userId, callback) {
-    console.log('🔍 [CartService] subscribeToCartItems called for userId:', userId);
-    
     try {
       const q = query(
         collection(db, this.collectionName),
         where('userId', '==', userId)
       );
       
-      console.log('📡 [CartService] Setting up Firestore listener with query:', {
-        collection: this.collectionName,
-        userId,
-        query: 'userId == userId (sorted in JavaScript)'
-      });
-      
-      // Track subscription for monitoring
-      const subscriptionId = `cart_${userId}_${Date.now()}`;
-      firebaseMonitor.trackSubscription(subscriptionId, this.collectionName, userId);
-      
       const unsubscribe = onSnapshot(q, (snapshot) => {
-        // Track reads for monitoring
-        firebaseMonitor.trackRead('subscribeToCartItems', this.collectionName, snapshot.size);
-        
-        console.log('📥 [CartService] Firestore snapshot received:', {
-          size: snapshot.size,
-          empty: snapshot.empty,
-          docs: snapshot.docs.length
-        });
-        
         const cartItems = [];
         
         snapshot.forEach((doc) => {
           const data = doc.data();
-          console.log('📄 [CartService] Processing doc:', {
-            id: doc.id,
-            userId: data.userId,
-            gigId: data.gigId,
-            packageType: data.packageType,
-            quantity: data.quantity,
-            hasGigData: !!data.gigData,
-            hasPackageData: !!data.packageData,
-            hasFreelancerData: !!data.freelancerData,
-            createdAt: data.createdAt
-          });
-          
           cartItems.push({
             id: doc.id,
             ...data
@@ -251,26 +217,14 @@ class CartService {
           return bTime - aTime; // desc order
         });
         
-        console.log('✅ [CartService] Processed cart items:', {
-          count: cartItems.length,
-          items: cartItems.map(item => ({
-            id: item.id,
-            gigId: item.gigId,
-            packageType: item.packageType,
-            quantity: item.quantity,
-            title: item.gigData?.title
-          }))
-        });
-        
         callback(cartItems);
       }, (error) => {
-        console.error('💥 [CartService] Error in cart subscription:', error);
+        console.error('Error in cart subscription:', error);
         callback([]);
       });
       
-      // Return enhanced unsubscribe function
+      // Return unsubscribe function
       return () => {
-        firebaseMonitor.trackSubscriptionCleanup(subscriptionId);
         unsubscribe();
       };
     } catch (error) {
@@ -357,7 +311,7 @@ class CartService {
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const totalCount = snapshot.size;
         
-        console.log('Real-time cart count update:', totalCount);
+
         callback(totalCount);
       }, (error) => {
         console.error('Error in cart count subscription:', error);

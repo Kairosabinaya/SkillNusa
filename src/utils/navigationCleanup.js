@@ -22,17 +22,14 @@ class NavigationCleanup {
     this.isCleanupInProgress = true;
     
     try {
-      console.log(`🧹 [NavigationCleanup] Cleaning up subscriptions for user ${userId}, reason: ${reason}`);
-      
       // Clean up notification service subscriptions for this user
       notificationService.cleanup(userId);
       
       // Update last user ID
       this.lastUserId = userId;
       
-      console.log(`✅ [NavigationCleanup] Cleanup completed for user ${userId}`);
     } catch (error) {
-      console.error('❌ [NavigationCleanup] Error during cleanup:', error);
+      // Silent error handling
     } finally {
       this.isCleanupInProgress = false;
     }
@@ -53,7 +50,6 @@ class NavigationCleanup {
    * Force cleanup all subscriptions (emergency cleanup)
    */
   forceCleanupAll() {
-    console.log('🚨 [NavigationCleanup] Force cleaning up all subscriptions');
     notificationService.cleanup(); // Clean up all without user filter
   }
 }
@@ -62,9 +58,4 @@ class NavigationCleanup {
 const navigationCleanup = new NavigationCleanup();
 
 // Export the instance
-export default navigationCleanup;
-
-// Also provide it as window utility for debugging
-if (typeof window !== 'undefined') {
-  window.navigationCleanup = navigationCleanup;
-} 
+export default navigationCleanup; 

@@ -53,11 +53,7 @@ export default function GigDetail() {
       try {
         const gigData = await gigService.getGigById(gigId);
         
-        // Debug logging for freelancer data
-        console.log('🔍 GigDetail: Full gig data received:', gigData);
-        console.log('👤 GigDetail: Freelancer data:', gigData.freelancer);
-        console.log('🎓 GigDetail: Education data:', gigData.freelancer?.education);
-        console.log('📜 GigDetail: Certification data:', gigData.freelancer?.certifications);
+        
         
         setGig(gigData);
         setReviews(gigData.reviews || []);
@@ -93,9 +89,8 @@ export default function GigDetail() {
             };
             
                          setFreelancerStats(mappedStats);
-          } catch (error) {
-            console.error('Error loading freelancer stats:', error);
-            // Set fallback values
+                  } catch (error) {
+          // Set fallback values
             setFreelancerStats({
               completedProjects: 0,
               successRate: 0,
@@ -109,7 +104,6 @@ export default function GigDetail() {
           await gigService.incrementGigViews(gigId, currentUser?.uid);
         }
       } catch (error) {
-        console.error('Error loading gig:', error);
         // Handle error state - maybe redirect to 404
       } finally {
         setLoading(false);
@@ -129,7 +123,7 @@ export default function GigDetail() {
           const favorited = await favoriteService.isFavorited(currentUser.uid, gig.id);
           setIsFavorited(favorited);
         } catch (error) {
-          console.error('Error checking favorite status:', error);
+          // Silent error handling
         }
       }
     };
@@ -145,7 +139,7 @@ export default function GigDetail() {
           const inCart = await cartService.isInCart(currentUser.uid, gig.id, selectedPackage);
           setIsInCart(inCart);
         } catch (error) {
-          console.error('Error checking cart status:', error);
+          // Silent error handling
         }
       }
     };
@@ -190,7 +184,6 @@ export default function GigDetail() {
         window.refreshClientOrdersCount();
       }
     } catch (error) {
-      console.error('Error adding to cart:', error);
       // Replace alert with error state
       setError('Gagal menambahkan ke keranjang: ' + error.message);
     } finally {
@@ -286,7 +279,6 @@ export default function GigDetail() {
       // Navigate to messages with specific chat
       navigate(`/messages?chatId=${chat.id}`);
     } catch (error) {
-      console.error('Error contacting freelancer:', error);
       // Replace alert with error state
       setError('Gagal memulai chat. Silakan coba lagi.');
     }
@@ -317,7 +309,6 @@ export default function GigDetail() {
         setSuccess('Ditambahkan ke favorit');
       }
     } catch (error) {
-      console.error('Error toggling favorite:', error);
       setError('Gagal memperbarui favorit. Silakan coba lagi.');
     } finally {
       setFavoriteLoading(false);
@@ -617,9 +608,6 @@ export default function GigDetail() {
                     <div>
                       <div className="space-y-4">
                         {(showAllEducation ? gig.freelancer.education : gig.freelancer.education.slice(0, 3)).map((edu, index) => {
-                          // Debug logging for each education entry
-                          console.log(`🎓 Education entry ${index}:`, edu);
-                          
                           // Handle different possible field names
                           const degree = edu.degree || edu.title || 'Unknown Degree';
                           const institution = edu.university || edu.institution || edu.school || 'Unknown Institution';
@@ -653,7 +641,7 @@ export default function GigDetail() {
                   </div>
                 )}
 
-                {/* Debug: Show if education array exists but is empty */}
+
                 {gig.freelancer.education && gig.freelancer.education.length === 0 && (
                   <div className="border-t pt-6">
                     <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
@@ -689,9 +677,6 @@ export default function GigDetail() {
                     <div>
                       <div className="space-y-4">
                         {(showAllCertifications ? gig.freelancer.certifications : gig.freelancer.certifications.slice(0, 3)).map((cert, index) => {
-                          // Debug logging for each certification entry
-                          console.log(`📜 Certification entry ${index}:`, cert);
-                          
                           // Handle different possible field names
                           const name = cert.name || cert.title || 'Unknown Certification';
                           const issuer = cert.issuedBy || cert.issuer || cert.organization || 'Unknown Issuer';
@@ -721,7 +706,7 @@ export default function GigDetail() {
                   </div>
                 )}
 
-                {/* Debug: Show if certifications array exists but is empty */}
+
                 {gig.freelancer.certifications && gig.freelancer.certifications.length === 0 && (
                   <div className="border-t pt-6">
                     <h4 className="font-semibold text-gray-900 mb-4 flex items-center">

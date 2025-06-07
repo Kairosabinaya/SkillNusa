@@ -7,13 +7,13 @@ import { ROUTES } from './routes';
 import ErrorBoundary from './components/common/ErrorBoundary';
 
 // Debug utilities (available in console as window.debugFirestore)
-import './utils/debugFirestore';
+
 
 // Firebase read monitoring (available in console)
-import './scripts/monitorFirebaseReads';
+
 
 // Import Firebase usage debugging utility for development
-import './utils/debugFirebaseUsage';
+
 
 // Layouts
 import PublicLayout from './components/Layout/PublicLayout';
@@ -56,7 +56,7 @@ import ClientFavorites from './pages/Dashboard/ClientFavorites';
 import ClientMessages from './pages/Dashboard/ClientMessages';
 
 // Test Pages
-import TestPopulate from './pages/TestPopulate';
+
 import SeedingPage from './pages/SeedingPage';
 import FreelancerProfile from './pages/FreelancerProfile';
 
@@ -417,7 +417,7 @@ function App() {
           </Route>
 
           {/* Test Routes */}
-          <Route path="/test-populate" element={<TestPopulate />} />
+          
           <Route path="/seeding" element={<SeedingPage />} />
 
           {/* Auth Routes */}

@@ -18,8 +18,6 @@ class SubscriptionMonitor {
       lastUpdate: null,
       updateCount: 0
     });
-    
-    console.log(`📊 [SubscriptionMonitor] Tracking subscription: ${subscriptionId}`);
   }
 
   // Track subscription update/callback
@@ -30,9 +28,6 @@ class SubscriptionMonitor {
       metric.updateCount += 1;
       metric.status = 'active';
       metric.lastDataCount = dataCount;
-      
-      const timeSinceStart = metric.lastUpdate - metric.startTime;
-      console.log(`📊 [SubscriptionMonitor] Update for ${subscriptionId}: ${timeSinceStart}ms, data: ${dataCount}`);
     }
   }
 
@@ -43,10 +38,7 @@ class SubscriptionMonitor {
       metric.status = 'cleaned';
       metric.cleanupTime = Date.now();
       
-      const lifetime = metric.cleanupTime - metric.startTime;
-      console.log(`🧹 [SubscriptionMonitor] Cleaned up ${subscriptionId}: lifetime ${lifetime}ms, updates: ${metric.updateCount}`);
-      
-      // Keep metric for a while for debugging
+      // Keep metric for a while
       setTimeout(() => {
         this.subscriptionMetrics.delete(subscriptionId);
       }, 30000); // 30 seconds
@@ -70,14 +62,6 @@ class SubscriptionMonitor {
         }
       }
     });
-
-    if (stuckSubscriptions.length > 0) {
-      console.error('🚨 [SubscriptionMonitor] Stuck subscriptions detected:', stuckSubscriptions);
-    }
-
-    if (slowSubscriptions.length > 0) {
-      console.warn('⚠️ [SubscriptionMonitor] Slow subscriptions detected:', slowSubscriptions);
-    }
 
     return { stuckSubscriptions, slowSubscriptions };
   }
@@ -110,26 +94,10 @@ class SubscriptionMonitor {
     setInterval(() => {
       this.checkSubscriptionHealth();
     }, interval);
-    
-    console.log('✅ [SubscriptionMonitor] Health check started');
   }
 }
 
 // Create singleton instance
 const subscriptionMonitor = new SubscriptionMonitor();
-
-// Expose to window for debugging
-if (typeof window !== 'undefined') {
-  window.subscriptionMonitor = subscriptionMonitor;
-  
-  // Debug utilities
-  window.checkSubscriptionHealth = () => {
-    return subscriptionMonitor.checkSubscriptionHealth();
-  };
-  
-  window.getSubscriptionStats = () => {
-    return subscriptionMonitor.getStats();
-  };
-}
 
 export default subscriptionMonitor; 

@@ -139,9 +139,9 @@ export default function FreelancerChat() {
           gig: gigData
         });
       }
-    } catch (error) {
-      console.error('Error loading order info:', error);
-    }
+          } catch (error) {
+        // Silent error handling
+      }
   };
 
   const markMessagesAsRead = async (messagesData) => {
@@ -191,7 +191,7 @@ export default function FreelancerChat() {
 
       setNewMessage('');
     } catch (error) {
-      console.error('Error sending message:', error);
+      // Silent error handling
     }
   };
 

@@ -21,15 +21,18 @@ class Logger {
    */
   static error(message, error = {}, context = {}) {
     if (currentLogLevel >= LOG_LEVELS.ERROR) {
-      console.error(`[ERROR] ${message}`, {
-        error: error instanceof Error ? {
-          name: error.name,
-          message: error.message,
-          stack: error.stack
-        } : error,
-        context,
-        timestamp: new Date().toISOString()
-      });
+      // Only log to console in development
+      if (process.env.NODE_ENV === 'development') {
+        console.error(`[ERROR] ${message}`, {
+          error: error instanceof Error ? {
+            name: error.name,
+            message: error.message,
+            stack: error.stack
+          } : error,
+          context,
+          timestamp: new Date().toISOString()
+        });
+      }
       
       // In production, send to monitoring service
       if (process.env.NODE_ENV === 'production') {
@@ -44,11 +47,8 @@ class Logger {
    * @param {object} data - Additional data
    */
   static warn(message, data = {}) {
-    if (currentLogLevel >= LOG_LEVELS.WARN) {
-      console.warn(`[WARN] ${message}`, {
-        data,
-        timestamp: new Date().toISOString()
-      });
+    if (currentLogLevel >= LOG_LEVELS.WARN && process.env.NODE_ENV === 'development') {
+      // Only in development
     }
   }
 
@@ -58,11 +58,8 @@ class Logger {
    * @param {object} data - Additional data
    */
   static info(message, data = {}) {
-    if (currentLogLevel >= LOG_LEVELS.INFO) {
-      console.log(`[INFO] ${message}`, {
-        data,
-        timestamp: new Date().toISOString()
-      });
+    if (currentLogLevel >= LOG_LEVELS.INFO && process.env.NODE_ENV === 'development') {
+      // Only in development
     }
   }
 
@@ -73,10 +70,7 @@ class Logger {
    */
   static debug(message, data = {}) {
     if (currentLogLevel >= LOG_LEVELS.DEBUG && process.env.NODE_ENV === 'development') {
-      console.log(`[DEBUG] ${message}`, {
-        data,
-        timestamp: new Date().toISOString()
-      });
+      // Only in development
     }
   }
 

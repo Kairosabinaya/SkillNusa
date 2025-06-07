@@ -29,13 +29,10 @@ const STARTUP_CONFIG = {
  */
 export const autoFixProfilePhotos = async () => {
   if (!STARTUP_CONFIG.AUTO_FIX_PROFILE_PHOTOS) {
-    console.log('📷 [StartupTasks] Auto-fix profile photos is disabled');
     return;
   }
 
   try {
-    console.log('📷 [StartupTasks] Starting background profile photo auto-fix...');
-    
     // Get a limited sample of users to check
     const usersQuery = query(
       collection(db, COLLECTIONS.USERS),
@@ -57,11 +54,8 @@ export const autoFixProfilePhotos = async () => {
     });
     
     if (usersToCheck.length === 0) {
-      console.log('✅ [StartupTasks] No users found with null profile photos in sample');
       return;
     }
-    
-    console.log(`🔧 [StartupTasks] Found ${usersToCheck.length} users with null profile photos, fixing in background...`);
     
     // Fix them asynchronously without blocking
     let fixedCount = 0;
@@ -70,20 +64,17 @@ export const autoFixProfilePhotos = async () => {
         const success = await ensureDefaultProfilePhotoInDatabase(user.id);
         if (success) {
           fixedCount++;
-          console.log(`✅ [StartupTasks] Fixed profile photo for: ${user.displayName}`);
         }
       } catch (error) {
-        console.warn(`❌ [StartupTasks] Failed to fix profile photo for ${user.displayName}:`, error.message);
+        // Silent error handling
       }
     });
     
     // Wait for all fixes to complete
     await Promise.allSettled(promises);
     
-    console.log(`✅ [StartupTasks] Background profile photo fix completed: ${fixedCount}/${usersToCheck.length} users fixed`);
-    
   } catch (error) {
-    console.error('❌ [StartupTasks] Error during background profile photo fix:', error);
+    // Silent error handling
   }
 };
 
@@ -92,13 +83,11 @@ export const autoFixProfilePhotos = async () => {
  * This function is called when the app initializes
  */
 export const runStartupTasks = async () => {
-  console.log('🚀 [StartupTasks] Running application startup tasks...');
-  
   try {
     // Task 1: Auto-fix profile photos (runs in background)
     setTimeout(() => {
       autoFixProfilePhotos().catch(error => {
-        console.error('❌ [StartupTasks] Profile photo auto-fix failed:', error);
+        // Silent error handling
       });
     }, STARTUP_CONFIG.TASK_DELAY);
     
@@ -107,10 +96,8 @@ export const runStartupTasks = async () => {
     // Task 3: Update user statistics
     // etc.
     
-    console.log('✅ [StartupTasks] Startup tasks initiated successfully');
-    
   } catch (error) {
-    console.error('❌ [StartupTasks] Error during startup tasks:', error);
+    // Silent error handling
   }
 };
 

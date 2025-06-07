@@ -89,7 +89,6 @@ export default function FreelancerProfile() {
         totalOrders
       };
     } catch (error) {
-      console.error('Error calculating completed projects:', error);
       return {
         completedProjects: 0,
         successRate: 0,
@@ -173,7 +172,6 @@ export default function FreelancerProfile() {
                   totalReviews: ratingStats.totalReviews
                 };
               } catch (error) {
-                console.error('Error getting rating stats for gig:', gig.id, error);
                 return {
                   ...gig,
                   rating: 0,
@@ -185,7 +183,6 @@ export default function FreelancerProfile() {
           
           setFreelancerGigs(gigsWithRatings);
         } catch (indexError) {
-          console.log('Index not available for gigs query, using fallback...');
           
           // Fallback: Simple query without orderBy
           const gigsQuery = query(
@@ -221,7 +218,6 @@ export default function FreelancerProfile() {
                   totalReviews: ratingStats.totalReviews
                 };
               } catch (error) {
-                console.error('Error getting rating stats for gig:', gig.id, error);
                 return {
                   ...gig,
                   rating: 0,
@@ -234,7 +230,6 @@ export default function FreelancerProfile() {
           setFreelancerGigs(gigsWithRatings);
         }
       } catch (error) {
-        console.error('Error loading freelancer gigs:', error);
         setFreelancerGigs([]);
       }
 
@@ -259,7 +254,7 @@ export default function FreelancerProfile() {
       setFreelancerReviews(reviewsWithClientData);
       
     } catch (error) {
-      console.error('Error loading freelancer data:', error);
+      // Silent error handling
     } finally {
       setLoading(false);
     }
@@ -279,7 +274,7 @@ export default function FreelancerProfile() {
       const chat = await chatService.createOrGetChat(currentUser.uid, freelancerId);
       navigate(`/messages?chatId=${chat.id}`);
     } catch (error) {
-      console.error('Error creating chat:', error);
+      // Silent error handling
     }
   };
 

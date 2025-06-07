@@ -46,18 +46,12 @@ export default function OrderCard({ order, index, onStatusUpdate, userType = 'fr
   };
 
   const handleRevisionClick = () => {
-    console.log('🟠 [OrderCard] Revision button clicked for order:', order.id);
     setShowRevisionModal(true);
     setRevisionMessage('');
     setError('');
   };
 
   const handleRevisionSubmit = async () => {
-    console.log('🟠 [OrderCard] Submitting revision request:', {
-      orderId: order.id,
-      message: revisionMessage.trim()
-    });
-
     if (!revisionMessage.trim()) {
       setError('Pesan revisi tidak boleh kosong');
       return;
@@ -72,8 +66,6 @@ export default function OrderCard({ order, index, onStatusUpdate, userType = 'fr
         message: revisionMessage.trim()
       });
 
-      console.log('✅ [OrderCard] Revision request successful');
-      
       // Close modal and notify parent component
       setShowRevisionModal(false);
       setRevisionMessage('');
@@ -84,7 +76,6 @@ export default function OrderCard({ order, index, onStatusUpdate, userType = 'fr
       }
       
     } catch (error) {
-      console.error('❌ [OrderCard] Error submitting revision:', error);
       setError(error.message || 'Gagal mengirim permintaan revisi');
     } finally {
       setIsSubmitting(false);
@@ -222,10 +213,7 @@ export default function OrderCard({ order, index, onStatusUpdate, userType = 'fr
                 Permintaan Revisi
               </h3>
               
-              {/* Debug Info */}
-              <div className="mb-2 p-2 bg-gray-100 text-xs text-gray-600 rounded">
-                Debug: OrderCard Modal - Order ID: {order.id}
-              </div>
+
               
               {error && (
                 <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
