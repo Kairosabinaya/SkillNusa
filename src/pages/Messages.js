@@ -746,7 +746,13 @@ export default function Messages() {
                         {chat.otherParticipant?.displayName}
                         {(chat.isSkillBot || chat.id.includes(SKILLBOT_ID)) && (
                           <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gradient-to-r from-blue-100 to-purple-100 text-blue-800">
-                            🤖 AI Assistant
+                            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                              <circle cx="9" cy="9" r="1.5"/>
+                              <circle cx="15" cy="9" r="1.5"/>
+                              <path d="M8 13h8c0 2.21-1.79 4-4 4s-4-1.79-4-4z"/>
+                            </svg>
+                            AI Assistant
                           </span>
                         )}
                       </p>
@@ -1086,7 +1092,12 @@ export default function Messages() {
                 {/* Message Templates for SkillBot */}
                 {(selectedChat?.isSkillBot || selectedChat?.id.includes(SKILLBOT_ID)) && messages.length <= 2 && (
                   <div className="p-4 border-t border-gray-100 bg-gray-50">
-                    <p className="text-sm text-gray-600 mb-3">💡 Coba mulai dengan:</p>
+                    <p className="text-sm text-gray-600 mb-3 flex items-center">
+                      <svg className="w-4 h-4 mr-2 text-yellow-500" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/>
+                      </svg>
+                      Coba mulai dengan:
+                    </p>
                     <div className="grid grid-cols-2 gap-2">
                       {skillBotTemplates.map((template, index) => (
                         <button

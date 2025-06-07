@@ -74,7 +74,6 @@ import CreateGig from './pages/Dashboard/CreateGig';
 import FreelancerOrders from './pages/Dashboard/FreelancerOrders';
 import FreelancerAnalytics from './pages/Dashboard/FreelancerAnalytics';
 import FreelancerWallet from './pages/Dashboard/FreelancerWallet';
-import FreelancerSettings from './pages/Dashboard/FreelancerSettings';
 import FreelancerNotifications from './pages/Dashboard/FreelancerNotifications';
 import Notifications from './pages/Notifications';
 
@@ -82,9 +81,6 @@ import Notifications from './pages/Notifications';
 import AdminDashboard from './pages/Dashboard/AdminDashboard';
 import AdminUsers from './pages/Dashboard/AdminUsers';
 import AdminGigs from './pages/Dashboard/AdminGigs';
-
-// Settings page
-import Settings from './pages/Settings';
 
 function App() {
   // Start subscription health monitoring in development
@@ -284,14 +280,7 @@ function App() {
                 </RoleRoute>
               } 
             />
-            <Route 
-              path="freelancer/settings" 
-              element={
-                <RoleRoute allowedRoles="freelancer">
-                  <FreelancerSettings />
-                </RoleRoute>
-              } 
-            />
+
             <Route 
               path="freelancer/messages" 
               element={
@@ -338,15 +327,7 @@ function App() {
             />
           </Route>
 
-          {/* Settings Route - accessible by all authenticated users */}
-          <Route 
-            path="/settings" 
-            element={
-              <ProtectedRoute>
-                <Settings />
-              </ProtectedRoute>
-            } 
-          />
+
 
           {/* Legacy Client Feature Routes (for backward compatibility) */}
           <Route 

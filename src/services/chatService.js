@@ -221,7 +221,7 @@ class ChatService {
       const gigData = gigDoc.data();
       
       // Create context message content with proper line breaks
-      const contextContent = `🎯 Diskusi tentang layanan:\n\n${gigData.title}\n\n📋 Kategori: ${gigData.category}\n💰 Mulai dari: Rp ${gigData.packages?.basic?.price?.toLocaleString('id-ID') || 'N/A'}\n⏱️ Delivery: ${gigData.packages?.basic?.deliveryTime || 'N/A'} hari\n\nSilakan diskusikan kebutuhan project Anda!`;
+      const contextContent = `Diskusi tentang layanan:\n\n${gigData.title}\n\nKategori: ${gigData.category}\nMulai dari: Rp ${gigData.packages?.basic?.price?.toLocaleString('id-ID') || 'N/A'}\nDelivery: ${gigData.packages?.basic?.deliveryTime || 'N/A'} hari\n\nSilakan diskusikan kebutuhan project Anda!`;
 
       const message = {
         chatId,
@@ -251,7 +251,7 @@ class ChatService {
       const { gigTitle, packageType, price, clientRequirements } = orderData;
       
       // Clean formatting with explicit line breaks
-      const notificationContent = `🎉 Pesanan Baru Dibuat!\n\n📋 Layanan: ${gigTitle}\n📦 Paket: ${packageType}\n💰 Total: Rp ${price?.toLocaleString('id-ID') || 'N/A'}\n\n📝 Kebutuhan Client:\n"${clientRequirements}"\n\n✅ Pesanan telah dibuat dan menunggu konfirmasi freelancer.`;
+      const notificationContent = `Pesanan Baru Dibuat!\n\nLayanan: ${gigTitle}\nPaket: ${packageType}\nTotal: Rp ${price?.toLocaleString('id-ID') || 'N/A'}\n\nKebutuhan Client:\n"${clientRequirements}"\n\nPesanan telah dibuat dan menunggu konfirmasi freelancer.`;
 
       const message = {
         chatId,
@@ -278,19 +278,19 @@ class ChatService {
   async sendOrderStatusMessage(chatId, senderId, orderId, newStatus, additionalInfo = '') {
     try {
       const statusMessages = {
-        'active': '🚀 Pesanan Diterima\n\nFreelancer telah menerima pesanan dan akan segera memulai pengerjaan.',
-        'confirmed': '✅ Pesanan Dikonfirmasi\n\nFreelancer telah mengkonfirmasi pesanan Anda dan akan segera memulai pengerjaan.',
-        'in_progress': '🚀 Pengerjaan Dimulai\n\nFreelancer telah memulai mengerjakan pesanan Anda.',
-        'delivered': '📦 Pekerjaan Dikirim\n\nFreelancer telah mengirimkan hasil pekerjaan. Silakan review dan berikan feedback.',
-        'in_review': '👀 Menunggu Review\n\nPekerjaan telah diselesaikan dan menunggu review dari client.',
-        'in_revision': '🔄 Revisi Diminta\n\nClient meminta revisi pada pekerjaan. Freelancer akan melakukan perbaikan.',
-        'completed': '🎊 Pesanan Selesai\n\nPesanan telah selesai dikerjakan dan diterima oleh client.',
-        'cancelled': '❌ Pesanan Dibatalkan\n\nPesanan telah dibatalkan.',
-        'revision_requested': '🔄 Revisi Diminta\n\nClient meminta revisi pada pekerjaan.'
+        'active': 'Pesanan Diterima\n\nFreelancer telah menerima pesanan dan akan segera memulai pengerjaan.',
+        'confirmed': 'Pesanan Dikonfirmasi\n\nFreelancer telah mengkonfirmasi pesanan Anda dan akan segera memulai pengerjaan.',
+        'in_progress': 'Pengerjaan Dimulai\n\nFreelancer telah memulai mengerjakan pesanan Anda.',
+        'delivered': 'Pekerjaan Dikirim\n\nFreelancer telah mengirimkan hasil pekerjaan. Silakan review dan berikan feedback.',
+        'in_review': 'Menunggu Review\n\nPekerjaan telah diselesaikan dan menunggu review dari client.',
+        'in_revision': 'Revisi Diminta\n\nClient meminta revisi pada pekerjaan. Freelancer akan melakukan perbaikan.',
+        'completed': 'Pesanan Selesai\n\nPesanan telah selesai dikerjakan dan diterima oleh client.',
+        'cancelled': 'Pesanan Dibatalkan\n\nPesanan telah dibatalkan.',
+        'revision_requested': 'Revisi Diminta\n\nClient meminta revisi pada pekerjaan.'
       };
 
-      const content = statusMessages[newStatus] || `📈 Status Update\n\nStatus pesanan: ${newStatus}`;
-      const fullContent = additionalInfo ? `${content}\n\n📝 Catatan:\n${additionalInfo}` : content;
+      const content = statusMessages[newStatus] || `Status Update\n\nStatus pesanan: ${newStatus}`;
+      const fullContent = additionalInfo ? `${content}\n\nCatatan:\n${additionalInfo}` : content;
 
       const message = {
         chatId,

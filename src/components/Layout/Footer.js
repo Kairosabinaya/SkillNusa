@@ -4,7 +4,7 @@ export default function Footer() {
   return (
     <footer className="border-t border-gray-200 bg-white relative z-10 shadow-sm">
       <div className="max-w-7xl mx-auto px-6 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
           <div>
             <h3 className="text-lg font-semibold text-[#010042] mb-4">Tentang SkillNusa</h3>
             <p className="text-sm text-gray-600 mb-4">
@@ -27,24 +27,6 @@ export default function Footer() {
                 </svg>
               </a>
             </div>
-          </div>
-
-          <div>
-            <h3 className="text-lg font-semibold text-[#010042] mb-4">Layanan</h3>
-            <ul className="space-y-2">
-              <li>
-                <a href="#" className="text-sm text-gray-600 hover:text-[#010042] transition-colors">Desain & Kreatif</a>
-              </li>
-              <li>
-                <a href="#" className="text-sm text-gray-600 hover:text-[#010042] transition-colors">Pemrograman & Teknologi</a>
-              </li>
-              <li>
-                <a href="#" className="text-sm text-gray-600 hover:text-[#010042] transition-colors">Pemasaran Digital</a>
-              </li>
-              <li>
-                <a href="#" className="text-sm text-gray-600 hover:text-[#010042] transition-colors">Penulisan & Terjemahan</a>
-              </li>
-            </ul>
           </div>
 
           <div>

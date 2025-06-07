@@ -2,7 +2,7 @@
 
 SkillNusa adalah platform yang menghubungkan freelancer dengan klien di Indonesia. Platform ini memungkinkan freelancer untuk menawarkan jasa mereka dan klien untuk mencari talent yang sesuai dengan kebutuhan proyek mereka.
 
-## 🚀 Fitur Utama
+## Fitur Utama
 
 ### Untuk Freelancer
 - **Profil Profesional**: Buat profil yang menarik dengan portfolio, skill, dan pengalaman
@@ -45,7 +45,7 @@ SkillNusa adalah platform yang menghubungkan freelancer dengan klien di Indonesi
 - **Vite** - Build tool dan development server
 - **ESLint & Prettier** - Code quality dan formatting
 
-## 📦 Instalasi
+## Instalasi
 
 ### Prerequisites
 - Node.js (v16 atau lebih baru)
@@ -194,7 +194,7 @@ export const validateSchema = (data, schema) => {
 };
 ```
 
-## 🧪 Testing
+## Testing
 
 ### Setup Testing Environment
 ```bash
@@ -231,7 +231,7 @@ const testUser = generateTestData.user({ role: 'freelancer' });
 - `npm run test` - Menjalankan unit tests
 - `npm run test:coverage` - Test coverage report
 
-## 🚀 Deployment
+## Deployment
 
 ### Vercel (Recommended)
 1. Push code ke GitHub
@@ -293,7 +293,7 @@ const Browse = lazy(() => import('./pages/Browse'));
 - Browser caching headers
 - CDN untuk static assets
 
-## 🤝 Kontribusi
+## Kontribusi
 
 Kami menyambut kontribusi dari komunitas! Silakan ikuti langkah berikut:
 
@@ -323,17 +323,17 @@ const getUserProfile = async (userId) => {
 };
 ```
 
-## 📝 License
+## License
 
 Distributed under the MIT License. See `LICENSE` for more information.
 
-## 📞 Kontak
+## Kontak
 
 - **Email**: support@skillnusa.com
 - **Website**: https://skillnusa.com
 - **GitHub**: https://github.com/yourusername/skillnusa
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - [React](https://reactjs.org/)
 - [Firebase](https://firebase.google.com/)
@@ -341,7 +341,7 @@ Distributed under the MIT License. See `LICENSE` for more information.
 - [Cloudinary](https://cloudinary.com/)
 - [Vite](https://vitejs.dev/)
 
-## 📈 Roadmap
+## Roadmap
 
 ### Q1 2024
 - [ ] Advanced search filters

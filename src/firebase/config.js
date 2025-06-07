@@ -50,7 +50,7 @@ try {
   db = getFirestore(app);
   storage = getStorage(app);
   
-  console.log('🔥 Firebase initialized successfully!');
+  console.log('[Firebase] Initialized successfully!');
 } catch (error) {
   console.error('❌ Firebase initialization failed:', error.message);
   throw new Error("Firebase initialization failed. Check your configuration.");

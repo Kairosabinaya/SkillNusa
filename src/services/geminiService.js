@@ -3,9 +3,9 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 class GeminiService {
   constructor() {
     this.apiKey = process.env.REACT_APP_GEMINI_API_KEY;
-    console.log('🤖 GeminiService: Initializing...');
-    console.log('🤖 GeminiService: API Key exists:', !!this.apiKey);
-    console.log('🤖 GeminiService: API Key length:', this.apiKey ? this.apiKey.length : 0);
+    console.log('[GeminiService] Initializing...');
+    console.log('[GeminiService] API Key exists:', !!this.apiKey);
+    console.log('[GeminiService] API Key length:', this.apiKey ? this.apiKey.length : 0);
     
     if (!this.apiKey) {
       console.warn('❌ Gemini API key not found. Please set REACT_APP_GEMINI_API_KEY in your .env file');
@@ -109,10 +109,10 @@ Jika user tanya hal spesifik, jawab langsung tanpa basa-basi panjang tentang lay
 
   // Generate welcome message for new users
   async generateWelcomeMessage(userName) {
-    console.log('🤖 GeminiService: generateWelcomeMessage called for:', userName);
+    console.log('[GeminiService] generateWelcomeMessage called for:', userName);
     
     if (!this.isServiceAvailable()) {
-      console.log('🤖 GeminiService: Service not available, using fallback');
+      console.log('[GeminiService] Service not available, using fallback');
       return this.getFallbackWelcomeMessage(userName);
     }
 
@@ -129,13 +129,13 @@ PENTING:
 - Jangan berlebihan dengan emoji
 - JANGAN menyebutkan platform lain`;
 
-      console.log('🤖 GeminiService: Sending welcome message request to Gemini API...');
-      const result = await this.model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
-      
-      console.log('✅ GeminiService: Successfully generated welcome message');
-      console.log('🤖 GeminiService: Response length:', text.length);
+              console.log('[GeminiService] Sending welcome message request to Gemini API...');
+        const result = await this.model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
+        
+        console.log('[GeminiService] Successfully generated welcome message');
+        console.log('[GeminiService] Response length:', text.length);
       return text;
     } catch (error) {
       console.error('❌ GeminiService: Error generating welcome message:', error);
@@ -251,12 +251,12 @@ INGAT: Respons maksimal 3-4 kalimat saja!`;
 
   // Generate conversation response
   async generateResponse(userMessage, context = {}) {
-    console.log('🤖 GeminiService: generateResponse called');
-    console.log('🤖 GeminiService: User message:', userMessage);
-    console.log('🤖 GeminiService: Context keys:', Object.keys(context));
+    console.log('[GeminiService] generateResponse called');
+    console.log('[GeminiService] User message:', userMessage);
+    console.log('[GeminiService] Context keys:', Object.keys(context));
     
     if (!this.isServiceAvailable()) {
-      console.log('🤖 GeminiService: Service not available, using fallback');
+      console.log('[GeminiService] Service not available, using fallback');
       return this.getFallbackResponse();
     }
 
@@ -299,13 +299,13 @@ PENTING: Jika user tanya "gig apa yang cocok" tapi belum bilang projectnya apa, 
 
 Berikan respons yang helpful dan to-the-point tentang layanan SkillNusa!`;
 
-        console.log('🤖 GeminiService: Sending request to Gemini API...');
+        console.log('[GeminiService] Sending request to Gemini API...');
         const result = await this.model.generateContent(prompt);
         const response = await result.response;
         const text = response.text();
         
-        console.log('✅ GeminiService: Successfully generated response');
-        console.log('🤖 GeminiService: Response length:', text.length);
+        console.log('[GeminiService] Successfully generated response');
+        console.log('[GeminiService] Response length:', text.length);
         return text;
         
       } catch (error) {
@@ -354,11 +354,11 @@ Berikan respons yang helpful dan to-the-point tentang layanan SkillNusa!`;
 
   // Fallback messages when API is not available
   getFallbackWelcomeMessage(userName) {
-    return `Hai ${userName}! 👋 Saya SkillBot dari SkillNusa, siap bantu cari freelancer terbaik di platform kami buat project kamu. Ada project apa yang lagi direncanakan?`;
+    return `Hai ${userName}! Saya SkillBot dari SkillNusa, siap bantu cari freelancer terbaik di platform kami buat project kamu. Ada project apa yang lagi direncanakan?`;
   }
 
   getFallbackProjectAnalysis() {
-    return `Oke, lagi butuh bantuan analisis project ya? Cerita aja detail projectnya, nanti saya bantu cariin freelancer yang cocok di SkillNusa! 😊`;
+    return `Oke, lagi butuh bantuan analisis project ya? Cerita aja detail projectnya, nanti saya bantu cariin freelancer yang cocok di SkillNusa!`;
   }
 
   getFallbackGigRecommendation() {
@@ -373,7 +373,7 @@ Berikan respons yang helpful dan to-the-point tentang layanan SkillNusa!`;
   }
 
   getFallbackResponse() {
-    return `Hmm, lagi ada gangguan teknis nih. Coba tanya lagi ya, atau kasih tau apa yang bisa saya bantu cari di SkillNusa! 😅`;
+    return `Hmm, lagi ada gangguan teknis nih. Coba tanya lagi ya, atau kasih tau apa yang bisa saya bantu cari di SkillNusa!`;
   }
 }
 

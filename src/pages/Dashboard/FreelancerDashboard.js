@@ -536,14 +536,7 @@ export default function FreelancerDashboard() {
         >
           <div className="px-6 py-4 bg-gradient-to-r from-[#010042] to-[#0100a3] text-white flex justify-between items-center">
             <h2 className="text-xl font-bold">Profil Freelancer</h2>
-            {(userProfile?.roles?.includes('freelancer') || userProfile?.isFreelancer) ? (
-              <Link 
-                to="/dashboard/freelancer/settings" 
-                className="inline-flex items-center px-4 py-2 border border-white text-sm font-medium rounded-md shadow-sm text-white bg-transparent hover:bg-white hover:text-[#010042] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white transition-all duration-200"
-              >
-                Edit Profil
-              </Link>
-            ) : (
+            {!(userProfile?.roles?.includes('freelancer') || userProfile?.isFreelancer) && (
               <div className="flex items-center space-x-2">
                 <span className="text-sm text-red-200">Akses Freelancer Diperlukan</span>
                 <Link 
