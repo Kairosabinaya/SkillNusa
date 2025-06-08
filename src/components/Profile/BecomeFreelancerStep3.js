@@ -24,7 +24,7 @@ const BecomeFreelancerStep3 = ({ formikProps }) => {
   const availabilityOptions = [
     { value: 'Full-time', label: 'Full-time' },
     { value: 'Part-time', label: 'Part-time' },
-    { value: 'Weekends', label: 'Akhir Pekan' }
+    { value: 'Project-Based', label: 'Berbasis Proyek' }
   ];
   
   // Generate time options (24-hour format)

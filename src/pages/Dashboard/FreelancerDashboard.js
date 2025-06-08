@@ -37,10 +37,19 @@ import {
   DocumentTextIcon,
   BellIcon,
   CalendarIcon,
-  UserIcon
+  UserIcon,
+  PencilIcon,
+  XMarkIcon,
+  CheckIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
 import freelancerRatingService from '../../services/freelancerRatingService';
+import { updateFreelancerProfile } from '../../services/freelancerService';
+import { uploadProfilePhoto as uploadToCloudinary } from '../../services/cloudinaryService';
+import { getUserProfile, updateUserProfile } from '../../services/userProfileService';
+import { getIndonesianCities } from '../../services/profileService';
+import ErrorPopup from '../../components/common/ErrorPopup';
+import SuccessPopup from '../../components/common/SuccessPopup';
 
 export default function FreelancerDashboard() {
   const { currentUser, userProfile } = useAuth();
@@ -66,7 +75,235 @@ export default function FreelancerDashboard() {
   const [showAllEducation, setShowAllEducation] = useState(false);
   const [showAllCertifications, setShowAllCertifications] = useState(false);
 
+  // Profile editing states
+  const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editedData, setEditedData] = useState({});
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [cities, setCities] = useState([]);
+  const [loadingCities, setLoadingCities] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
+  // Fetch cities for location dropdown
+  useEffect(() => {
+    const fetchCities = async () => {
+      setLoadingCities(true);
+      try {
+        const citiesData = await getIndonesianCities();
+        setCities(citiesData);
+      } catch (error) {
+        console.error('Error fetching cities:', error);
+      } finally {
+        setLoadingCities(false);
+      }
+    };
+    
+    fetchCities();
+  }, []);
+
+  // Handle photo upload
+  const handlePhotoChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    if (!file.type.match('image.*')) {
+      setError('Mohon pilih file gambar (jpg, jpeg, png, etc.)');
+      return;
+    }
+    
+    if (file.size > 2 * 1024 * 1024) {
+      setError('Ukuran file maksimal 2MB');
+      return;
+    }
+    
+    setPhotoFile(file);
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setPhotoPreview(e.target.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const uploadProfilePhotoToCloudinary = async () => {
+    if (!photoFile || !currentUser) return null;
+    
+    const timeout = setTimeout(() => {
+      if (uploadingPhoto) {
+        setUploadingPhoto(false);
+        setError('Waktu upload foto habis. Silakan coba lagi.');
+      }
+    }, 15000);
+    
+    try {
+      setUploadingPhoto(true);
+      const uploadResult = await uploadToCloudinary(photoFile, currentUser.uid);
+      
+      return {
+        url: uploadResult.profileUrl || uploadResult.url,
+        publicId: uploadResult.publicId
+      };
+    } catch (error) {
+      setError('Gagal mengunggah foto: ' + error.message);
+      return null;
+    } finally {
+      clearTimeout(timeout);
+      setUploadingPhoto(false);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setEditedData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSkillChange = (skillsArray) => {
+    setEditedData(prev => ({
+      ...prev,
+      skills: skillsArray
+    }));
+  };
+
+  const handleEducationChange = (educationArray) => {
+    setEditedData(prev => ({
+      ...prev,
+      education: educationArray
+    }));
+  };
+
+  const handleCertificationChange = (certificationArray) => {
+    setEditedData(prev => ({
+      ...prev,
+      certifications: certificationArray
+    }));
+  };
+
+  const handleWorkingHoursChange = (workingHours) => {
+    setEditedData(prev => ({
+      ...prev,
+      workingHours: workingHours
+    }));
+  };
+
+  const toggleEditMode = () => {
+    if (isEditing) {
+      setIsEditing(false);
+      setEditedData({});
+      setPhotoFile(null);
+      setPhotoPreview(null);
+    } else {
+      const combinedData = { ...userProfile, ...freelancerProfile };
+      setEditedData({
+        displayName: combinedData?.displayName || '',
+        phoneNumber: combinedData?.phoneNumber || '',
+        location: combinedData?.location || '',
+        gender: combinedData?.gender || '',
+        dateOfBirth: combinedData?.dateOfBirth || '',
+        bio: combinedData?.bio || '',
+        skills: combinedData?.skills || [],
+        availability: combinedData?.availability || '',
+        workingHours: combinedData?.workingHours || '',
+        education: combinedData?.education || [],
+        certifications: combinedData?.certifications || []
+      });
+      setIsEditing(true);
+    }
+  };
+
+  const saveProfileChanges = async () => {
+    if (!currentUser) return;
+    
+    const saveTimeout = setTimeout(() => {
+      if (saving) {
+        setSaving(false);
+        setError('Proses penyimpanan terlalu lama. Silakan coba lagi.');
+      }
+    }, 20000);
+    
+    try {
+      setSaving(true);
+      let photoURL = null;
+      let photoPublicId = null;
+      let photoWasUpdated = false;
+
+      if (photoFile) {
+        const uploadResult = await uploadProfilePhotoToCloudinary();
+        if (uploadResult) {
+          photoURL = uploadResult.url;
+          photoPublicId = uploadResult.publicId;
+          photoWasUpdated = true;
+        }
+      }
+
+      // Separate user profile data from freelancer profile data
+      const userProfileData = {
+        displayName: editedData.displayName,
+        phoneNumber: editedData.phoneNumber,
+        location: editedData.location,
+        gender: editedData.gender,
+        dateOfBirth: editedData.dateOfBirth,
+        updatedAt: new Date()
+      };
+
+      const freelancerProfileData = {
+        bio: editedData.bio,
+        skills: editedData.skills,
+        availability: editedData.availability,
+        workingHours: editedData.workingHours,
+        education: editedData.education || [],
+        certifications: editedData.certifications || [],
+        updatedAt: new Date()
+      };
+
+      if (photoURL) {
+        userProfileData.profilePhoto = photoURL;
+        userProfileData.profilePhotoPublicId = photoPublicId;
+      }
+
+      // Update user profile
+      const userSuccess = await updateUserProfile(currentUser.uid, userProfileData, true);
+      
+      // Update freelancer profile
+      const freelancerSuccess = await updateFreelancerProfile(currentUser.uid, freelancerProfileData);
+      
+      if (userSuccess && freelancerSuccess) {
+        // Refresh data
+        const updatedProfile = await getUserProfile(currentUser.uid);
+        const freelancerDoc = await getDoc(doc(db, 'freelancerProfiles', currentUser.uid));
+        if (freelancerDoc.exists()) {
+          setFreelancerProfile(freelancerDoc.data());
+        }
+        
+        // Exit edit mode and reset all state
+        setIsEditing(false);
+        setEditedData({});
+        setPhotoFile(null);
+        setPhotoPreview(null);
+        
+        setSuccess('Profil berhasil diperbarui!');
+        
+        // Reload page if photo was updated
+        if (photoWasUpdated) {
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+        }
+      } else {
+        setError('Gagal menyimpan perubahan profil. Silakan coba lagi.');
+      }
+    } catch (error) {
+      setError('Gagal menyimpan perubahan profil: ' + (error.message || 'Unknown error'));
+    } finally {
+      clearTimeout(saveTimeout);
+      setSaving(false);
+    }
+  };
 
   // Check and fix user freelancer role if needed
   const checkAndFixFreelancerRole = async () => {
@@ -93,7 +330,7 @@ export default function FreelancerDashboard() {
             bio: '',
             portfolioLinks: [],
             hourlyRate: 0,
-            availability: 'available',
+            availability: 'full-time',
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp()
           });
@@ -106,8 +343,6 @@ export default function FreelancerDashboard() {
       }
     }
   };
-
-
 
   // Check and fix freelancer role on mount - ONCE only
   useEffect(() => {
@@ -288,8 +523,6 @@ export default function FreelancerDashboard() {
           responseTime
         });
 
-
-
         // Fetch recent activities
         fetchRecentActivities();
         
@@ -339,8 +572,6 @@ export default function FreelancerDashboard() {
     return () => unsubscribe();
   };
 
-
-
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -377,10 +608,44 @@ export default function FreelancerDashboard() {
   };
 
   // Format functions for profile display
+  const formatAvailability = (availability) => {
+    switch (availability) {
+      case 'Full-time':
+        return 'Full-time';
+      case 'Part-time':
+        return 'Part-time';
+      case 'Project-Based':
+        return 'Berbasis Proyek';
+      // Legacy support
+      case 'full-time':
+        return 'Full-time';
+      case 'part-time':
+        return 'Part-time';
+      case 'project-based':
+        return 'Berbasis Proyek';
+      default:
+        return availability || 'Belum diisi';
+    }
+  };
+
   const formatGender = (gender) => {
-    if (gender === 'male') return 'Laki-laki';
-    if (gender === 'female') return 'Perempuan';
-    return '-';
+    switch (gender) {
+      case 'Male':
+        return 'Laki-laki';
+      case 'Female':
+        return 'Perempuan';
+      case 'Other':
+        return 'Lainnya';
+      case 'Prefer not to say':
+        return 'Tidak ingin memberi tahu';
+      // Legacy support
+      case 'male':
+        return 'Laki-laki';
+      case 'female':
+        return 'Perempuan';
+      default:
+        return gender || 'Belum diisi';
+    }
   };
 
   if (loading) {
@@ -536,38 +801,97 @@ export default function FreelancerDashboard() {
         >
           <div className="px-6 py-4 bg-gradient-to-r from-[#010042] to-[#0100a3] text-white flex justify-between items-center">
             <h2 className="text-xl font-bold">Profil Freelancer</h2>
-            {!(userProfile?.roles?.includes('freelancer') || userProfile?.isFreelancer) && (
-              <div className="flex items-center space-x-2">
-                <span className="text-sm text-red-200">Akses Freelancer Diperlukan</span>
-                <Link 
-                  to="/become-freelancer" 
-                  className="inline-flex items-center px-4 py-2 border border-white text-sm font-medium rounded-md shadow-sm text-white bg-transparent hover:bg-white hover:text-[#010042] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white transition-all duration-200"
+            <div className="flex items-center space-x-2">
+              {!(userProfile?.roles?.includes('freelancer') || userProfile?.isFreelancer) ? (
+                <>
+                  <span className="text-sm text-red-200">Akses Freelancer Diperlukan</span>
+                  <Link 
+                    to="/become-freelancer" 
+                    className="inline-flex items-center px-4 py-2 border border-white text-sm font-medium rounded-md shadow-sm text-white bg-transparent hover:bg-white hover:text-[#010042] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white transition-all duration-200"
+                  >
+                    Daftar Freelancer
+                  </Link>
+                </>
+              ) : (
+                <button
+                  onClick={toggleEditMode}
+                  disabled={saving}
+                  className="inline-flex items-center px-4 py-2 border border-white text-sm font-medium rounded-md shadow-sm text-white bg-transparent hover:bg-white hover:text-[#010042] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white transition-all duration-200 disabled:opacity-50"
                 >
-                  Daftar Freelancer
-                </Link>
-              </div>
-            )}
+                  {isEditing ? (
+                    <>
+                      <XMarkIcon className="h-4 w-4 mr-2" />
+                      Batal
+                    </>
+                  ) : (
+                    <>
+                      <PencilIcon className="h-4 w-4 mr-2" />
+                      Edit Profil
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
           </div>
           
           <div className="p-8">
             {/* Header Profile Section */}
             <div className="flex flex-col lg:flex-row items-center lg:items-start gap-8 mb-8 pb-8 border-b border-gray-200">
               <div className="flex flex-col items-center">
-                {userProfile?.profilePhoto ? (
-                  <img 
-                    src={userProfile.profilePhoto} 
-                    alt="Profile" 
-                    className="w-40 h-40 rounded-full object-cover border-4 border-[#010042] shadow-lg" 
-                  />
-                ) : (
-                  <div className="w-40 h-40 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center border-4 border-[#010042] shadow-lg">
-                    <UserIcon className="h-20 w-20 text-gray-400" />
-                  </div>
-                )}
+                {/* Profile Photo */}
+                <div className="relative">
+                  {photoPreview ? (
+                    <img 
+                      src={photoPreview} 
+                      alt="Profile Preview" 
+                      className="w-40 h-40 rounded-full object-cover border-4 border-[#010042] shadow-lg" 
+                    />
+                  ) : userProfile?.profilePhoto ? (
+                    <img 
+                      src={userProfile.profilePhoto} 
+                      alt="Profile" 
+                      className="w-40 h-40 rounded-full object-cover border-4 border-[#010042] shadow-lg" 
+                    />
+                  ) : (
+                    <div className="w-40 h-40 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center border-4 border-[#010042] shadow-lg">
+                      <UserIcon className="h-20 w-20 text-gray-400" />
+                    </div>
+                  )}
+                  
+                  {isEditing && (
+                    <div className="absolute bottom-0 right-0">
+                      <label 
+                        htmlFor="photo-upload" 
+                        className="cursor-pointer bg-[#010042] text-white p-2 rounded-full shadow-lg hover:bg-[#0100a3] transition-colors"
+                      >
+                        <PencilIcon className="h-4 w-4" />
+                      </label>
+                      <input
+                        id="photo-upload"
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePhotoChange}
+                        className="hidden"
+                      />
+                    </div>
+                  )}
+                </div>
+                
                 <div className="mt-4 text-center">
-                  <h3 className="text-2xl font-bold text-gray-900">
-                    {userProfile?.displayName || 'Nama Freelancer'}
-                  </h3>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      name="displayName"
+                      value={editedData.displayName || ''}
+                      onChange={handleInputChange}
+                      className="text-2xl font-bold text-gray-900 bg-white border border-gray-300 rounded-md px-3 py-2 text-center focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
+                      placeholder="Nama Freelancer"
+                    />
+                  ) : (
+                    <h3 className="text-2xl font-bold text-gray-900">
+                      {userProfile?.displayName || 'Nama Freelancer'}
+                    </h3>
+                  )}
                   <p className="text-gray-600 mt-1">
                     {userProfile?.email || 'email@example.com'}
                   </p>
@@ -583,9 +907,20 @@ export default function FreelancerDashboard() {
                         <DocumentTextIcon className="h-5 w-5 mr-2 text-[#010042]" />
                         Bio
                       </h4>
-                      <p className="text-gray-700 leading-relaxed">
-                        {freelancerProfile?.bio || 'Belum ada bio profesional yang ditambahkan. Lengkapi profil freelancer Anda untuk menarik lebih banyak klien.'}
-                      </p>
+                      {isEditing ? (
+                        <textarea
+                          name="bio"
+                          value={editedData.bio || ''}
+                          onChange={handleInputChange}
+                          rows={4}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
+                          placeholder="Ceritakan tentang keahlian dan pengalaman Anda sebagai freelancer..."
+                        />
+                      ) : (
+                        <p className="text-gray-700 leading-relaxed">
+                          {freelancerProfile?.bio || 'Belum ada bio profesional yang ditambahkan. Lengkapi profil freelancer Anda untuk menarik lebih banyak klien.'}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -595,47 +930,56 @@ export default function FreelancerDashboard() {
                       <BriefcaseIcon className="h-5 w-5 mr-2 text-[#010042]" />
                       Keahlian & Level Pengalaman
                     </h4>
-                    <div className="space-y-2">
-                      {freelancerProfile?.skills && Array.isArray(freelancerProfile.skills) && freelancerProfile.skills.length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                          {freelancerProfile.skills.map((skillItem, index) => {
-                            // Extract skill name and experience level
-                            let skillName = '';
-                            let experienceLevel = '';
-                            
-                            try {
-                              if (typeof skillItem === 'string') {
-                                skillName = skillItem;
+                    <div className="space-y-4">
+                      {isEditing ? (
+                        <SkillsEditor 
+                          skills={editedData.skills || []}
+                          onChange={handleSkillChange}
+                        />
+                      ) : (
+                        freelancerProfile?.skills && Array.isArray(freelancerProfile.skills) && freelancerProfile.skills.length > 0 ? (
+                          <div className="flex flex-wrap gap-2">
+                            {freelancerProfile.skills.map((skillItem, index) => {
+                              // Extract skill name and experience level
+                              let skillName = '';
+                              let experienceLevel = '';
+                              
+                              try {
+                                if (typeof skillItem === 'string') {
+                                  skillName = skillItem;
+                                  experienceLevel = 'Pemula';
+                                } else if (typeof skillItem === 'object' && skillItem !== null) {
+                                  skillName = skillItem.skill || skillItem.name || skillItem.skillName || '';
+                                  experienceLevel = skillItem.experienceLevel || skillItem.level || 'Pemula';
+                                }
+                                
+                                // Ensure skillName is a string
+                                skillName = String(skillName).trim();
+                                experienceLevel = String(experienceLevel).trim();
+                              } catch (error) {
+                                skillName = 'Invalid Skill';
                                 experienceLevel = 'Pemula';
-                              } else if (typeof skillItem === 'object' && skillItem !== null) {
-                                skillName = skillItem.skill || skillItem.name || skillItem.skillName || '';
-                                experienceLevel = skillItem.experienceLevel || skillItem.level || 'Pemula';
                               }
                               
-                              // Ensure skillName is a string
-                              skillName = String(skillName).trim();
-                              experienceLevel = String(experienceLevel).trim();
-                            } catch (error) {
-                              skillName = 'Invalid Skill';
-                              experienceLevel = 'Pemula';
-                            }
-                            
-                            // Only render if we have a valid skill name
-                            return skillName ? (
-                              <span 
-                                key={`skill-${index}-${skillName}`}
-                                className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-[#010042] text-white"
-                              >
-                                {skillName} ({experienceLevel})
-                              </span>
-                            ) : null;
-                          }).filter(Boolean)}
-                        </div>
-                      ) : (
-                        <p className="text-gray-500 italic">Belum ada keahlian yang ditambahkan</p>
+                              // Only render if we have a valid skill name
+                              return skillName ? (
+                                <span 
+                                  key={`skill-${index}-${skillName}`}
+                                  className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-[#010042] text-white"
+                                >
+                                  {skillName} ({experienceLevel})
+                                </span>
+                              ) : null;
+                            }).filter(Boolean)}
+                          </div>
+                        ) : (
+                          <p className="text-gray-500 italic">Belum ada keahlian yang ditambahkan</p>
+                        )
                       )}
                     </div>
                   </div>
+
+                  
                 </div>
               </div>
             </div>
@@ -652,48 +996,55 @@ export default function FreelancerDashboard() {
                   Pendidikan
                 </h4>
                 <div className="space-y-4">
-                  {freelancerProfile?.education && Array.isArray(freelancerProfile.education) && freelancerProfile.education.length > 0 ? (
-                    <>
-                      {(showAllEducation ? freelancerProfile.education : freelancerProfile.education.slice(0, 3)).map((edu, index) => (
-                        <div key={index} className="bg-gray-50 p-4 rounded-lg">
-                          <h3 className="font-semibold text-gray-900">
-                            {edu.degree || 'Tidak disebutkan'}{edu.fieldOfStudy ? `, ${edu.fieldOfStudy}` : ''}
-                          </h3>
-                          <p className="text-gray-600">
-                            {edu.university || 'Tidak disebutkan'}{edu.country ? ` (${edu.country})` : ''}
-                          </p>
-                          <p className="text-gray-500 text-sm">
-                            ({edu.graduationYear || 'Tidak disebutkan'})
-                          </p>
-                        </div>
-                      ))}
-                      {freelancerProfile.education.length > 3 && (
-                        <button
-                          onClick={() => setShowAllEducation(!showAllEducation)}
-                          className="w-full mt-3 px-4 py-2 text-sm font-medium text-[#010042] bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors flex items-center justify-center"
-                        >
-                          {showAllEducation ? (
-                            <>
-                              <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                              </svg>
-                              Tampilkan lebih sedikit
-                            </>
-                          ) : (
-                            <>
-                              <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                              </svg>
-                              Lihat selengkapnya ({freelancerProfile.education.length - 3} lainnya)
-                            </>
-                          )}
-                        </button>
-                      )}
-                    </>
+                  {isEditing ? (
+                    <EducationEditor 
+                      education={editedData.education || []}
+                      onChange={handleEducationChange}
+                    />
                   ) : (
-                    <div className="bg-gray-50 p-4 rounded-lg text-center">
-                      <p className="text-gray-500 italic">Belum ada informasi pendidikan yang ditambahkan</p>
-                    </div>
+                    freelancerProfile?.education && Array.isArray(freelancerProfile.education) && freelancerProfile.education.length > 0 ? (
+                      <>
+                        {(showAllEducation ? freelancerProfile.education : freelancerProfile.education.slice(0, 3)).map((edu, index) => (
+                          <div key={index} className="bg-gray-50 p-4 rounded-lg">
+                            <h3 className="font-semibold text-gray-900">
+                              {edu.degree || 'Tidak disebutkan'}{edu.fieldOfStudy ? `, ${edu.fieldOfStudy}` : ''}
+                            </h3>
+                            <p className="text-gray-600">
+                              {edu.university || 'Tidak disebutkan'}{edu.country ? ` (${edu.country})` : ''}
+                            </p>
+                            <p className="text-gray-500 text-sm">
+                              ({edu.graduationYear || 'Tidak disebutkan'})
+                            </p>
+                          </div>
+                        ))}
+                        {freelancerProfile.education.length > 3 && (
+                          <button
+                            onClick={() => setShowAllEducation(!showAllEducation)}
+                            className="w-full mt-3 px-4 py-2 text-sm font-medium text-[#010042] bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors flex items-center justify-center"
+                          >
+                            {showAllEducation ? (
+                              <>
+                                <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                </svg>
+                                Tampilkan lebih sedikit
+                              </>
+                            ) : (
+                              <>
+                                <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                                Lihat selengkapnya ({freelancerProfile.education.length - 3} lainnya)
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <div className="bg-gray-50 p-4 rounded-lg text-center">
+                        <p className="text-gray-500 italic">Belum ada informasi pendidikan yang ditambahkan</p>
+                      </div>
+                    )
                   )}
                 </div>
               </div>
@@ -707,48 +1058,55 @@ export default function FreelancerDashboard() {
                   Sertifikasi & Penghargaan
                 </h4>
                 <div className="space-y-4">
-                  {freelancerProfile?.certifications && Array.isArray(freelancerProfile.certifications) && freelancerProfile.certifications.length > 0 ? (
-                    <>
-                      {(showAllCertifications ? freelancerProfile.certifications : freelancerProfile.certifications.slice(0, 3)).map((cert, index) => (
-                        <div key={index} className="bg-gray-50 p-4 rounded-lg">
-                          <h3 className="font-semibold text-gray-900">
-                            {cert.name || 'Tidak disebutkan'}
-                          </h3>
-                          <p className="text-gray-600">
-                            {cert.issuedBy ? `dari ${cert.issuedBy}` : 'Penerbit tidak disebutkan'}
-                          </p>
-                          <p className="text-gray-500 text-sm">
-                            ({cert.year || 'Tahun tidak disebutkan'})
-                          </p>
-                        </div>
-                      ))}
-                      {freelancerProfile.certifications.length > 3 && (
-                        <button
-                          onClick={() => setShowAllCertifications(!showAllCertifications)}
-                          className="w-full mt-3 px-4 py-2 text-sm font-medium text-[#010042] bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors flex items-center justify-center"
-                        >
-                          {showAllCertifications ? (
-                            <>
-                              <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                              </svg>
-                              Tampilkan lebih sedikit
-                            </>
-                          ) : (
-                            <>
-                              <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                              </svg>
-                              Lihat selengkapnya ({freelancerProfile.certifications.length - 3} lainnya)
-                            </>
-                          )}
-                        </button>
-                      )}
-                    </>
+                  {isEditing ? (
+                    <CertificationEditor 
+                      certifications={editedData.certifications || []}
+                      onChange={handleCertificationChange}
+                    />
                   ) : (
-                    <div className="bg-gray-50 p-4 rounded-lg text-center">
-                      <p className="text-gray-500 italic">Belum ada sertifikasi atau penghargaan yang ditambahkan</p>
-                    </div>
+                    freelancerProfile?.certifications && Array.isArray(freelancerProfile.certifications) && freelancerProfile.certifications.length > 0 ? (
+                      <>
+                        {(showAllCertifications ? freelancerProfile.certifications : freelancerProfile.certifications.slice(0, 3)).map((cert, index) => (
+                          <div key={index} className="bg-gray-50 p-4 rounded-lg">
+                            <h3 className="font-semibold text-gray-900">
+                              {cert.name || 'Tidak disebutkan'}
+                            </h3>
+                            <p className="text-gray-600">
+                              {cert.issuedBy ? `dari ${cert.issuedBy}` : 'Penerbit tidak disebutkan'}
+                            </p>
+                            <p className="text-gray-500 text-sm">
+                              ({cert.year || 'Tahun tidak disebutkan'})
+                            </p>
+                          </div>
+                        ))}
+                        {freelancerProfile.certifications.length > 3 && (
+                          <button
+                            onClick={() => setShowAllCertifications(!showAllCertifications)}
+                            className="w-full mt-3 px-4 py-2 text-sm font-medium text-[#010042] bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors flex items-center justify-center"
+                          >
+                            {showAllCertifications ? (
+                              <>
+                                <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                </svg>
+                                Tampilkan lebih sedikit
+                              </>
+                            ) : (
+                              <>
+                                <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                                Lihat selengkapnya ({freelancerProfile.certifications.length - 3} lainnya)
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <div className="bg-gray-50 p-4 rounded-lg text-center">
+                        <p className="text-gray-500 italic">Belum ada sertifikasi atau penghargaan yang ditambahkan</p>
+                      </div>
+                    )
                   )}
                 </div>
               </div>
@@ -764,19 +1122,175 @@ export default function FreelancerDashboard() {
                 <div className="space-y-3">
                   <div>
                     <span className="text-sm font-medium text-gray-500">Telepon:</span>
-                    <p className="text-gray-700">{userProfile?.phoneNumber || 'Belum diisi'}</p>
+                    {isEditing ? (
+                      <div className="flex mt-1">
+                        <div className="flex-shrink-0">
+                          <span className="inline-flex items-center px-3 py-2 text-sm text-gray-500 bg-gray-100 border border-r-0 border-gray-300 rounded-l-md font-medium">
+                            +62
+                          </span>
+                        </div>
+                        <input
+                          type="tel"
+                          name="phoneNumber"
+                          value={editedData.phoneNumber ? editedData.phoneNumber.replace(/^\+62/, '') : ''}
+                          onChange={(e) => {
+                            // Get the raw input value
+                            let inputValue = e.target.value;
+                            
+                            // Remove any +62 prefix if the user manually entered it
+                            inputValue = inputValue.replace(/^\+62/, '');
+                            
+                            // Only allow numbers
+                            inputValue = inputValue.replace(/[^0-9]/g, '');
+                            
+                            // Remove leading zeros if any
+                            inputValue = inputValue.replace(/^0+/, '');
+                            
+                            // Set the value with +62 prefix internally
+                            setEditedData(prev => ({
+                              ...prev,
+                              phoneNumber: inputValue ? '+62' + inputValue : ''
+                            }));
+                          }}
+                          className="w-full rounded-none rounded-r-md px-3 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
+                          placeholder="8xxxxxxxxxx"
+                        />
+                      </div>
+                    ) : (
+                      <p className="text-gray-700">{userProfile?.phoneNumber || 'Belum diisi'}</p>
+                    )}
                   </div>
                   <div>
                     <span className="text-sm font-medium text-gray-500">Lokasi:</span>
-                    <p className="text-gray-700">{userProfile?.location ? userProfile.location.charAt(0).toUpperCase() + userProfile.location.slice(1) : 'Belum diisi'}</p>
+                    {isEditing ? (
+                      <select
+                        name="location"
+                        value={editedData.location || ''}
+                        onChange={handleInputChange}
+                        className="w-full mt-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
+                        disabled={loadingCities}
+                      >
+                        <option value="">Pilih kota</option>
+                        {cities.map((city) => (
+                          <option key={city.id} value={city.id}>
+                            {city.name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <p className="text-gray-700">
+                        {userProfile?.location ? 
+                          cities.find(city => city.id === userProfile.location)?.name ||
+                          userProfile.location.charAt(0).toUpperCase() + userProfile.location.slice(1) : 
+                          'Belum diisi'
+                        }
+                      </p>
+                    )}
                   </div>
                   <div>
                     <span className="text-sm font-medium text-gray-500">Jam Kerja:</span>
-                    <p className="text-gray-700">{freelancerProfile?.workingHours || 'Belum diisi'}</p>
+                    {isEditing ? (
+                      <div className="mt-1">
+                        <WorkingHoursEditor 
+                          workingHours={editedData.workingHours || ''}
+                          onChange={handleWorkingHoursChange}
+                        />
+                      </div>
+                    ) : (
+                      <p className="text-gray-700">{freelancerProfile?.workingHours || 'Belum diisi'}</p>
+                    )}
                   </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-500">Jenis Kelamin:</span>
+                    {isEditing ? (
+                      <select
+                        name="gender"
+                        value={editedData.gender || ''}
+                        onChange={handleInputChange}
+                        className="w-full mt-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
+                      >
+                        <option value="">Pilih Jenis Kelamin</option>
+                        <option value="Male">Laki-laki</option>
+                        <option value="Female">Perempuan</option>
+                        <option value="Other">Lainnya</option>
+                        <option value="Prefer not to say">Tidak ingin memberi tahu</option>
+                      </select>
+                    ) : (
+                      <p className="text-gray-700">{formatGender(userProfile?.gender)}</p>
+                    )}
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-500">Tanggal Lahir:</span>
+                    {isEditing ? (
+                      <input
+                        type="date"
+                        name="dateOfBirth"
+                        value={editedData.dateOfBirth || ''}
+                        onChange={handleInputChange}
+                        className="w-full mt-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
+                      />
+                    ) : (
+                      <p className="text-gray-700">{userProfile?.dateOfBirth || 'Belum diisi'}</p>
+                    )}
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-500">Ketersediaan:</span>
+                    {isEditing ? (
+                      <select
+                        name="availability"
+                        value={editedData.availability || ''}
+                        onChange={handleInputChange}
+                        className="w-full mt-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
+                      >
+                        <option value="">Pilih ketersediaan</option>
+                        <option value="Full-time">Full-time</option>
+                        <option value="Part-time">Part-time</option>
+                        <option value="Project-Based">Berbasis Proyek</option>
+                      </select>
+                    ) : (
+                      <p className="text-gray-700">{freelancerProfile?.availability ? formatAvailability(freelancerProfile.availability) : 'Belum diisi'}</p>
+                    )}
+                  </div>
+
+
                 </div>
               </div>
             </div>
+            
+            {/* Save Button when editing */}
+            {isEditing && (
+              <div className="mt-8 flex justify-end space-x-4 p-6 bg-gray-50 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={toggleEditMode}
+                  disabled={saving}
+                  className="px-6 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#010042] disabled:opacity-50"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={saveProfileChanges}
+                  disabled={saving || uploadingPhoto}
+                  className="px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#010042] hover:bg-[#0100a3] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#010042] disabled:opacity-50 flex items-center"
+                >
+                  {saving || uploadingPhoto ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      {uploadingPhoto ? 'Mengupload foto...' : 'Menyimpan...'}
+                    </>
+                  ) : (
+                    <>
+                      <CheckIcon className="h-4 w-4 mr-2" />
+                      Simpan Perubahan
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
           </div>
         </motion.div>
       </div>
@@ -847,6 +1361,718 @@ export default function FreelancerDashboard() {
           <span className="font-medium text-gray-900">Kelola Wallet</span>
         </Link>
       </motion.div>
+
+      {/* Error and Success Popups */}
+      {error && (
+        <ErrorPopup 
+          message={error} 
+          onClose={() => setError('')} 
+        />
+      )}
+      
+      {success && (
+        <SuccessPopup 
+          message={success} 
+          onClose={() => setSuccess('')} 
+        />
+      )}
+    </div>
+  );
+}
+
+// Skills Editor Component
+function SkillsEditor({ skills, onChange }) {
+  const [newSkill, setNewSkill] = useState('');
+  const [skillLevel, setSkillLevel] = useState('Pemula');
+
+  const addSkill = () => {
+    if (!newSkill.trim()) return;
+    
+    const skillObject = {
+      skill: newSkill.trim().toLowerCase(), // Force lowercase
+      experienceLevel: skillLevel
+    };
+    
+    const updatedSkills = [...skills, skillObject];
+    onChange(updatedSkills);
+    setNewSkill('');
+    setSkillLevel('Pemula');
+  };
+
+  const removeSkill = (index) => {
+    const updatedSkills = skills.filter((_, i) => i !== index);
+    onChange(updatedSkills);
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addSkill();
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Existing Skills */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+        {skills.map((skillObj, index) => {
+          // Handle both string and object formats
+          const skillName = typeof skillObj === 'string' ? skillObj : skillObj.skill;
+          const skillLevel = typeof skillObj === 'object' ? skillObj.experienceLevel : 'Pemula';
+          
+          return (
+            <div
+              key={index}
+              className="inline-flex items-center justify-between px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+            >
+              <span className="mr-2">
+                {skillName} 
+                {skillLevel && skillLevel !== 'Pemula' && (
+                  <span className="text-blue-600 text-xs ml-1">({skillLevel})</span>
+                )}
+              </span>
+              <button
+                type="button"
+                onClick={() => removeSkill(index)}
+                className="text-blue-600 hover:text-blue-800 focus:outline-none"
+              >
+                ×
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Add New Skill */}
+      <div className="flex flex-col sm:flex-row gap-2">
+        <input
+          type="text"
+          value={newSkill}
+          onChange={(e) => {
+            // Convert to lowercase and prevent caps
+            const value = e.target.value.toLowerCase();
+            setNewSkill(value);
+          }}
+          onKeyPress={handleKeyPress}
+          placeholder="Tambah keahlian baru..."
+          className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
+        />
+        <select
+          value={skillLevel}
+          onChange={(e) => setSkillLevel(e.target.value)}
+          className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
+        >
+          <option value="Pemula">Pemula</option>
+          <option value="Menengah">Menengah</option>
+          <option value="Ahli">Ahli</option>
+        </select>
+        <button
+          type="button"
+          onClick={addSkill}
+          className="px-4 py-2 bg-[#010042] text-white rounded-md hover:bg-[#0100a3] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#010042]"
+        >
+          Tambah
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Education Editor Component  
+function EducationEditor({ education, onChange }) {
+  const [editingIndex, setEditingIndex] = useState(-1);
+  const [editForm, setEditForm] = useState({
+    country: '',
+    university: '',
+    degree: '',
+    fieldOfStudy: '',
+    graduationYear: ''
+  });
+
+  const countries = [
+    'Indonesia',
+    'United States',
+    'United Kingdom',
+    'Canada',
+    'Australia',
+    'Germany',
+    'Netherlands',
+    'Singapore',
+    'Malaysia',
+    'Thailand',
+    'South Korea',
+    'Japan'
+  ];
+
+  const degrees = [
+    'Diploma (D1/D2/D3)',
+    'Sarjana (S1)',
+    'Magister (S2)', 
+    'Doktor (S3)',
+    'Certificate',
+    'Associate Degree',
+    'Bachelor Degree',
+    'Master Degree',
+    'PhD'
+  ];
+
+  const addEducation = () => {
+    if (!editForm.university.trim() || !editForm.degree) return;
+    
+    const updatedEducation = [...education, { ...editForm }];
+    onChange(updatedEducation);
+    setEditForm({
+      country: '',
+      university: '',
+      degree: '',
+      fieldOfStudy: '',
+      graduationYear: ''
+    });
+  };
+
+  const updateEducation = () => {
+    if (!editForm.university.trim() || !editForm.degree) return;
+    
+    const updatedEducation = [...education];
+    updatedEducation[editingIndex] = { ...editForm };
+    onChange(updatedEducation);
+    setEditingIndex(-1);
+    setEditForm({
+      country: '',
+      university: '',
+      degree: '',
+      fieldOfStudy: '',
+      graduationYear: ''
+    });
+  };
+
+  const removeEducation = (index) => {
+    const updatedEducation = education.filter((_, i) => i !== index);
+    onChange(updatedEducation);
+    if (editingIndex === index) {
+      setEditingIndex(-1);
+      setEditForm({
+        country: '',
+        university: '',
+        degree: '',
+        fieldOfStudy: '',
+        graduationYear: ''
+      });
+    }
+  };
+
+  const startEditing = (index) => {
+    setEditingIndex(index);
+    setEditForm({ ...education[index] });
+  };
+
+  const cancelEditing = () => {
+    setEditingIndex(-1);
+    setEditForm({
+      country: '',
+      university: '',
+      degree: '',
+      fieldOfStudy: '',
+      graduationYear: ''
+    });
+  };
+
+  const handleFormChange = (field, value) => {
+    setEditForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Education List */}
+      {education.map((edu, index) => (
+        <div key={index} className="p-4 bg-gray-50 rounded-lg">
+          {editingIndex === index ? (
+            // Edit form for this row
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Negara</label>
+                  <select
+                    value={editForm.country}
+                    onChange={(e) => handleFormChange('country', e.target.value)}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
+                  >
+                    <option value="">Pilih Negara</option>
+                    {countries.map((country) => (
+                      <option key={country} value={country}>{country}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Universitas/Institusi</label>
+                  <input
+                    type="text"
+                    value={editForm.university}
+                    onChange={(e) => handleFormChange('university', e.target.value)}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
+                    placeholder="Nama universitas"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Gelar</label>
+                  <select
+                    value={editForm.degree}
+                    onChange={(e) => handleFormChange('degree', e.target.value)}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
+                  >
+                    <option value="">Pilih Gelar</option>
+                    {degrees.map((degree) => (
+                      <option key={degree} value={degree}>{degree}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Bidang Studi</label>
+                  <input
+                    type="text"
+                    value={editForm.fieldOfStudy}
+                    onChange={(e) => handleFormChange('fieldOfStudy', e.target.value)}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
+                    placeholder="Contoh: Teknik Informatika"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tahun Kelulusan</label>
+                  <select
+                    value={editForm.graduationYear}
+                    onChange={(e) => handleFormChange('graduationYear', e.target.value)}
+                    className="w-full md:w-1/2 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
+                  >
+                    <option value="">Pilih Tahun</option>
+                    {Array.from({ length: 50 }, (_, i) => new Date().getFullYear() - i).map(year => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={updateEducation}
+                  className="px-4 py-2 bg-[#010042] text-white rounded-md hover:bg-[#0100a3] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#010042]"
+                >
+                  Simpan
+                </button>
+                <button
+                  type="button"
+                  onClick={cancelEditing}
+                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                >
+                  Batal
+                </button>
+              </div>
+            </div>
+          ) : (
+            // Display view
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <h4 className="font-semibold text-gray-900">
+                  {edu.degree || 'Tidak disebutkan'}{edu.fieldOfStudy ? `, ${edu.fieldOfStudy}` : ''}
+                </h4>
+                <p className="text-gray-600 text-sm">
+                  {edu.university || 'Tidak disebutkan'}{edu.country ? ` (${edu.country})` : ''}
+                </p>
+                <p className="text-gray-500 text-sm">
+                  ({edu.graduationYear || 'Tidak disebutkan'})
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => startEditing(index)}
+                  className="p-1 text-blue-600 hover:text-blue-800"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removeEducation(index)}
+                  className="p-1 text-red-600 hover:text-red-800"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+
+      {/* Add New Education Form */}
+      {editingIndex === -1 && (
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <h5 className="font-semibold text-gray-900 mb-3">Tambah pendidikan baru:</h5>
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Negara</label>
+                <select
+                  value={editForm.country}
+                  onChange={(e) => handleFormChange('country', e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
+                >
+                  <option value="">Pilih Negara</option>
+                  {countries.map((country) => (
+                    <option key={country} value={country}>{country}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Universitas/Institusi</label>
+                <input
+                  type="text"
+                  value={editForm.university}
+                  onChange={(e) => handleFormChange('university', e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
+                  placeholder="Nama universitas"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Gelar</label>
+                <select
+                  value={editForm.degree}
+                  onChange={(e) => handleFormChange('degree', e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
+                >
+                  <option value="">Pilih Gelar</option>
+                  {degrees.map((degree) => (
+                    <option key={degree} value={degree}>{degree}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Bidang Studi</label>
+                <input
+                  type="text"
+                  value={editForm.fieldOfStudy}
+                  onChange={(e) => handleFormChange('fieldOfStudy', e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
+                  placeholder="Contoh: Teknik Informatika"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tahun Kelulusan</label>
+                <select
+                  value={editForm.graduationYear}
+                  onChange={(e) => handleFormChange('graduationYear', e.target.value)}
+                  className="w-full md:w-1/2 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
+                >
+                  <option value="">Pilih Tahun</option>
+                  {Array.from({ length: 50 }, (_, i) => new Date().getFullYear() - i).map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={addEducation}
+              className="w-full px-4 py-2 bg-[#010042] text-white rounded-md hover:bg-[#0100a3] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#010042]"
+            >
+              Tambah Pendidikan
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Certification Editor Component
+function CertificationEditor({ certifications, onChange }) {
+  const [editingIndex, setEditingIndex] = useState(-1);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    issuedBy: '',
+    year: ''
+  });
+
+  const addCertification = () => {
+    if (!editForm.name.trim() || !editForm.issuedBy.trim()) return;
+    
+    const updatedCertifications = [...certifications, { ...editForm }];
+    onChange(updatedCertifications);
+    setEditForm({
+      name: '',
+      issuedBy: '',
+      year: ''
+    });
+  };
+
+  const updateCertification = () => {
+    if (!editForm.name.trim() || !editForm.issuedBy.trim()) return;
+    
+    const updatedCertifications = [...certifications];
+    updatedCertifications[editingIndex] = { ...editForm };
+    onChange(updatedCertifications);
+    setEditingIndex(-1);
+    setEditForm({
+      name: '',
+      issuedBy: '',
+      year: ''
+    });
+  };
+
+  const removeCertification = (index) => {
+    const updatedCertifications = certifications.filter((_, i) => i !== index);
+    onChange(updatedCertifications);
+    if (editingIndex === index) {
+      setEditingIndex(-1);
+      setEditForm({
+        name: '',
+        issuedBy: '',
+        year: ''
+      });
+    }
+  };
+
+  const startEditing = (index) => {
+    setEditingIndex(index);
+    setEditForm({ ...certifications[index] });
+  };
+
+  const cancelEditing = () => {
+    setEditingIndex(-1);
+    setEditForm({
+      name: '',
+      issuedBy: '',
+      year: ''
+    });
+  };
+
+  const handleFormChange = (field, value) => {
+    setEditForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Certifications List */}
+      {certifications.map((cert, index) => (
+        <div key={index} className="p-4 bg-gray-50 rounded-lg">
+          {editingIndex === index ? (
+            // Edit form for this row
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nama Sertifikasi</label>
+                  <input
+                    type="text"
+                    value={editForm.name}
+                    onChange={(e) => handleFormChange('name', e.target.value)}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
+                    placeholder="Contoh: Google Analytics Certified"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Diterbitkan oleh</label>
+                  <input
+                    type="text"
+                    value={editForm.issuedBy}
+                    onChange={(e) => handleFormChange('issuedBy', e.target.value)}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
+                    placeholder="Contoh: Google"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tahun</label>
+                  <select
+                    value={editForm.year}
+                    onChange={(e) => handleFormChange('year', e.target.value)}
+                    className="w-full md:w-1/2 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
+                  >
+                    <option value="">Pilih Tahun</option>
+                    {Array.from({ length: 30 }, (_, i) => new Date().getFullYear() - i).map(year => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={updateCertification}
+                  className="px-4 py-2 bg-[#010042] text-white rounded-md hover:bg-[#0100a3] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#010042]"
+                >
+                  Simpan
+                </button>
+                <button
+                  type="button"
+                  onClick={cancelEditing}
+                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                >
+                  Batal
+                </button>
+              </div>
+            </div>
+          ) : (
+            // Display view
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <h4 className="font-semibold text-gray-900">
+                  {cert.name || 'Tidak disebutkan'}
+                </h4>
+                <p className="text-gray-600 text-sm">
+                  {cert.issuedBy ? `dari ${cert.issuedBy}` : 'Penerbit tidak disebutkan'}
+                </p>
+                <p className="text-gray-500 text-sm">
+                  ({cert.year || 'Tahun tidak disebutkan'})
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => startEditing(index)}
+                  className="p-1 text-blue-600 hover:text-blue-800"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removeCertification(index)}
+                  className="p-1 text-red-600 hover:text-red-800"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+
+      {/* Add New Certification Form */}
+      {editingIndex === -1 && (
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <h5 className="font-semibold text-gray-900 mb-3">Tambah sertifikasi baru:</h5>
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nama Sertifikasi</label>
+                <input
+                  type="text"
+                  value={editForm.name}
+                  onChange={(e) => handleFormChange('name', e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
+                  placeholder="Contoh: Google Analytics Certified"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Diterbitkan oleh</label>
+                <input
+                  type="text"
+                  value={editForm.issuedBy}
+                  onChange={(e) => handleFormChange('issuedBy', e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
+                  placeholder="Contoh: Google"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tahun</label>
+                <select
+                  value={editForm.year}
+                  onChange={(e) => handleFormChange('year', e.target.value)}
+                  className="w-full md:w-1/2 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
+                >
+                  <option value="">Pilih Tahun</option>
+                  {Array.from({ length: 30 }, (_, i) => new Date().getFullYear() - i).map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={addCertification}
+              className="w-full px-4 py-2 bg-[#010042] text-white rounded-md hover:bg-[#0100a3] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#010042]"
+            >
+              Tambah Sertifikasi
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Working Hours Editor Component
+function WorkingHoursEditor({ workingHours, onChange }) {
+  const parseExistingHours = () => {
+    if (workingHours && workingHours.includes(' - ')) {
+      const parts = workingHours.split(' - ');
+      return {
+        start: parts[0],
+        end: parts[1].replace(' WIB', '')
+      };
+    }
+    return { start: '08:00', end: '17:00' };
+  };
+  
+  const [startHour, setStartHour] = useState(parseExistingHours().start);
+  const [endHour, setEndHour] = useState(parseExistingHours().end);
+  
+  const timeOptions = [];
+  for (let i = 0; i < 24; i++) {
+    const hour = i.toString().padStart(2, '0');
+    timeOptions.push(`${hour}:00`);
+    timeOptions.push(`${hour}:30`);
+  }
+  
+  useEffect(() => {
+    if (startHour && endHour) {
+      onChange(`${startHour} - ${endHour} WIB`);
+    }
+  }, [startHour, endHour, onChange]);
+  
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
+      <div className="md:col-span-2">
+        <label htmlFor="startHour" className="block text-sm font-medium text-gray-500 mb-1">Jam Mulai</label>
+        <select
+          id="startHour"
+          value={startHour}
+          onChange={(e) => setStartHour(e.target.value)}
+          className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#010042] focus:border-[#010042] sm:text-sm"
+        >
+          {timeOptions.map((time) => (
+            <option key={`start-${time}`} value={time}>{time}</option>
+          ))}
+        </select>
+      </div>
+      
+      <div className="flex justify-center items-center">
+        <span className="text-gray-500">sampai</span>
+      </div>
+      
+      <div className="md:col-span-2">
+        <label htmlFor="endHour" className="block text-sm font-medium text-gray-500 mb-1">Jam Selesai</label>
+        <select
+          id="endHour"
+          value={endHour}
+          onChange={(e) => setEndHour(e.target.value)}
+          className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#010042] focus:border-[#010042] sm:text-sm"
+        >
+          {timeOptions.map((time) => (
+            <option key={`end-${time}`} value={time}>{time}</option>
+          ))}
+        </select>
+      </div>
     </div>
   );
 } 
