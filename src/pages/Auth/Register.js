@@ -106,12 +106,13 @@ export default function Register() {
     
     try {
       // Register user with Firebase Auth (always as client in new architecture)
-      const user = await signup(values.email, values.password, values.username, USER_ROLES.CLIENT);
+      const normalizedUsername = values.username.trim().toLowerCase();
+      const user = await signup(values.email, values.password, normalizedUsername, USER_ROLES.CLIENT);
       
       // Create complete user profile with multi-role architecture
       await createUserProfile(user.uid, {
         displayName: values.fullName,
-        username: values.username,
+        username: normalizedUsername,
         // Multi-role fields
         roles: [USER_ROLES.CLIENT],
         activeRole: USER_ROLES.CLIENT,

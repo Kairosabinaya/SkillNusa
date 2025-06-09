@@ -107,18 +107,21 @@ export function AuthProvider({ children }) {
     try {
       const result = await createUserWithEmailAndPassword(auth, email, password);
       const { user } = result;
-      
+
+      // Normalize username to lowercase for consistent logins
+      const normalizedUsername = username.trim().toLowerCase();
+
       // Ensure profile photo is always set to default, never null
       const profilePhotoToSave = DEFAULT_PROFILE_PHOTO;
       
       console.log(`🖼️ [AuthContext] Creating user ${user.uid} with default profile photo: ${profilePhotoToSave}`);
       
       // Create user profile in Firestore with only the 15 required fields
-      await createUserDocument(user.uid, {
-        uid: user.uid,
-        email,
-        username,
-        displayName: username,
+        await createUserDocument(user.uid, {
+          uid: user.uid,
+          email,
+          username: normalizedUsername,
+          displayName: username,
         phoneNumber: '',
         gender: '',
         dateOfBirth: '',
