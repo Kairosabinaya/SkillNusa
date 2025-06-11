@@ -298,7 +298,7 @@ export default function DashboardLayout({ children }) {
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
         className={`${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } fixed inset-y-0 left-0 z-50 w-64 bg-white/95 backdrop-blur-sm shadow-xl lg:translate-x-0 lg:static lg:inset-0`}
+        } fixed inset-y-0 left-0 z-50 w-64 bg-white/95 backdrop-blur-sm shadow-xl lg:translate-x-0 lg:static lg:inset-0 lg:bg-white`}
       >
         
         {/* Sidebar header */}
@@ -417,17 +417,17 @@ export default function DashboardLayout({ children }) {
           animate={{ y: 0 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
         >
-          <div className="max-w-7xl mx-auto px-6">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6">
             <div className="flex justify-between h-16 items-center">
               {/* Mobile menu button & Logo */}
               <div className="flex items-center">
                 <motion.button
                   onClick={() => setSidebarOpen(true)}
-                  className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600 mr-4"
+                  className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600 mr-2 sm:mr-4"
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-5 w-5 sm:h-6 sm:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                   </svg>
                 </motion.button>
@@ -435,7 +435,7 @@ export default function DashboardLayout({ children }) {
 
               {/* Search Bar */}
               <motion.div 
-                className="flex-1 max-w-xl mx-4"
+                className="flex-1 max-w-sm sm:max-w-xl mx-2 sm:mx-4"
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.2 }}
@@ -453,13 +453,13 @@ export default function DashboardLayout({ children }) {
                       }
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full px-4 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
+                      className="w-full px-3 sm:px-4 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#010042] focus:border-transparent"
                     />
                     <button 
                       type="submit" 
                       className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-[#010042]"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                       </svg>
                     </button>
@@ -469,16 +469,16 @@ export default function DashboardLayout({ children }) {
 
               {/* Right side actions */}
               <motion.div 
-                className="flex items-center space-x-4"
+                className="flex items-center space-x-2 sm:space-x-3 lg:space-x-4"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.3 }}
               >
                 {/* Action Icons */}
-                <div className="flex items-center space-x-4">
-                  {/* Favorites with count */}
-                  <Link to="/favorites" className="text-gray-500 hover:text-[#010042] transition-all duration-200 relative" title="Favorit">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="flex items-center space-x-2 sm:space-x-3 lg:space-x-4">
+                  {/* Favorites with count - Hidden on small screens */}
+                  <Link to="/favorites" className="hidden sm:block text-gray-500 hover:text-[#010042] transition-all duration-200 relative" title="Favorit">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                     </svg>
                     {renderCountBadge(counts.favorites)}
@@ -486,40 +486,40 @@ export default function DashboardLayout({ children }) {
                   
                   {/* Cart with count */}
                   <Link to="/cart" className="text-gray-500 hover:text-[#010042] transition-all duration-200 relative" title="Keranjang">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l-1 7a2 2 0 01-2 2H8a2 2 0 01-2-2L5 9z" />
                     </svg>
                     {renderCountBadge(counts.cart)}
                   </Link>
                   
-                  {/* Transactions */}
-                  <Link to="/transactions" className="text-gray-500 hover:text-[#010042] transition-all duration-200" title="Riwayat Transaksi">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  {/* Transactions - Hidden on small screens */}
+                  <Link to="/transactions" className="hidden md:block text-gray-500 hover:text-[#010042] transition-all duration-200" title="Riwayat Transaksi">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </Link>
                   
                   {/* Messages with count */}
                   <Link to="/messages" className="text-gray-500 hover:text-[#010042] transition-all duration-200 relative" title="Pesan">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                     </svg>
                     {renderCountBadge(counts.messages)}
                   </Link>
                   
-                  {/* Orders icon only for Freelancers */}
+                  {/* Orders icon only for Freelancers - Hidden on small screens */}
                   {isFreelancer && (
-                    <Link to="/dashboard/freelancer/orders" className="text-gray-500 hover:text-[#010042] transition-all duration-200 relative" title="Pesanan Saya">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <Link to="/dashboard/freelancer/orders" className="hidden sm:block text-gray-500 hover:text-[#010042] transition-all duration-200 relative" title="Pesanan Saya">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                       </svg>
                       {renderCountBadge(counts.orders)}
                     </Link>
                   )}
                   
-                  {/* General Notifications for all users */}
-                  <Link to="/notifications" className="text-gray-500 hover:text-[#010042] transition-all duration-200 relative" title="Notifikasi">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  {/* General Notifications for all users - Hidden on small screens */}
+                  <Link to="/notifications" className="hidden sm:block text-gray-500 hover:text-[#010042] transition-all duration-200 relative" title="Notifikasi">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                     </svg>
                     {renderCountBadge(counts.notifications)}

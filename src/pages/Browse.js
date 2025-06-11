@@ -255,10 +255,10 @@ export default function Browse() {
         </nav>
       </PageContainer>
 
-      <PageContainer padding="px-6">
-        <div className="flex gap-6">
+      <PageContainer padding="px-4 sm:px-6">
+        <div className="flex flex-col lg:flex-row gap-6">
           {/* Left Sidebar - Filters */}
-          <div className="w-80 bg-white rounded-lg p-6 h-fit sticky top-6">
+          <div className="w-full lg:w-80 bg-white rounded-lg p-4 sm:p-6 h-fit lg:sticky lg:top-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-gray-900">Filter</h3>
               <button 
@@ -354,12 +354,12 @@ export default function Browse() {
           </div>
 
           {/* Main Content */}
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             {/* Results Header */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 sm:p-6 mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="min-w-0">
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">
                     {searchQuery ? `Hasil pencarian untuk "${searchQuery}"` : 
                      filters.category ? `Gigs dalam ${filters.category}` : 'Semua Gigs'}
                   </h2>
@@ -369,12 +369,13 @@ export default function Browse() {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-4">
-                  {/* View Mode Toggle */}
-                  <div className="flex border border-gray-300 rounded">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+                  {/* View Mode Toggle - Hidden on mobile */}
+                  <div className="hidden sm:flex border border-gray-300 rounded">
                     <button
                       onClick={() => setViewMode('grid')}
                       className={`px-3 py-2 ${viewMode === 'grid' ? 'bg-gray-100' : 'hover:bg-gray-50'}`}
+                      title="Grid View"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -383,6 +384,7 @@ export default function Browse() {
                     <button
                       onClick={() => setViewMode('list')}
                       className={`px-3 py-2 ${viewMode === 'list' ? 'bg-gray-100' : 'hover:bg-gray-50'}`}
+                      title="List View"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
@@ -391,11 +393,11 @@ export default function Browse() {
                   </div>
 
                   {/* Sort Dropdown */}
-                  <div className="relative">
+                  <div className="relative min-w-0 flex-1 sm:flex-none">
                     <select
                       value={sortBy}
                       onChange={(e) => setSortBy(e.target.value)}
-                      className="appearance-none bg-white border border-gray-300 rounded px-4 py-2 pr-8 focus:outline-none focus:ring-1 focus:ring-[#010042]"
+                      className="w-full sm:w-auto appearance-none bg-white border border-gray-300 rounded px-3 sm:px-4 py-2 pr-8 text-sm focus:outline-none focus:ring-1 focus:ring-[#010042]"
                     >
                       <option value="relevance">Paling Relevan</option>
                       <option value="newest">Terbaru</option>
@@ -405,7 +407,9 @@ export default function Browse() {
                       <option value="price-high">Harga Tertinggi</option>
                     </select>
                     <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                      
+                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
                     </div>
                   </div>
                 </div>
@@ -414,17 +418,17 @@ export default function Browse() {
 
             {/* Gigs Grid/List */}
             {totalGigs === 0 ? (
-              <div className="text-center py-12">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="text-center py-8 sm:py-12">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 sm:h-12 sm:w-12 text-gray-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.5-.78-6.22-2.09l-.44-.41C5.86 12.25 6 12 6 12h.01L6 12z" />
                 </svg>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Tidak ada gigs yang ditemukan</h3>
-                <p className="text-gray-600">Coba ubah filter atau kata kunci pencarian Anda</p>
+                <p className="text-gray-600 text-sm sm:text-base">Coba ubah filter atau kata kunci pencarian Anda</p>
               </div>
             ) : (
               <div className={
                 viewMode === 'grid' 
-                  ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                  ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6"
                   : "space-y-4"
               }>
                 {currentGigs.map((gig) => (
@@ -447,38 +451,40 @@ export default function Browse() {
 
             {/* Pagination - only show if more than 1 page */}
             {totalPages > 1 && (
-              <div className="flex justify-center mt-8">
-                <div className="flex items-center space-x-2">
+              <div className="flex justify-center mt-6 sm:mt-8">
+                <div className="flex items-center space-x-1 sm:space-x-2">
                   <button 
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1}
-                    className={`px-3 py-2 border border-gray-300 rounded transition-colors ${
+                    className={`px-2 sm:px-3 py-2 border border-gray-300 rounded text-sm transition-colors ${
                       currentPage === 1 
                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
                         : 'hover:bg-gray-50 text-gray-700'
                     }`}
                   >
-                    Previous
+                    <span className="hidden sm:inline">Previous</span>
+                    <span className="sm:hidden">‹</span>
                   </button>
                   
                   {/* Page numbers */}
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  {Array.from({ length: Math.min(window.innerWidth < 640 ? 3 : 5, totalPages) }, (_, i) => {
                     let pageNum;
-                    if (totalPages <= 5) {
+                    const maxPages = window.innerWidth < 640 ? 3 : 5;
+                    if (totalPages <= maxPages) {
                       pageNum = i + 1;
-                    } else if (currentPage <= 3) {
+                    } else if (currentPage <= Math.floor(maxPages/2) + 1) {
                       pageNum = i + 1;
-                    } else if (currentPage >= totalPages - 2) {
-                      pageNum = totalPages - 4 + i;
+                    } else if (currentPage >= totalPages - Math.floor(maxPages/2)) {
+                      pageNum = totalPages - maxPages + 1 + i;
                     } else {
-                      pageNum = currentPage - 2 + i;
+                      pageNum = currentPage - Math.floor(maxPages/2) + i;
                     }
                     
                     return (
                       <button
                         key={pageNum}
                         onClick={() => handlePageChange(pageNum)}
-                        className={`px-3 py-2 rounded transition-colors ${
+                        className={`px-2 sm:px-3 py-2 rounded text-sm transition-colors ${
                           currentPage === pageNum
                             ? 'bg-[#010042] text-white'
                             : 'border border-gray-300 hover:bg-gray-50 text-gray-700'
@@ -492,13 +498,14 @@ export default function Browse() {
                   <button 
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage === totalPages}
-                    className={`px-3 py-2 border border-gray-300 rounded transition-colors ${
+                    className={`px-2 sm:px-3 py-2 border border-gray-300 rounded text-sm transition-colors ${
                       currentPage === totalPages 
                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
                         : 'hover:bg-gray-50 text-gray-700'
                     }`}
                   >
-                    Next
+                    <span className="hidden sm:inline">Next</span>
+                    <span className="sm:hidden">›</span>
                   </button>
                 </div>
               </div>

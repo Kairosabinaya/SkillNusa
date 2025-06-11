@@ -213,31 +213,31 @@ export default function Home() {
         // Logged in view (client or freelancer)
         <>
           {/* SkillBot AI Banner Section - untuk semua user yang sudah login */}
-          <div className="bg-gray-50 py-12">
-            <div className="max-w-7xl mx-auto px-3 sm:px-4">
-              <div className="bg-gradient-to-r from-[#010042]/95 to-[#0100a3]/95 rounded-xl p-8 md:p-12 shadow-xl">
-                <div className="flex flex-col md:flex-row items-center justify-between">
-                  <div className="mb-6 md:mb-0 md:max-w-2xl">
-                    <h2 className="text-2xl md:text-4xl font-bold text-white mb-4">
+          <div className="bg-gray-50 py-8 sm:py-12">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6">
+              <div className="bg-gradient-to-r from-[#010042]/95 to-[#0100a3]/95 rounded-xl p-6 sm:p-8 lg:p-12 shadow-xl">
+                <div className="flex flex-col lg:flex-row items-center justify-between">
+                  <div className="mb-6 lg:mb-0 lg:max-w-2xl text-center lg:text-left">
+                    <h2 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-bold text-white mb-4">
                       Meet SkillBot: Your AI-Powered Freelancer Finder
                     </h2>
-                    <p className="text-white/90 mb-6 text-base md:text-lg leading-relaxed">
+                    <p className="text-white/90 mb-6 text-sm sm:text-base lg:text-lg leading-relaxed">
                       Sistem rekomendasi AI kami membantu mencocokkan freelancer terbaik untuk proyek spesifik Anda. Biarkan SkillBot menemukan talenta yang tepat.
                     </p>
                     <Link
                       to="/messages?chatId=skillbot"
-                      className="inline-flex items-center px-8 py-4 bg-white rounded-lg text-[#010042] font-semibold transition-all hover:bg-opacity-90 hover:shadow-lg hover:transform hover:scale-105 text-lg">
+                      className="inline-flex items-center px-6 sm:px-8 py-3 sm:py-4 bg-white rounded-lg text-[#010042] font-semibold transition-all hover:bg-opacity-90 hover:shadow-lg hover:transform hover:scale-105 text-sm sm:text-base lg:text-lg">
                       Coba SkillBot
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-3" viewBox="0 0 20 20" fill="currentColor">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 ml-2 sm:ml-3" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
                       </svg>
                     </Link>
                   </div>
-                  <div className="hidden md:block md:ml-8">
+                  <div className="hidden lg:block lg:ml-8 flex-shrink-0">
                     <img
                       src="/images/robot.png"
                       alt="AI Matching"
-                      className="rounded-lg shadow-lg h-48 w-auto object-contain"
+                      className="rounded-lg shadow-lg h-40 xl:h-48 w-auto object-contain"
                     />
                   </div>
                 </div>
@@ -249,16 +249,16 @@ export default function Home() {
         // Non-logged in view
         <>
           {/* Hero Section */}
-          <div className="relative min-h-[85vh] flex items-center">
+          <div className="relative min-h-[80vh] sm:min-h-[85vh] flex items-center">
             <MeshGradientBackground />
 
-            <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-4 py-20">
-              <div className="grid lg:grid-cols-2 gap-10 items-center">
-                <div className="lg:flex lg:flex-col lg:justify-center space-y-8">
-                  <h1 className="text-4xl md:text-5xl lg:text-8xl font-bold text-white lg:max-w-xl">
+            <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-16 lg:py-20">
+              <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+                <div className="text-center lg:text-left lg:flex lg:flex-col lg:justify-center space-y-6 sm:space-y-8">
+                  <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-8xl font-bold text-white lg:max-w-xl">
                     SkillNusa
                   </h1>
-                  <div className="text-xl sm:text-2xl lg:text-3xl text-gray-200 leading-relaxed mb-1 lg:max-w-xl h-32">
+                  <div className="text-lg sm:text-xl lg:text-2xl xl:text-3xl text-gray-200 leading-relaxed mb-1 lg:max-w-xl h-24 sm:h-28 lg:h-32">
                     <TypeAnimation
                       sequence={[
                         'SkillNusa adalah sebuah marketplace yang menghubungkan freelancer berbakat Indonesia dengan klien yang mencari layanan berkualitas.',
@@ -278,7 +278,7 @@ export default function Home() {
                       repeat={Infinity}
                     />
                   </div>
-                  <div className="w-full max-w-lg">
+                  <div className="w-full max-w-lg mx-auto lg:mx-0">
                     <form 
                       className="w-full"
                       onSubmit={handleSearchSubmit}
@@ -287,7 +287,7 @@ export default function Home() {
                         <input
                           type="text"
                           placeholder="Cari layanan, keahlian, atau proyek..."
-                          className={`w-full px-6 py-4 rounded-lg border text-base transition-all duration-300 ${
+                          className={`w-full px-4 sm:px-6 py-3 sm:py-4 rounded-lg border text-sm sm:text-base transition-all duration-300 ${
                             isSearchFocused 
                               ? 'bg-white text-gray-900 border-[#010042] ring-2 ring-[#010042] focus:outline-none' 
                               : 'bg-transparent text-white placeholder-white/80 border-white/50 focus:outline-none'
@@ -303,7 +303,7 @@ export default function Home() {
                             isSearchFocused ? 'text-[#010042]' : 'text-white'
                           }`}
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                           </svg>
                         </button>
@@ -315,7 +315,7 @@ export default function Home() {
                   <img
                     src="/images/hero-typing.jpeg"
                     alt="Person typing on laptop"
-                    className="rounded-2xl object-cover shadow-xl w-full h-[600px]"
+                    className="rounded-2xl object-cover shadow-xl w-full h-[500px] xl:h-[600px]"
                   />
                 </div>
               </div>
@@ -325,13 +325,13 @@ export default function Home() {
       )}
 
       {/* Popular Categories Section - Compact */}
-      <div className="bg-gray-50 py-10">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-[#010042] mb-4">Kategori Populer</h2>
+      <div className="bg-gray-50 py-8 sm:py-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
+            <h2 className="text-xl sm:text-2xl font-bold text-[#010042] text-center sm:text-left">Kategori Populer</h2>
             <Link 
               to="/browse"
-              className="text-sm text-[#010042] hover:underline flex items-center gap-2 bg-transparent hover:text-[#0100a3] transition-all duration-200"
+              className="text-sm text-[#010042] hover:underline flex items-center justify-center sm:justify-start gap-2 bg-transparent hover:text-[#0100a3] transition-all duration-200"
             >
               Lihat semua kategori
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -340,7 +340,7 @@ export default function Home() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 xl:grid-cols-7 gap-4 justify-center">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-3 sm:gap-4">
             {[
               { icon: "M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4", name: "Programming & Tech", displayName: "Programming & Tech" },
               { icon: "M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z", name: "Design & Creative", displayName: "Design & Creative" },
@@ -351,13 +351,13 @@ export default function Home() {
               { icon: "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10", name: "Business", displayName: "Business" }
             ].map((category, index) => (
               <Link key={index} to={`/browse?category=${encodeURIComponent(category.name)}`} className="group">
-                <div className="bg-white rounded-lg p-4 border border-gray-200 transition-all duration-300 hover:shadow-md hover:border-[#010042]/30 h-full flex flex-col items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-[#010042]/10 transition-all duration-300 group-hover:bg-[#010042]/20">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#010042]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="bg-white rounded-lg p-3 sm:p-4 border border-gray-200 transition-all duration-300 hover:shadow-md hover:border-[#010042]/30 h-full flex flex-col items-center gap-2 sm:gap-3">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center bg-[#010042]/10 transition-all duration-300 group-hover:bg-[#010042]/20">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 text-[#010042]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={category.icon} />
                     </svg>
                   </div>
-                  <span className="font-medium text-gray-800 text-sm text-center">{category.displayName}</span>
+                  <span className="font-medium text-gray-800 text-xs sm:text-sm text-center leading-tight">{category.displayName}</span>
                 </div>
               </Link>
             ))}
@@ -401,13 +401,13 @@ export default function Home() {
       )}
 
       {/* Gigs Section with Category Filter */}
-      <div className="bg-gray-50 py-12">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-[#010042]">Gigs Terbaru</h2>
+      <div className="bg-gray-50 py-8 sm:py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
+            <h2 className="text-xl sm:text-2xl font-bold text-[#010042] text-center sm:text-left">Gigs Terbaru</h2>
             <Link 
               to="/browse"
-              className="text-sm text-[#010042] hover:underline flex items-center gap-2 bg-transparent hover:text-[#0100a3] transition-all duration-200"
+              className="text-sm text-[#010042] hover:underline flex items-center justify-center sm:justify-start gap-2 bg-transparent hover:text-[#0100a3] transition-all duration-200"
             >
               Lihat semua gigs
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -418,10 +418,10 @@ export default function Home() {
 
           {/* Category Filters */}
           <div className="mb-6 overflow-x-auto pb-2">
-            <div className="flex space-x-2 min-w-max">
+            <div className="flex space-x-2 min-w-max px-1">
               <button
                 onClick={() => setActiveCategory('All')}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                className={`px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 whitespace-nowrap ${
                   activeCategory === 'All' 
                     ? 'bg-[#010042] text-white' 
                     : 'bg-white text-gray-700 hover:bg-gray-100'
@@ -434,7 +434,7 @@ export default function Home() {
                 <button
                   key={index}
                   onClick={() => setActiveCategory(category.name)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                  className={`px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 whitespace-nowrap ${
                     activeCategory === category.name 
                       ? 'bg-[#010042] text-white' 
                       : 'bg-white text-gray-700 hover:bg-gray-100'
@@ -448,21 +448,21 @@ export default function Home() {
 
           {/* Gigs Grid */}
           {gigsLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
               {[...Array(8)].map((_, index) => (
                 <div key={index} className="bg-white rounded-lg border border-gray-200 p-4 animate-pulse">
-                  <div className="bg-gray-300 h-48 rounded mb-4"></div>
+                  <div className="bg-gray-300 h-40 sm:h-48 rounded mb-4"></div>
                   <div className="bg-gray-300 h-4 rounded mb-2"></div>
                   <div className="bg-gray-300 h-4 rounded w-3/4"></div>
                 </div>
               ))}
             </div>
           ) : displayedGigs.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-gray-600">Tidak ada gigs yang ditemukan untuk kategori ini.</p>
+            <div className="text-center py-8 sm:py-12">
+              <p className="text-gray-600 text-sm sm:text-base">Tidak ada gigs yang ditemukan untuk kategori ini.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
               {displayedGigs.map((gig) => (
                 <GigCard 
                   key={gig.id} 
@@ -473,10 +473,10 @@ export default function Home() {
             </div>
           )}
 
-          <div className="flex justify-center mt-10">
+          <div className="flex justify-center mt-8 sm:mt-10">
             <Link 
               to="/browse"
-              className="px-6 py-2 text-sm font-medium bg-transparent border border-[#010042] text-[#010042] rounded-lg transition-all duration-300 hover:bg-[#010042] hover:text-white hover:shadow-md hover:transform hover:scale-105"
+              className="px-4 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium bg-transparent border border-[#010042] text-[#010042] rounded-lg transition-all duration-300 hover:bg-[#010042] hover:text-white hover:shadow-md hover:transform hover:scale-105"
             >
               Lihat Semua Gigs
             </Link>
@@ -493,19 +493,19 @@ export default function Home() {
 
       {/* Banner Ajakan Register - hanya ditampilkan untuk pengguna yang belum login */}
       {!currentUser && (
-        <div className="bg-[#010042] py-12 border-t border-[#0100a3]">
-          <div className="max-w-7xl mx-auto px-3 sm:px-4">
+        <div className="bg-[#010042] py-8 sm:py-12 border-t border-[#0100a3]">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6">
             <div className="text-center">
-              <h2 className="text-3xl font-bold text-white mb-4">Siap untuk memulai dengan SkillNusa?</h2>
-              <p className="text-white/80 max-w-2xl mx-auto mb-8 text-lg">
+              <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">Siap untuk memulai dengan SkillNusa?</h2>
+              <p className="text-white/80 max-w-2xl mx-auto mb-6 sm:mb-8 text-sm sm:text-base lg:text-lg">
                 Daftarkan diri Anda sekarang dan mulai mendapatkan akses ke ribuan freelancer berbakat atau klien potensial di seluruh Indonesia.
               </p>
               <Link 
                 to="/register"
-                className="inline-flex items-center px-6 py-3 bg-white rounded-lg text-[#010042] font-medium hover:bg-gray-100 transition-all text-base"
+                className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-white rounded-lg text-[#010042] font-medium hover:bg-gray-100 transition-all text-sm sm:text-base"
               >
                 Daftar Sekarang
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2" viewBox="0 0 20 20" fill="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 ml-2" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
                 </svg>
               </Link>

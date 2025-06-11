@@ -359,7 +359,7 @@ export default function GigDetail() {
 
   return (
     <div className="min-h-screen bg-gray-50 pt-[40px]">
-      <PageContainer padding="px-6 py-4">
+      <PageContainer padding="px-4 sm:px-6 py-4">
         {/* Add Error and Success Popups */}
         <ErrorPopup 
           message={error} 
@@ -374,62 +374,62 @@ export default function GigDetail() {
         />
         
         {/* 1. Title */}
-        <div className="mb-6">
-          <nav className="text-sm text-gray-500 mb-4">
+        <div className="mb-4 sm:mb-6">
+          <nav className="text-xs sm:text-sm text-gray-500 mb-3 sm:mb-4">
             <Link to="/" className="hover:text-gray-700">Home</Link>
-            <span className="mx-2">›</span>
+            <span className="mx-1 sm:mx-2">›</span>
             <Link to="/browse" className="hover:text-gray-700">Browse</Link>
-            <span className="mx-2">›</span>
+            <span className="mx-1 sm:mx-2">›</span>
             <span className="text-gray-900">{gig.category}</span>
           </nav>
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">{gig.title}</h1>
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-3 sm:mb-4">{gig.title}</h1>
           
           {/* Freelancer Quick Info */}
-          <div className="flex items-center space-x-4 mb-4">
-            <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-3 sm:space-x-4 mb-3 sm:mb-4">
+            <div className="flex items-center space-x-2 sm:space-x-3">
               <img 
                 src={gig.freelancer.profilePhoto} 
                 alt={gig.freelancer.displayName}
-                className="w-10 h-10 rounded-full object-cover cursor-pointer hover:ring-2 hover:ring-[#010042] transition-all"
+                className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover cursor-pointer hover:ring-2 hover:ring-[#010042] transition-all"
                 onClick={handleFreelancerProfileClick}
                 title="Lihat profil freelancer"
               />
               <div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-1 sm:space-x-2">
                   <span 
-                    className="font-medium text-gray-900 cursor-pointer hover:text-[#010042] hover:underline transition-colors"
+                    className="font-medium text-gray-900 cursor-pointer hover:text-[#010042] hover:underline transition-colors text-sm sm:text-base"
                     onClick={handleFreelancerProfileClick}
                     title="Lihat profil freelancer"
                   >
                     {gig.freelancer.displayName}
                   </span>
                   {gig.freelancer.isVerified && (
-                    <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                     </svg>
                   )}
                 </div>
-                <div className="flex items-center space-x-3 text-sm text-gray-600">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-3 text-xs sm:text-sm text-gray-600">
                   <span className="text-gray-500">
                     Joined {gig.freelancer.joinedDate}
                   </span>
-                  <span>•</span>
+                  <span className="hidden sm:inline">•</span>
                   <div className="flex items-center">
-                    <svg className="w-4 h-4 text-yellow-400 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-400 mr-1" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                     </svg>
                     <span className="font-medium">{gig.freelancer.rating}</span>
                     <span className="text-gray-500 ml-1">({gig.freelancer.totalReviews})</span>
                   </div>
-                  <span>•</span>
+                  <span className="hidden sm:inline">•</span>
                   <span>{freelancerStats.completedProjects} orders completed</span>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center space-x-4 text-sm text-gray-600">
-            <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full">{gig.category}</span>
+          <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-gray-600">
+            <span className="px-2 sm:px-3 py-1 bg-blue-100 text-blue-800 rounded-full">{gig.category}</span>
             {gig.tags.map((tag, index) => (
               <span key={index} className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
                 #{tag}
@@ -438,9 +438,9 @@ export default function GigDetail() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
           {/* Left Column */}
-          <div className="lg:col-span-2 space-y-8">
+          <div className="xl:col-span-2 space-y-6 lg:space-y-8 order-2 xl:order-1">
             
             {/* 2. Photos */}
             <div className="bg-white rounded-lg shadow-sm overflow-hidden">
@@ -452,13 +452,13 @@ export default function GigDetail() {
                 />
               </div>
               {gig.images.length > 1 && (
-                <div className="p-4 border-t">
-                  <div className="flex space-x-2 overflow-x-auto">
+                <div className="p-3 sm:p-4 border-t">
+                  <div className="flex space-x-2 overflow-x-auto pb-2">
                     {gig.images.map((image, index) => (
                       <button
                         key={index}
                         onClick={() => setSelectedImageIndex(index)}
-                        className={`flex-shrink-0 w-20 h-16 rounded-lg overflow-hidden border-2 ${
+                        className={`flex-shrink-0 w-16 h-12 sm:w-20 sm:h-16 rounded-lg overflow-hidden border-2 ${
                           selectedImageIndex === index ? 'border-blue-500' : 'border-gray-200'
                         }`}
                       >
@@ -471,12 +471,12 @@ export default function GigDetail() {
             </div>
 
             {/* 4. About Section */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">About This Gig</h2>
+            <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">About This Gig</h2>
               <div className="prose prose-gray max-w-none">
                 <div>
                   {gig.description.split('\n').map((paragraph, index) => (
-                    <p key={index} className="mb-3 text-gray-700">
+                    <p key={index} className="mb-3 text-sm sm:text-base text-gray-700">
                       {paragraph}
                     </p>
                   ))}
@@ -485,30 +485,30 @@ export default function GigDetail() {
             </div>
 
             {/* 5. Freelancer Info */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-6">About The Freelancer</h2>
+            <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 sm:mb-6">About The Freelancer</h2>
               
               {/* Profile Section */}
-              <div className="flex flex-col items-start mb-6">
-                <div className="flex items-start w-full mb-4">
+              <div className="flex flex-col items-start mb-4 sm:mb-6">
+                <div className="flex flex-col sm:flex-row items-start w-full mb-3 sm:mb-4">
                   <img 
                     src={gig.freelancer.profilePhoto} 
                     alt={gig.freelancer.displayName}
-                    className="w-24 h-24 rounded-full object-cover mr-4 flex-shrink-0 cursor-pointer hover:ring-4 hover:ring-[#010042]/20 transition-all"
+                    className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 rounded-full object-cover mr-0 sm:mr-4 mb-3 sm:mb-0 flex-shrink-0 cursor-pointer hover:ring-4 hover:ring-[#010042]/20 transition-all mx-auto sm:mx-0"
                     onClick={handleFreelancerProfileClick}
                     title="Lihat profil freelancer"
                   />
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-1">
+                  <div className="flex-1 text-center sm:text-left">
+                    <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2 mb-1">
                       <h3 
-                        className="text-lg font-semibold text-gray-900 cursor-pointer hover:text-[#010042] hover:underline transition-colors"
+                        className="text-base sm:text-lg font-semibold text-gray-900 cursor-pointer hover:text-[#010042] hover:underline transition-colors"
                         onClick={handleFreelancerProfileClick}
                         title="Lihat profil freelancer"
                       >
                         {gig.freelancer.displayName}
                       </h3>
                       {gig.freelancer.isVerified && (
-                        <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                        <svg className="w-4 h-4 text-blue-500 mx-auto sm:mx-0" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                         </svg>
                       )}
@@ -816,20 +816,20 @@ export default function GigDetail() {
           </div>
 
           {/* Right Column - Package Selection */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-24 space-y-6">
-              <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="xl:col-span-1 order-1 xl:order-2">
+            <div className="xl:sticky xl:top-24 space-y-4 sm:space-y-6">
+              <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
                 
                 {/* 3. Package Selection */}
-                <div className="mb-6">
-                  <div className="flex border-b border-gray-200">
+                <div className="mb-4 sm:mb-6">
+                  <div className="flex border-b border-gray-200 overflow-x-auto">
                     {['basic', 'standard', 'premium'].filter(key => gig.packages[key]).map((key) => {
                       const pkg = gig.packages[key];
                       return (
                         <button
                           key={key}
                           onClick={() => handlePackageSelect(key)}
-                          className={`flex-1 py-3 px-4 text-sm font-medium border-b-2 ${
+                          className={`flex-1 py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm font-medium border-b-2 whitespace-nowrap ${
                             selectedPackage === key
                               ? 'border-blue-500 text-blue-600'
                               : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -843,15 +843,15 @@ export default function GigDetail() {
                 </div>
 
                 {/* Selected Package Details */}
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{currentPackage.name}</h3>
-                  <p className="text-gray-600 text-sm mb-4">{currentPackage.description}</p>
+                <div className="mb-4 sm:mb-6">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">{currentPackage.name}</h3>
+                  <p className="text-gray-600 text-xs sm:text-sm mb-3 sm:mb-4">{currentPackage.description}</p>
                   
-                  <div className="mb-4">
-                    <span className="text-2xl font-bold text-gray-900">{formatCurrency(currentPackage.price)}</span>
+                  <div className="mb-3 sm:mb-4">
+                    <span className="text-xl sm:text-2xl font-bold text-gray-900">{formatCurrency(currentPackage.price)}</span>
                   </div>
 
-                  <div className="flex items-center gap-4 text-sm text-gray-600 mb-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600 mb-4 sm:mb-6">
                     <div className="flex items-center gap-1.5">
                       <svg className="w-4 h-4" viewBox="0 0 50 50" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
                         <path d="M11 11C4.898438 11 0 15.898438 0 22C0 24.300781 0.699219 26.5 2 28.300781L2 42C2 43.601563 3.398438 45 5 45L7.09375 45C7.574219 47.828125 10.042969 50 13 50C15.957031 50 18.425781 47.828125 18.90625 45L28.097656 45C29.699219 45 30.902344 43.699219 30.902344 42.199219L30.902344 17.902344C31 16.300781 29.699219 15 28.199219 15L19.5 15C17.5 12.601563 14.398438 11 11 11 Z M 11 13C16 13 20 17 20 22C20 27 16 31 11 31C6 31 2 27 2 22C2 17 6 13 11 13 Z M 34 20C32.898438 20 32 20.898438 32 22L32 43C32 43.839844 32.527344 44.5625 33.265625 44.855469C33.6875 47.753906 36.191406 50 39.199219 50C42.15625 50 44.628906 47.828125 45.109375 45L47 45C48.699219 45 50 43.699219 50 42L50 32.402344C50 30.402344 48.601563 28.300781 48.402344 28.097656L46.097656 25L44.199219 22.5C43.199219 21.398438 41.699219 20 40 20 Z M 38 25L43.597656 25L46.800781 29.199219C47.101563 29.699219 48 31.199219 48 32.300781L48 33L38 33C37 33 36 32 36 31L36 27C36 25.898438 37 25 38 25 Z M 13 40C15.199219 40 17 41.800781 17 44C17 46.199219 15.199219 48 13 48C10.800781 48 9 46.199219 9 44C9 41.800781 10.800781 40 13 40 Z M 39.199219 40C41.398438 40 43.199219 41.800781 43.199219 44C43.199219 46.199219 41.398438 48 39.199219 48C37 48 35.199219 46.199219 35.199219 44C35.199219 41.800781 37 40 39.199219 40Z"/>
@@ -867,12 +867,12 @@ export default function GigDetail() {
                   </div>
 
                   {/* Features */}
-                  <div className="mb-6">
-                    <h4 className="font-medium text-gray-900 mb-2">What's included:</h4>
+                  <div className="mb-4 sm:mb-6">
+                    <h4 className="font-medium text-gray-900 mb-2 text-sm sm:text-base">What's included:</h4>
                     <ul className="space-y-1">
                       {currentPackage.features.map((feature, index) => (
-                        <li key={index} className="flex items-center text-sm text-gray-700">
-                          <svg className="w-4 h-4 text-green-500 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <li key={index} className="flex items-center text-xs sm:text-sm text-gray-700">
+                          <svg className="w-3 h-3 sm:w-4 sm:h-4 text-green-500 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                           </svg>
                           {feature}
@@ -911,7 +911,7 @@ export default function GigDetail() {
                     <div className="space-y-3">
                       <button
                         onClick={handleDirectCheckout}
-                        className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                        className="w-full bg-blue-600 text-white py-2 sm:py-3 px-3 sm:px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm sm:text-base"
                       >
                         Continue ({formatCurrency(currentPackage.price)})
                       </button>
@@ -919,14 +919,14 @@ export default function GigDetail() {
                       <button
                         onClick={handleAddToCart}
                         disabled={cartLoading || isInCart}
-                        className="w-full bg-white text-gray-900 py-3 px-4 rounded-lg font-medium border border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full bg-white text-gray-900 py-2 sm:py-3 px-3 sm:px-4 rounded-lg font-medium border border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
                       >
                         {cartLoading ? 'Adding...' : isInCart ? 'Already in Cart' : 'Add to Cart'}
                       </button>
 
                       <button
                         onClick={handleContactFreelancer}
-                        className="w-full bg-white text-blue-600 py-3 px-4 rounded-lg font-medium border border-blue-200 hover:bg-blue-50 transition-colors"
+                        className="w-full bg-white text-blue-600 py-2 sm:py-3 px-3 sm:px-4 rounded-lg font-medium border border-blue-200 hover:bg-blue-50 transition-colors text-sm sm:text-base"
                       >
                         Contact Freelancer
                       </button>
@@ -935,7 +935,7 @@ export default function GigDetail() {
                       <button
                         onClick={handleFavoriteToggle}
                         disabled={favoriteLoading || isOwnGig}
-                        className={`w-full py-3 px-4 rounded-lg font-medium border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                        className={`w-full py-2 sm:py-3 px-3 sm:px-4 rounded-lg font-medium border transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base ${
                           isOwnGig
                             ? 'bg-gray-100 text-gray-400 border-gray-200'
                             : isFavorited
@@ -981,20 +981,20 @@ export default function GigDetail() {
               {currentUser && !isOwnGig && (
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200">
                   {!showSkillBotChat ? (
-                    <div className="p-6">
-                      <div className="flex items-center space-x-3 mb-4">
-                        <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
+                    <div className="p-4 sm:p-6">
+                      <div className="flex items-center space-x-2 sm:space-x-3 mb-3 sm:mb-4">
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-6 sm:w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
                             <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
                           </svg>
                         </div>
                         <div>
-                          <h3 className="text-lg font-semibold text-gray-900">SkillBot AI</h3>
-                          <p className="text-sm text-gray-500">Analisis Layanan Cerdas</p>
+                          <h3 className="text-base sm:text-lg font-semibold text-gray-900">SkillBot AI</h3>
+                          <p className="text-xs sm:text-sm text-gray-500">Analisis Layanan Cerdas</p>
                         </div>
                       </div>
                       
-                      <p className="text-gray-600 text-sm mb-4">
+                      <p className="text-gray-600 text-xs sm:text-sm mb-3 sm:mb-4">
                         Tanyakan apapun tentang layanan ini kepada AI assistant kami. Dapatkan insights, rekomendasi package, dan tips untuk project Anda.
                       </p>
                       
