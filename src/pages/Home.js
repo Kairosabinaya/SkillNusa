@@ -9,6 +9,8 @@ import MeshGradientBackground from '../components/UI/MeshGradientBackground';
 import GigCard from '../components/common/GigCard';
 import gigService from '../services/gigService';
 import FreelancerCTA from '../components/UI/FreelancerCTA';
+import ErrorPopup from '../components/common/ErrorPopup';
+import SuccessPopup from '../components/common/SuccessPopup';
 
 export default function Home() {
   const { currentUser, userProfile, loading } = useAuth();
@@ -19,6 +21,10 @@ export default function Home() {
   const [gigs, setGigs] = useState([]);
   const [gigsLoading, setGigsLoading] = useState(true);
   const searchBoxRef = useRef(null);
+  
+  // Notification states
+  const [success, setSuccess] = useState('');
+  const [error, setError] = useState('');
 
   // Handle clicks outside the search box
   useEffect(() => {

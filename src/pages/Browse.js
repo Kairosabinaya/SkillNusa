@@ -4,6 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import gigService from '../services/gigService';
 import GigCard from '../components/common/GigCard';
 import PageContainer from '../components/common/PageContainer';
+import ErrorPopup from '../components/common/ErrorPopup';
+import SuccessPopup from '../components/common/SuccessPopup';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase/config.js';
 import { COLLECTIONS } from '../utils/constants';
@@ -25,6 +27,10 @@ export default function Browse() {
   const [viewMode, setViewMode] = useState('grid'); // grid or list
   const [currentPage, setCurrentPage] = useState(1);
   const gigsPerPage = 12;
+  
+  // Notification states
+  const [success, setSuccess] = useState('');
+  const [error, setError] = useState('');
   
   // Filter states
   const [filters, setFilters] = useState({
@@ -194,6 +200,15 @@ export default function Browse() {
     }));
   };
 
+  // Handle favorite notification
+  const handleFavoriteChange = (message, isSuccess) => {
+    if (isSuccess) {
+      setSuccess(message);
+    } else {
+      setError(message);
+    }
+  };
+
   // Clear all filters
   const clearFilters = () => {
     setFilters({
@@ -238,6 +253,19 @@ export default function Browse() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Notification Popups */}
+      <ErrorPopup 
+        message={error} 
+        onClose={() => setError('')} 
+        duration={3000}
+      />
+      
+      <SuccessPopup 
+        message={success} 
+        onClose={() => setSuccess('')} 
+        duration={3000}
+      />
+      
       {/* Breadcrumb */}
       <PageContainer padding="px-6 py-3">
         <nav className="flex items-center space-x-2 text-sm text-gray-500 py-2">
@@ -444,6 +472,7 @@ export default function Browse() {
                     }}
                     showFavoriteButton={true}
                     imageClassName="aspect-[16/9] object-cover"
+                    onFavoriteChange={handleFavoriteChange}
                   />
                 ))}
               </div>

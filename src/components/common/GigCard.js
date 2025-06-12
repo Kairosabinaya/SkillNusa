@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import favoriteService from '../../services/favoriteService';
 import { formatPrice } from '../../utils/helpers';
 
-export default function GigCard({ gig, showFavoriteButton = true, className = "", imageClassName = "" }) {
+export default function GigCard({ gig, showFavoriteButton = true, className = "", imageClassName = "", onFavoriteChange = null }) {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [isFavorited, setIsFavorited] = useState(false);
@@ -53,8 +53,17 @@ export default function GigCard({ gig, showFavoriteButton = true, className = ""
     try {
       const result = await favoriteService.toggleFavorite(currentUser.uid, gig.id);
       setIsFavorited(result.isFavorited);
+      
+      // Call the callback to show notification
+      if (onFavoriteChange) {
+        onFavoriteChange(result.isFavorited ? 'Ditambahkan ke favorit' : 'Dihapus dari favorit', true);
+      }
     } catch (error) {
       console.error('Error toggling favorite:', error);
+      // Call the callback to show error notification
+      if (onFavoriteChange) {
+        onFavoriteChange('Gagal memperbarui favorit', false);
+      }
     } finally {
       setFavoriteLoading(false);
     }
@@ -63,15 +72,13 @@ export default function GigCard({ gig, showFavoriteButton = true, className = ""
   if (!gig) return null;
 
   return (
-    <div className={`bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow border border-gray-100 ${className}`}>
+    <Link to={`/gig/${gig.id}`} className={`block bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow border border-gray-100 ${className}`}>
       <div className="relative">
-        <Link to={`/gig/${gig.id}`}>
-          <img 
-            src={gig.images?.[0] || gig.image || 'https://picsum.photos/400/300'} 
-            alt={gig.title}
-            className={`w-full rounded-t-lg ${imageClassName || 'h-48 object-cover'}`}
-          />
-        </Link>
+        <img 
+          src={gig.images?.[0] || gig.image || 'https://picsum.photos/400/300'} 
+          alt={gig.title}
+          className={`w-full rounded-t-lg ${imageClassName || 'h-48 object-cover'}`}
+        />
         
         {showFavoriteButton && (
           <button
@@ -141,11 +148,9 @@ export default function GigCard({ gig, showFavoriteButton = true, className = ""
         )}
         
         {/* Gig Title */}
-        <Link to={`/gig/${gig.id}`}>
-          <h3 className="font-medium text-gray-900 line-clamp-2 hover:text-[#010042] hover:underline transition-colors mb-2">
-            {gig.title}
-          </h3>
-        </Link>
+        <h3 className="font-medium text-gray-900 line-clamp-2 hover:text-[#010042] transition-colors mb-2">
+          {gig.title}
+        </h3>
         
         {/* Rating */}
         <div className="flex items-center gap-1 mb-3">
@@ -175,6 +180,6 @@ export default function GigCard({ gig, showFavoriteButton = true, className = ""
           </div>
         </div>
       </div>
-    </div>
+    </Link>
   );
 } 

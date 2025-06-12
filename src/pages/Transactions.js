@@ -406,9 +406,11 @@ export default function Transactions() {
 
                         {/* Order Details */}
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-medium text-gray-900 line-clamp-2 hover:text-[#010042] hover:underline transition-colors mb-2">
-                            {order.title}
-                          </h3>
+                          <Link to={`/gig/${order.gigId}`}>
+                            <h3 className="font-medium text-gray-900 line-clamp-2 hover:text-[#010042] hover:underline transition-colors mb-2 cursor-pointer">
+                              {order.title}
+                            </h3>
+                          </Link>
                           
                           <div className="flex items-center gap-2 mb-2">
                             <img 

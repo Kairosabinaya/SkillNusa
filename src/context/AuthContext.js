@@ -25,8 +25,6 @@ import firebaseService from '../services/firebaseService';
 import { getUserProfile } from '../services/userProfileService';
 import { COLLECTIONS, USER_ROLES } from '../utils/constants';
 import { DEFAULT_PROFILE_PHOTO } from '../utils/profilePhotoUtils';
-import { getActionCodeSettings } from '../utils/authUtils';
-import emailVerificationService from '../services/emailVerificationService';
 import Logger from '../utils/logger';
 import { AuthError, ValidationError, ErrorHandler } from '../utils/errors';
 
@@ -153,8 +151,13 @@ export function AuthProvider({ children }) {
       // Update auth profile
       await updateProfile(user, { displayName: username });
       
-      // Send verification email using the service
-      await emailVerificationService.sendVerificationEmail(user, '/login');
+      // Send verification email with custom settings
+      const actionCodeSettings = {
+        url: `${window.location.origin}/auth-action?continueUrl=${encodeURIComponent(window.location.origin + '/login')}`,
+        handleCodeInApp: true
+      };
+      
+      await sendEmailVerification(user, actionCodeSettings);
       
       console.log(`✅ [AuthContext] User signup completed successfully for ${user.uid}`);
       

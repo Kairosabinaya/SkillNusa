@@ -10,8 +10,6 @@ import { auth } from '../firebase/config';
 import { userRepository, profileRepository } from '../repositories';
 import { User, Profile } from '../models';
 import { USER_ROLES } from '../utils/constants';
-import { getActionCodeSettings } from '../utils/authUtils';
-import emailVerificationService from './emailVerificationService';
 
 /**
  * Authentication service for handling user authentication
@@ -72,8 +70,13 @@ export default class AuthService {
       // Update auth profile
       await updateProfile(user, { displayName: username });
       
-      // Send verification email using the service
-      await emailVerificationService.sendVerificationEmail(user, '/login');
+      // Send verification email with custom settings
+      const actionCodeSettings = {
+        url: `${window.location.origin}/auth-action?continueUrl=${encodeURIComponent(window.location.origin + '/login')}`,
+        handleCodeInApp: true
+      };
+      
+      await sendEmailVerification(user, actionCodeSettings);
       
       return user;
     } catch (error) {

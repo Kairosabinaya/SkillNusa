@@ -277,29 +277,26 @@ INGAT: Respons maksimal 3-4 kalimat saja!`;
         }
 
         if (conversationHistory.length > 0) {
-          contextInfo += `\n\nPercakapan terakhir:\n${conversationHistory.slice(-3).map(msg => 
-            `${msg.senderId === 'skillbot' ? 'SkillBot' : 'User'}: ${msg.content}`
+          contextInfo += `\n\nContext:\n${conversationHistory.slice(-1).map(msg => 
+            `${msg.senderId === 'skillbot' ? 'Bot' : 'User'}: ${msg.content.slice(0, 100)}`
           ).join('\n')}`;
         }
 
-        const prompt = `${systemPrompt}
+        const prompt = `Kamu SkillBot dari SkillNusa. User: "${userMessage}"${contextInfo}
 
-User bilang: "${userMessage}"${contextInfo}
+ATURAN:
+- Jangan sebut platform lain (Upwork, Fiverr, dll)
+- Tanya project apa dulu sebelum detail lain
+- Kalau udah tau project, baru carikan/tanya detail
+- Respons 2-3 kalimat, casual, friendly
+- Fokus layanan SkillNusa
 
-ATURAN PENTING: 
-- Kamu adalah SkillBot dari platform SkillNusa
-- JANGAN PERNAH menyebutkan platform lain seperti Upwork, Fiverr, Freelancer.com, dll
-- Jika user tanya tentang platform lain, alihkan ke SkillNusa
-- WAJIB TANYA PROJECT/LAYANAN APA yang dibutuhkan dulu sebelum tanya detail lain
-- JANGAN langsung tanya budget/timeline kalau belum tau projectnya apa
-- Kalau user udah mention project (website, app, design, dll), baru boleh tanya detail atau carikan gigs
-- Respons maksimal 2-3 kalimat, casual dan friendly
-
-PENTING: Jika user tanya "gig apa yang cocok" tapi belum bilang projectnya apa, WAJIB tanya projectnya dulu!
-
-Berikan respons yang helpful dan to-the-point tentang layanan SkillNusa!`;
+Jawab singkat & helpful!`;
 
         console.log('[GeminiService] Sending request to Gemini API...');
+        console.log('[GeminiService] Prompt length:', prompt.length, 'chars');
+        console.log('[GeminiService] Estimated tokens:', Math.ceil(prompt.length / 4));
+        
         const result = await this.model.generateContent(prompt);
         const response = await result.response;
         const text = response.text();

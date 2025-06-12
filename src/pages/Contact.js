@@ -17,7 +17,24 @@ export default function Contact() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // In a real app, you would send this data to your backend
+    
+    // Create email body with form data
+    const emailBody = `
+Nama: ${formData.name}
+Email: ${formData.email}
+Subjek: ${formData.subject}
+
+Pesan:
+${formData.message}
+    `.trim();
+    
+    // Create mailto link with all form data
+    const mailtoLink = `mailto:support@skillnusa.com?subject=${encodeURIComponent(formData.subject)}&body=${encodeURIComponent(emailBody)}`;
+    
+    // Open email client
+    window.location.href = mailtoLink;
+    
+    // Show success message
     setSubmitted(true);
   };
 
@@ -133,8 +150,9 @@ export default function Contact() {
                   </svg>
                   <div>
                     <h4 className="text-sm sm:text-base font-medium text-gray-900">Email</h4>
-                    <p className="text-sm sm:text-base text-gray-600">support@skillnusa.com</p>
-                    <p className="text-sm sm:text-base text-gray-600">business@skillnusa.com</p>
+                    <a href="mailto:support@skillnusa.com" className="text-sm sm:text-base text-gray-600 hover:text-[#010042] transition-colors">
+                      support@skillnusa.com
+                    </a>
                   </div>
                 </div>
 
@@ -144,20 +162,9 @@ export default function Contact() {
                   </svg>
                   <div>
                     <h4 className="text-sm sm:text-base font-medium text-gray-900">Telepon</h4>
-                    <p className="text-sm sm:text-base text-gray-600">+62 21 1234 5678</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 text-[#010042] mt-1 mr-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  <div>
-                    <h4 className="text-sm sm:text-base font-medium text-gray-900">Kantor</h4>
-                    <p className="text-sm sm:text-base text-gray-600">Jl. Sudirman No. 123</p>
-                    <p className="text-sm sm:text-base text-gray-600">Jakarta Selatan, 12910</p>
-                    <p className="text-sm sm:text-base text-gray-600">Indonesia</p>
+                    <a href="tel:+6281294169196" className="text-sm sm:text-base text-gray-600 hover:text-[#010042] transition-colors">
+                      +6281294169196
+                    </a>
                   </div>
                 </div>
 
