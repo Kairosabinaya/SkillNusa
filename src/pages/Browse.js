@@ -44,7 +44,7 @@ export default function Browse() {
 
   // Categories for filter
   const categories = [
-    "Programming & Tech",
+    "Program & Tech",
     "Design & Creative", 
     "Digital Marketing",
     "Writing & Translation",

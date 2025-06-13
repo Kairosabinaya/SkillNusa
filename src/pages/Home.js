@@ -235,7 +235,7 @@ export default function Home() {
             onCanPlay={() => console.log('Video can play')}
             onError={(e) => console.error('Video error:', e)}
           >
-            <source src="https://res.cloudinary.com/dk45bajkj/video/upload/v1749840053/thumbnail_video_thtrm4.mp4" type="video/mp4" />
+            <source src="https://res.cloudinary.com/dk45bajkj/video/upload/v1749849506/skillnusa_video2_mqmwxg.mp4" type="video/mp4" />
             Your browser does not support the video tag.
           </video>
           
@@ -361,39 +361,39 @@ export default function Home() {
         </div>
       </div>
 
-      {/* SkillBot AI Banner Section - untuk semua user yang sudah login */}
+          {/* SkillBot AI Banner Section - untuk semua user yang sudah login */}
       {currentUser && (
-        <div className="bg-gray-50 py-8 sm:py-12">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6">
-            <div className="bg-gradient-to-r from-[#010042]/95 to-[#0100a3]/95 rounded-xl p-6 sm:p-8 lg:p-12 shadow-xl">
-              <div className="flex flex-col lg:flex-row items-center justify-between">
-                <div className="mb-6 lg:mb-0 lg:max-w-2xl text-center lg:text-left">
-                  <h2 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-bold text-white mb-4">
-                    Meet SkillBot: Your AI-Powered Freelancer Finder
-                  </h2>
-                  <p className="text-white/90 mb-6 text-sm sm:text-base lg:text-lg leading-relaxed">
-                    Sistem rekomendasi AI kami membantu mencocokkan freelancer terbaik untuk proyek spesifik Anda. Biarkan SkillBot menemukan talenta yang tepat.
-                  </p>
-                  <Link
-                    to="/messages?chatId=skillbot"
-                    className="inline-flex items-center px-6 sm:px-8 py-3 sm:py-4 bg-white rounded-lg text-[#010042] font-semibold transition-all hover:bg-opacity-90 hover:shadow-lg hover:transform hover:scale-105 text-sm sm:text-base lg:text-lg">
-                    Coba SkillBot
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 ml-2 sm:ml-3" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                  </Link>
-                </div>
-                <div className="hidden lg:block lg:ml-8 flex-shrink-0">
-                  <img
+          <div className="bg-gray-50 py-8 sm:py-12">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6">
+              <div className="bg-gradient-to-r from-[#010042]/95 to-[#0100a3]/95 rounded-xl p-6 sm:p-8 lg:p-12 shadow-xl">
+                <div className="flex flex-col lg:flex-row items-center justify-between">
+                  <div className="mb-6 lg:mb-0 lg:max-w-2xl text-center lg:text-left">
+                    <h2 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-bold text-white mb-4">
+                      Meet SkillBot: Your AI-Powered Freelancer Finder
+                    </h2>
+                    <p className="text-white/90 mb-6 text-sm sm:text-base lg:text-lg leading-relaxed">
+                      Sistem rekomendasi AI kami membantu mencocokkan freelancer terbaik untuk proyek spesifik Anda. Biarkan SkillBot menemukan talenta yang tepat.
+                    </p>
+                    <Link
+                      to="/messages?chatId=skillbot"
+                      className="inline-flex items-center px-6 sm:px-8 py-3 sm:py-4 bg-white rounded-lg text-[#010042] font-semibold transition-all hover:bg-opacity-90 hover:shadow-lg hover:transform hover:scale-105 text-sm sm:text-base lg:text-lg">
+                      Coba SkillBot
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 ml-2 sm:ml-3" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </Link>
+                  </div>
+                  <div className="hidden lg:block lg:ml-8 flex-shrink-0">
+                    <img
                     src="https://res.cloudinary.com/dk45bajkj/image/upload/v1749731668/robot_fmhoet.png"
-                    alt="AI Matching"
-                    className="rounded-lg shadow-lg h-40 xl:h-48 w-auto object-contain"
-                  />
+                      alt="AI Matching"
+                      className="rounded-lg shadow-lg h-40 xl:h-48 w-auto object-contain"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
       )}
 
       {/* Popular Categories Section - Compact */}
@@ -414,10 +414,10 @@ export default function Home() {
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-3 sm:gap-4">
             {[
-              { icon: "M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4", name: "Programming & Tech", displayName: "Programming & Tech" },
+              { icon: "M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4", name: "Programming & Tech", displayName: "Programming" },
               { icon: "M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z", name: "Design & Creative", displayName: "Design & Creative" },
               { icon: "M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z", name: "Digital Marketing", displayName: "Digital Marketing" },
-              { icon: "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z", name: "Writing & Translation", displayName: "Writing & Translation" },
+              { icon: "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z", name: "Writing & Translation", displayName: "Writing" },
               { icon: "M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z", name: "Video & Animation", displayName: "Video & Animation" },
               { icon: "M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3", name: "Music & Audio", displayName: "Music & Audio" },
               { icon: "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10", name: "Business", displayName: "Business" }

@@ -68,8 +68,8 @@ class OrderService {
         status: 'payment',
         paymentStatus: 'pending',
         
-        // Payment timeout - 60 minutes from creation
-        paymentExpiredAt: new Date(Date.now() + 60 * 60 * 1000),
+        // Payment timeout - 1 minute from creation (FOR TESTING)
+        paymentExpiredAt: new Date(Date.now() + 1 * 60 * 1000),
         
         // Timeline tracking
         timeline: {

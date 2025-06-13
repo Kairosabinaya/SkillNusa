@@ -51,8 +51,8 @@ class PaymentService {
       const totalAmount = orderData.totalAmount || 0;
       // Don't add platform fee again as it's already included in totalAmount
 
-      // Set payment expiry (60 minutes from now)
-      const expiredTime = Math.floor(Date.now() / 1000) + (60 * 60); // 1 hour
+      // Set payment expiry (1 minute from now - FOR TESTING)
+              const expiredTime = Math.floor(Date.now() / 1000) + (1 * 60); // 1 minute for testing
 
       // Prepare customer data
       const customerData = {
@@ -298,7 +298,7 @@ class PaymentService {
   }
 
   /**
-   * Handle payment timeout (60 minutes)
+   * Handle payment timeout (1 minute - TESTING)
    * @param {string} orderId - Order ID
    */
   async handlePaymentTimeout(orderId) {
@@ -307,7 +307,7 @@ class PaymentService {
       await updateDoc(orderRef, {
         status: 'cancelled',
         paymentStatus: 'expired',
-        cancellationReason: 'Payment timeout (60 minutes)',
+        cancellationReason: 'Payment timeout (1 minute - TESTING)',
         cancelledAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
@@ -318,7 +318,7 @@ class PaymentService {
   }
 
   /**
-   * Handle freelancer confirmation timeout (3 hours)
+   * Handle freelancer confirmation timeout (1 minute - TESTING)
    * @param {string} orderId - Order ID
    */
   async handleConfirmationTimeout(orderId) {
@@ -326,7 +326,7 @@ class PaymentService {
       const orderRef = doc(db, 'orders', orderId);
       await updateDoc(orderRef, {
         status: 'cancelled',
-        cancellationReason: 'Freelancer confirmation timeout (3 hours)',
+        cancellationReason: 'Freelancer confirmation timeout (1 minute - TESTING)',
         cancelledAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         refundStatus: 'pending' // Mark for refund

@@ -22,7 +22,7 @@ export default function About() {
   return (
     <div>
       {/* Hero Section with Enhanced Animations */}
-      <div className="relative bg-gradient-to-br from-gray-50 to-[#010042]/5 pt-16 sm:pt-20 lg:pt-24 pb-8 sm:pb-12 overflow-hidden">
+      <div className="relative bg-gradient-to-br from-gray-50 to-[#010042]/5 py-8 sm:py-12 overflow-hidden">
         <div className="absolute inset-0 opacity-30">
           <div className="w-full h-full" style={{
             backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23010042' fill-opacity='0.1'%3E%3Ccircle cx='10' cy='10' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
@@ -33,10 +33,14 @@ export default function About() {
             {/* Left Image Section with Enhanced Effects */}
             <div className="relative w-full h-auto rounded-2xl lg:rounded-3xl shadow-xl lg:shadow-2xl overflow-hidden group transform transition-all duration-700 hover:scale-105 hover:shadow-3xl order-2 lg:order-1">
               <div className="absolute inset-0 bg-gradient-to-tr from-[#010042]/20 to-[#010042]/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10"></div>
-              <img
-                src="https://res.cloudinary.com/dk45bajkj/image/upload/v1749731670/team_sfdqmx.jpg"
+              <video
+                src="https://res.cloudinary.com/dk45bajkj/video/upload/v1749840053/thumbnail_video_thtrm4.mp4"
                 alt="Team member working"
                 className="w-full aspect-[16/10] object-cover object-[50%_28%] transition-transform duration-700 group-hover:scale-110"
+                autoPlay
+                loop
+                muted
+                playsInline
               />
               <div className="absolute -bottom-2 lg:-bottom-4 -right-2 lg:-right-4 w-16 h-16 lg:w-24 lg:h-24 bg-gradient-to-br from-[#010042] to-[#010042]/80 rounded-full opacity-20 group-hover:opacity-40 transition-opacity duration-500"></div>
             </div>

@@ -145,6 +145,21 @@ export default function OrderCard({ order, index, onStatusUpdate, userType = 'fr
             <CalendarIcon className="h-4 w-4 mr-2" />
             <span>{formatDate(order.createdAt)}</span>
           </div>
+          
+          {/* Show confirmation deadline for pending orders */}
+          {order.status === 'pending' && order.confirmationDeadline && (
+            <div className="flex items-center text-sm">
+              <ClockIcon className="h-4 w-4 mr-2 text-red-500" />
+              <div className="flex flex-col">
+                <span className="text-red-600 font-medium">
+                  Konfirmasi: {formatDate(order.confirmationDeadline)}
+                </span>
+                <span className="text-xs text-red-600 font-medium">
+                  Sisa: {calculateTimeRemaining(order.confirmationDeadline)}
+                </span>
+              </div>
+            </div>
+          )}
           {(order.deadline || order.status === 'completed') && (
             <div className="flex items-center text-sm">
               <ClockIcon className="h-4 w-4 mr-2 text-gray-400" />

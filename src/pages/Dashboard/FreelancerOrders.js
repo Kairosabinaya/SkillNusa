@@ -30,6 +30,7 @@ import ErrorPopup from '../../components/common/ErrorPopup';
 import SuccessPopup from '../../components/common/SuccessPopup';
 import PageContainer from '../../components/common/PageContainer';
 import Pagination from '../../components/common/Pagination';
+import CountdownTimer from '../../components/common/CountdownTimer';
 import subscriptionRegistry from '../../utils/subscriptionRegistry';
 import orderService from '../../services/orderService';
 
@@ -366,6 +367,32 @@ export default function FreelancerOrders() {
                   <span className="text-gray-600">Tanggal Pemesanan:</span>
                   <span>{formatDate(selectedOrder.createdAt)}</span>
                 </div>
+                
+                {/* Show confirmation deadline countdown for pending orders */}
+                {selectedOrder.status === 'pending' && selectedOrder.confirmationDeadline && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Batas Konfirmasi:</span>
+                      <span className="font-medium text-red-600">
+                        {formatDate(selectedOrder.confirmationDeadline)}
+                      </span>
+                    </div>
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                      <CountdownTimer
+                        targetDate={selectedOrder.confirmationDeadline.seconds 
+                          ? new Date(selectedOrder.confirmationDeadline.seconds * 1000) 
+                          : new Date(selectedOrder.confirmationDeadline)
+                        }
+                        label="Waktu konfirmasi tersisa"
+                        type="danger"
+                        className="text-sm"
+                        onExpire={() => {
+                          console.log('⏰ [FreelancerOrders] Confirmation deadline expired for order:', selectedOrder.id);
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
                 {/* Only show deadline/completion date for non-cancelled orders */}
                 {selectedOrder.status !== 'cancelled' && (
                   <div className="flex justify-between">
@@ -669,9 +696,20 @@ export default function FreelancerOrders() {
               <div className="space-y-2">
                 {selectedOrder.status === 'pending' && (
                   <>
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-3">
+                      <div className="flex items-center gap-2 text-orange-800 mb-1">
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-sm font-medium">Konfirmasi Diperlukan</span>
+                      </div>
+                      <p className="text-xs text-orange-700">
+                        Pesanan telah dibayar. Konfirmasi sebelum waktu habis!
+                      </p>
+                    </div>
                     <button 
                       onClick={() => updateOrderStatus(selectedOrder.id, 'active')}
-                      className="w-full flex items-center gap-2 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700"
+                      className="w-full flex items-center gap-2 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 mb-2"
                     >
                       <CheckCircleIcon className="h-5 w-5" />
                       Terima Pesanan
