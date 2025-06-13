@@ -16,7 +16,7 @@ import { db } from '../firebase/config.js';
 import { COLLECTIONS } from '../utils/constants.js';
 
 // Default profile photo path
-const DEFAULT_PROFILE_PHOTO = '/images/default-profile.jpg';
+const DEFAULT_PROFILE_PHOTO = 'https://res.cloudinary.com/dk45bajkj/image/upload/v1749729472/default-profile_qf0gtg.jpg';
 
 /**
  * Update users with NULL profilePhoto to use default image

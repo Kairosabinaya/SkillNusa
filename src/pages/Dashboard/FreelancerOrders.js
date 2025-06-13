@@ -29,6 +29,7 @@ import {
 import ErrorPopup from '../../components/common/ErrorPopup';
 import SuccessPopup from '../../components/common/SuccessPopup';
 import PageContainer from '../../components/common/PageContainer';
+import Pagination from '../../components/common/Pagination';
 import subscriptionRegistry from '../../utils/subscriptionRegistry';
 import orderService from '../../services/orderService';
 
@@ -38,12 +39,17 @@ export default function FreelancerOrders() {
   const { currentUser } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [activeTab, setActiveTab] = useState('all');
   const [deliveryMessage, setDeliveryMessage] = useState('');
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [isRejecting, setIsRejecting] = useState(false);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const ordersPerPage = 6;
 
   // Use custom hook for order management with timeout handling
   const {
@@ -76,7 +82,34 @@ export default function FreelancerOrders() {
   }, [loading, setError]);
 
   // Filter orders based on search and status
-  const filteredOrders = filterOrders(searchQuery, filterStatus);
+  const filteredOrders = filterOrders(searchQuery, activeTab === 'all' ? 'all' : activeTab);
+
+  // Calculate status counts for tabs
+  const statusCounts = {
+    all: orders.length,
+    pending: orders.filter(order => order.status === 'pending').length,
+    active: orders.filter(order => order.status === 'active' || order.status === 'in_progress').length,
+    delivered: orders.filter(order => order.status === 'delivered').length,
+    in_revision: orders.filter(order => order.status === 'in_revision').length,
+    completed: orders.filter(order => order.status === 'completed').length,
+    cancelled: orders.filter(order => order.status === 'cancelled').length
+  };
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredOrders.length / ordersPerPage);
+  const startIndex = (currentPage - 1) * ordersPerPage;
+  const endIndex = startIndex + ordersPerPage;
+  const currentOrders = filteredOrders.slice(startIndex, endIndex);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Reset to page 1 when filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, activeTab]);
 
   // Handle delivery with our custom hook
   const handleDeliverOrder = async () => {
@@ -588,7 +621,7 @@ export default function FreelancerOrders() {
               </div>
               
               <Link 
-                to={`/dashboard/freelancer/messages/${selectedOrder.conversationId || selectedOrder.id}`}
+                to={`/messages/${selectedOrder.conversationId || selectedOrder.id}`}
                 className="w-full flex items-center justify-center gap-2 bg-[#010042] text-white py-2 px-4 rounded-lg hover:bg-blue-700"
                 onClick={async (e) => {
                   // Prevent default navigation
@@ -606,15 +639,15 @@ export default function FreelancerOrders() {
                       );
                       
                       // Navigate to the chat
-                      window.location.href = `/dashboard/freelancer/messages?chatId=${chat.id}`;
+                      window.location.href = `/messages?chatId=${chat.id}`;
                     } catch (error) {
                       console.error('Error creating chat:', error);
                       // Fallback to basic messages page
-                      window.location.href = `/dashboard/freelancer/messages`;
+                      window.location.href = `/messages`;
                     }
                   } else {
                     // Fallback if no clientId
-                    window.location.href = `/dashboard/freelancer/messages`;
+                    window.location.href = `/messages`;
                   }
                 }}
               >
@@ -829,6 +862,52 @@ export default function FreelancerOrders() {
       {/* Stats Cards */}
       <OrderStats stats={stats} />
 
+      {/* Tab Menu */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15 }}
+        className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6"
+      >
+        <div className="border-b border-gray-200">
+          <nav className="flex overflow-x-auto">
+            {[
+              { id: 'all', label: 'Semua', count: statusCounts.all },
+              { id: 'pending', label: 'Menunggu Konfirmasi', count: statusCounts.pending },
+              { id: 'active', label: 'Sedang Dikerjakan', count: statusCounts.active },
+              { id: 'delivered', label: 'Menunggu Review', count: statusCounts.delivered },
+              { id: 'in_revision', label: 'Dalam Revisi', count: statusCounts.in_revision },
+              { id: 'completed', label: 'Selesai', count: statusCounts.completed },
+              { id: 'cancelled', label: 'Dibatalkan', count: statusCounts.cancelled }
+            ]
+              .filter((tab) => {
+                // Always show 'all' tab, show others only if they have count > 0
+                return tab.id === 'all' || tab.count > 0;
+              })
+              .map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex-shrink-0 px-6 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                    activeTab === tab.id
+                      ? 'border-[#010042] text-[#010042]'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  {tab.label}
+                  {tab.count > 0 && (
+                    <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+                      activeTab === tab.id ? 'bg-[#010042] text-white' : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {tab.count}
+                    </span>
+                  )}
+                </button>
+              ))}
+          </nav>
+        </div>
+      </motion.div>
+
       {/* Search and Filter */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
@@ -836,49 +915,22 @@ export default function FreelancerOrders() {
         transition={{ delay: 0.2 }}
         className="mb-6 bg-white p-4 rounded-lg shadow"
       >
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1 relative">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Cari pesanan..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042]"
-            />
-          </div>
-          <div className="flex gap-2">
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="pl-4 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042] bg-white appearance-none"
-              style={{
-                backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
-                backgroundPosition: 'right 0.5rem center',
-                backgroundRepeat: 'no-repeat',
-                backgroundSize: '1.5em 1.5em'
-              }}
-            >
-              <option value="all">Semua Status</option>
-              <option value="pending">Menunggu</option>
-              <option value="active">Aktif</option>
-              <option value="in_revision">Revisi</option>
-              <option value="delivered">Terkirim</option>
-              <option value="completed">Selesai</option>
-              <option value="cancelled">Dibatalkan</option>
-            </select>
-            <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
-              <FunnelIcon className="h-5 w-5 text-gray-600" />
-              Filter
-            </button>
-          </div>
+        <div className="relative max-w-md">
+          <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Cari pesanan..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042]"
+          />
         </div>
       </motion.div>
 
       {/* Orders List */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredOrders.length > 0 ? (
-          filteredOrders.map((order, index) => (
+          currentOrders.map((order, index) => (
             <OrderCard
               key={order.id}
               order={order}
@@ -891,14 +943,46 @@ export default function FreelancerOrders() {
           <div className="col-span-full bg-white rounded-lg shadow p-12 text-center">
             <DocumentTextIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Belum ada pesanan
+              {activeTab === 'all' ? 'Belum ada pesanan' : `Tidak ada pesanan ${
+                activeTab === 'pending' ? 'yang menunggu konfirmasi' :
+                activeTab === 'active' ? 'yang sedang dikerjakan' :
+                activeTab === 'delivered' ? 'yang menunggu review' :
+                activeTab === 'in_revision' ? 'dalam revisi' :
+                activeTab === 'completed' ? 'yang selesai' :
+                activeTab === 'cancelled' ? 'yang dibatalkan' : ''
+              }`}
             </h3>
             <p className="text-gray-500">
-              Pesanan dari client akan muncul di sini
+              {activeTab === 'all' 
+                ? 'Pesanan dari client akan muncul di sini'
+                : `Pesanan dengan status "${
+                    activeTab === 'pending' ? 'menunggu konfirmasi' :
+                    activeTab === 'active' ? 'sedang dikerjakan' :
+                    activeTab === 'delivered' ? 'menunggu review' :
+                    activeTab === 'in_revision' ? 'dalam revisi' :
+                    activeTab === 'completed' ? 'selesai' :
+                    activeTab === 'cancelled' ? 'dibatalkan' : activeTab
+                  }" akan muncul di sini`
+              }
             </p>
           </div>
         )}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="mt-8">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            showInfo={true}
+            totalItems={filteredOrders.length}
+            itemsPerPage={ordersPerPage}
+            className="justify-center"
+          />
+        </div>
+      )}
     </div>
   );
 } 

@@ -93,7 +93,7 @@ class SkillBotService {
           },
           [SKILLBOT_ID]: {
             displayName: 'SkillBot AI',
-            profilePhoto: '/images/robot.png',
+            profilePhoto: 'https://res.cloudinary.com/dk45bajkj/image/upload/v1749731668/robot_fmhoet.png',
             role: 'bot'
           }
         },

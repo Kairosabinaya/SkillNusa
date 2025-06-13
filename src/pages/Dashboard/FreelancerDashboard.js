@@ -50,6 +50,7 @@ import { getUserProfile, updateUserProfile } from '../../services/userProfileSer
 import { getIndonesianCities } from '../../services/profileService';
 import ErrorPopup from '../../components/common/ErrorPopup';
 import SuccessPopup from '../../components/common/SuccessPopup';
+import Pagination from '../../components/common/Pagination';
 
 export default function FreelancerDashboard() {
   const { currentUser, userProfile } = useAuth();
@@ -75,6 +76,10 @@ export default function FreelancerDashboard() {
   const [showAllEducation, setShowAllEducation] = useState(false);
   const [showAllCertifications, setShowAllCertifications] = useState(false);
 
+  // Pagination for recent activities
+  const [activitiesCurrentPage, setActivitiesCurrentPage] = useState(1);
+  const activitiesPerPage = 5;
+
   // Profile editing states
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -86,6 +91,16 @@ export default function FreelancerDashboard() {
   const [loadingCities, setLoadingCities] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // Calculate pagination for activities
+  const totalActivitiesPages = Math.ceil(recentActivities.length / activitiesPerPage);
+  const startActivitiesIndex = (activitiesCurrentPage - 1) * activitiesPerPage;
+  const endActivitiesIndex = startActivitiesIndex + activitiesPerPage;
+  const currentActivities = recentActivities.slice(startActivitiesIndex, endActivitiesIndex);
+
+  const handleActivitiesPageChange = (page) => {
+    setActivitiesCurrentPage(page);
+  };
 
   // Fetch cities for location dropdown
   useEffect(() => {
@@ -664,10 +679,19 @@ export default function FreelancerDashboard() {
         animate={{ opacity: 1, y: 0 }}
         className="mb-8"
       >
-        <div className="flex items-center space-x-3 mb-2">
-          <h1 className="text-3xl font-bold text-gray-900">
-            Dashboard Freelancer
-          </h1>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center space-x-3">
+            <h1 className="text-3xl font-bold text-gray-900">
+              Dashboard Freelancer
+            </h1>
+          </div>
+          <Link 
+            to="/dashboard/freelancer/gigs/create"
+            className="flex items-center gap-2 px-4 py-2 bg-[#010042] text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <PlusIcon className="h-5 w-5" />
+            <span>Buat Gig Baru</span>
+          </Link>
         </div>
         <p className="text-gray-600">
           Selamat datang, <span className="font-semibold text-green-600">{userProfile?.displayName || 'Freelancer'}</span>! 
@@ -1306,8 +1330,8 @@ export default function FreelancerDashboard() {
           <h2 className="text-lg font-semibold text-gray-900">Aktivitas Terbaru</h2>
         </div>
         <div className="divide-y divide-gray-200">
-          {recentActivities.length > 0 ? (
-            recentActivities.map((activity) => (
+          {currentActivities.length > 0 ? (
+            currentActivities.map((activity) => (
               <div key={activity.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
                 <div className="flex items-start">
                   <div className="flex-shrink-0">
@@ -1328,6 +1352,16 @@ export default function FreelancerDashboard() {
             </div>
           )}
         </div>
+        {totalActivitiesPages > 1 && (
+          <div className="px-6 py-4 border-t border-gray-200">
+            <Pagination 
+              currentPage={activitiesCurrentPage}
+              totalPages={totalActivitiesPages}
+              onPageChange={handleActivitiesPageChange}
+              className="justify-center"
+            />
+          </div>
+        )}
       </motion.div>
 
       {/* Quick Actions */}

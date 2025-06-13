@@ -8,12 +8,12 @@
       "type": "image/x-icon"
     },
     {
-      "src": "logo192.png",
+      "src": "https://res.cloudinary.com/dk45bajkj/image/upload/v1749731674/logo192_bkix7t.png",
       "type": "image/png",
       "sizes": "192x192"
     },
     {
-      "src": "logo512.png",
+      "src": "https://res.cloudinary.com/dk45bajkj/image/upload/v1749731677/logo512_uztscu.png",
       "type": "image/png",
       "sizes": "512x512"
     }

@@ -8,7 +8,7 @@ import { db } from '../firebase/config';
 import { COLLECTIONS } from './constants';
 
 // Default profile photo path
-export const DEFAULT_PROFILE_PHOTO = '/images/default-profile.jpg';
+export const DEFAULT_PROFILE_PHOTO = 'https://res.cloudinary.com/dk45bajkj/image/upload/v1749729472/default-profile_qf0gtg.jpg';
 
 /**
  * Check if profile photo URL is valid (not null, empty, or 'null' string)

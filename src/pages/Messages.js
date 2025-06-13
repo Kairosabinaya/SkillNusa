@@ -315,7 +315,7 @@ export default function Messages() {
           isSkillBot: true,
           otherParticipant: {
             displayName: 'SkillBot AI',
-            profilePhoto: '/images/robot.png'
+            profilePhoto: 'https://res.cloudinary.com/dk45bajkj/image/upload/v1749731668/robot_fmhoet.png'
           }
         };
         setSelectedChat(virtualSkillBotChat);
@@ -735,7 +735,7 @@ export default function Messages() {
                         </div>
                       ) : (
                         <img
-                          src={chat.otherParticipant?.profilePhoto || '/images/default-profile.jpg'}
+                          src={chat.otherParticipant?.profilePhoto || 'https://res.cloudinary.com/dk45bajkj/image/upload/v1749729472/default-profile_qf0gtg.jpg'}
                           alt={chat.otherParticipant?.displayName}
                           className="w-10 h-10 rounded-full object-cover"
                         />
@@ -795,7 +795,7 @@ export default function Messages() {
                           </div>
                         ) : (
                           <img
-                            src={selectedChat.otherParticipant?.profilePhoto || '/images/default-profile.jpg'}
+                            src={selectedChat.otherParticipant?.profilePhoto || 'https://res.cloudinary.com/dk45bajkj/image/upload/v1749729472/default-profile_qf0gtg.jpg'}
                             alt={selectedChat.otherParticipant?.displayName}
                             className="w-10 h-10 rounded-full object-cover"
                           />

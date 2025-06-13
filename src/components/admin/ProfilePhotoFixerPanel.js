@@ -153,7 +153,7 @@ const ProfilePhotoFixerPanel = () => {
                 </span>
               </div>
               <p className="text-sm text-orange-700 mb-4">
-                These users currently have null/empty profile photos and will be updated to use the default profile image: <code>/images/default-profile.jpg</code>
+                These users currently have null/empty profile photos and will be updated to use the default profile image: <code>https://res.cloudinary.com/dk45bajkj/image/upload/v1749729472/default-profile_qf0gtg.jpg</code>
               </p>
               
               {!isFixing ? (

@@ -285,7 +285,7 @@ export default function FreelancerChat() {
             filteredConversations.map((conversation) => (
               <Link
                 key={conversation.id}
-                to={`/dashboard/freelancer/chat/${conversation.id}`}
+                to={`/messages/${conversation.id}`}
                 className={`block px-4 py-3 hover:bg-gray-50 transition-colors ${
                   conversation.id === chatId ? 'bg-blue-50' : ''
                 }`}
@@ -351,7 +351,7 @@ export default function FreelancerChat() {
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <Link 
-                  to="/dashboard/freelancer/chat"
+                  to="/messages"
                   className="md:hidden mr-4"
                 >
                   <XMarkIcon className="h-6 w-6 text-gray-600" />

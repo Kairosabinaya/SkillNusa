@@ -18,7 +18,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-const DEFAULT_PROFILE_PHOTO = '/images/default-profile.jpg';
+const DEFAULT_PROFILE_PHOTO = 'https://res.cloudinary.com/dk45bajkj/image/upload/v1749729472/default-profile_qf0gtg.jpg';
 
 /**
  * Check if profile photo URL is valid

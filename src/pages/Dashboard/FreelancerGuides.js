@@ -8,6 +8,7 @@ import {
   FunnelIcon,
   XMarkIcon
 } from '@heroicons/react/24/outline';
+import Pagination from '../../components/common/Pagination';
 import { 
   BookmarkIcon as BookmarkSolid,
   HeartIcon as HeartSolid 
@@ -37,14 +38,29 @@ export default function FreelancerGuides() {
   const [bookmarkedVideos, setBookmarkedVideos] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const videosPerPage = 6;
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredVideos.length / videosPerPage);
+  const startIndex = (currentPage - 1) * videosPerPage;
+  const endIndex = startIndex + videosPerPage;
+  const currentVideos = filteredVideos.slice(startIndex, endIndex);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   // Sample video data - in production, this would come from Firestore
   const sampleVideos = [
     {
       id: '1',
       title: 'Cara Membuat Gigs di Fiverr bagi Pemula 2025',
       description: 'Cara membuat Gigs secara cepat dan mudah.',
-      thumbnail: 'https://img.youtube.com/vi/4NMJW_YRog8/0.jpg',
-      videoUrl: 'https://youtu.be/4NMJW_YRog8',
+      thumbnail: 'https://img.youtube.com/vi/4NMJW_YRog8/maxresdefault.jpg',
+      videoUrl: 'https://www.youtube.com/embed/4NMJW_YRog8',
       duration: '13:35',
       category: 'Membuat Gig',
       views: 1234,
@@ -110,6 +126,54 @@ export default function FreelancerGuides() {
       views: 2890,
       likes: 198,
       publishedAt: new Date('2023-10-01')
+    },
+    {
+      id: '7',
+      title: 'Gimana sih Jadi Freelancer? Dari Pemula Jadi FREELANCER Sukses di 2021!',
+      description: 'Video ini membahas tentang bagaimana menjadi seorang freelancer yang sukses, mulai dari pemula hingga menjadi profesional di tahun 2021.',
+      thumbnail: 'https://img.youtube.com/vi/BoXWT9Rv8ZA/maxresdefault.jpg',
+      videoUrl: 'https://www.youtube.com/embed/BoXWT9Rv8ZA',
+      duration: '23:11',
+      category: 'Tips Sukses',
+      views: 171415,
+      likes: 6771,
+      publishedAt: new Date('2021-02-19')
+    },
+    {
+      id: '8',
+      title: "Cara Merespon Client Yang Pesan Desain & Minta Revisi Terus",
+      description: "Video ini memberikan tips tentang cara merespons klien yang memesan desain dan terus-menerus meminta revisi.",
+      thumbnail: "https://img.youtube.com/vi/5P_L-7rnaFc/maxresdefault.jpg",
+      videoUrl: "https://www.youtube.com/embed/5P_L-7rnaFc",
+      duration: "12:13",
+      category: "Komunikasi Client",
+      views: 56764,
+      likes: 2649,
+      publishedAt: "2019-03-22"
+    },
+    {
+      id: '9',
+      title: "CARA SAYA MENENTUKAN HARGA JASA FREELANCE | WEB DESIGN, WEB DEVELOPMENT, WORDPRESS DEVELOPMENT",
+      description: "Video ini membahas cara menentukan harga jasa freelance untuk desain web, pengembangan web, dan pengembangan WordPress.",
+      thumbnail: "https://img.youtube.com/vi/G1AZX_2cMNg/maxresdefault.jpg",
+      videoUrl: "https://www.youtube.com/embed/G1AZX_2cMNg",
+      duration: "5:51",
+      category: "Pricing Strategy",
+      views: 3679,
+      likes: 101,
+      publishedAt: "2020-08-07"
+    },
+    {
+      id: '10',
+      title: "Buat portofolio dari NOL, tanpa pengalaman kerja!",
+      description: "Video ini menjelaskan cara membuat portofolio dari awal, bahkan tanpa pengalaman kerja sebelumnya.",
+      thumbnail: "https://img.youtube.com/vi/Vg_De3SGOL4/maxresdefault.jpg",
+      videoUrl: "https://www.youtube.com/embed/Vg_De3SGOL4",
+      duration: "8:04",
+      category: "Portfolio",
+      views: 48304,
+      likes: 1408,
+      publishedAt: "2023-11-02"
     }
   ];
 
@@ -127,6 +191,11 @@ export default function FreelancerGuides() {
   useEffect(() => {
     filterVideos();
   }, [selectedCategory, searchQuery, videos]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategory, searchQuery]);
 
   const loadUserPreferences = async () => {
     if (!currentUser) return;
@@ -366,10 +435,6 @@ export default function FreelancerGuides() {
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#010042]"
             />
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
-            <FunnelIcon className="h-5 w-5 text-gray-600" />
-            <span>Filter</span>
-          </button>
         </div>
 
         {/* Category Tabs */}
@@ -392,7 +457,7 @@ export default function FreelancerGuides() {
 
       {/* Video Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredVideos.map((video, index) => (
+        {currentVideos.map((video, index) => (
           <motion.div
             key={video.id}
             initial={{ opacity: 0, y: 20 }}
@@ -471,6 +536,21 @@ export default function FreelancerGuides() {
           </motion.div>
         ))}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="mt-8">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            showInfo={true}
+            totalItems={filteredVideos.length}
+            itemsPerPage={videosPerPage}
+            className="justify-center"
+          />
+        </div>
+      )}
 
       {/* Video Modal */}
       {selectedVideo && (

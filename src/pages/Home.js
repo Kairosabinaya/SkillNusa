@@ -5,7 +5,6 @@ import { useState, useRef, useEffect } from 'react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { COLLECTIONS } from '../utils/constants';
-import MeshGradientBackground from '../components/UI/MeshGradientBackground';
 import GigCard from '../components/common/GigCard';
 import gigService from '../services/gigService';
 import FreelancerCTA from '../components/UI/FreelancerCTA';
@@ -214,120 +213,187 @@ export default function Home() {
 
   return (
     <div className="font-sans">
+      {/* Error and Success Popups */}
+      {error && <ErrorPopup message={error} onClose={() => setError('')} />}
+      {success && <SuccessPopup message={success} onClose={() => setSuccess('')} />}
+
       {/* Main content for logged in or non-logged in users */}
-      {currentUser ? (
-        // Logged in view (client or freelancer)
-        <>
-          {/* SkillBot AI Banner Section - untuk semua user yang sudah login */}
-          <div className="bg-gray-50 py-8 sm:py-12">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6">
-              <div className="bg-gradient-to-r from-[#010042]/95 to-[#0100a3]/95 rounded-xl p-6 sm:p-8 lg:p-12 shadow-xl">
-                <div className="flex flex-col lg:flex-row items-center justify-between">
-                  <div className="mb-6 lg:mb-0 lg:max-w-2xl text-center lg:text-left">
-                    <h2 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-bold text-white mb-4">
-                      Meet SkillBot: Your AI-Powered Freelancer Finder
-                    </h2>
-                    <p className="text-white/90 mb-6 text-sm sm:text-base lg:text-lg leading-relaxed">
-                      Sistem rekomendasi AI kami membantu mencocokkan freelancer terbaik untuk proyek spesifik Anda. Biarkan SkillBot menemukan talenta yang tepat.
-                    </p>
-                    <Link
-                      to="/messages?chatId=skillbot"
-                      className="inline-flex items-center px-6 sm:px-8 py-3 sm:py-4 bg-white rounded-lg text-[#010042] font-semibold transition-all hover:bg-opacity-90 hover:shadow-lg hover:transform hover:scale-105 text-sm sm:text-base lg:text-lg">
-                      Coba SkillBot
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 ml-2 sm:ml-3" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                    </Link>
+      {/* Hero Section with Video Background - Always shown */}
+      <div className="relative h-[90vh] flex items-center overflow-hidden">
+        {/* Video Background */}
+        <div className="absolute inset-0 w-full h-full">
+          {/* Video for desktop and tablet */}
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="auto"
+            className="absolute inset-0 w-full h-full object-cover hidden sm:block"
+            poster="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1920 1080'%3E%3Crect width='1920' height='1080' fill='%23010042'/%3E%3C/svg%3E"
+            onLoadStart={() => console.log('Video loading started')}
+            onCanPlay={() => console.log('Video can play')}
+            onError={(e) => console.error('Video error:', e)}
+          >
+            <source src="https://res.cloudinary.com/dk45bajkj/video/upload/v1749840053/thumbnail_video_thtrm4.mp4" type="video/mp4" />
+            Your browser does not support the video tag.
+          </video>
+          
+          {/* Fallback gradient background for mobile */}
+          <div className="absolute inset-0 w-full h-full sm:hidden bg-gradient-to-br from-[#010042] via-[#0100a3] to-[#010042]"></div>
+          
+          {/* Dark overlay to ensure text readability - Fiverr style gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/70"></div>
+        </div>
+
+        {/* Floating animation elements */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-white/30 rounded-full animate-pulse"></div>
+          <div className="absolute top-1/3 right-1/3 w-1 h-1 bg-white/40 rounded-full animate-ping"></div>
+          <div className="absolute bottom-1/4 left-1/3 w-1.5 h-1.5 bg-white/20 rounded-full animate-bounce"></div>
+          <div className="absolute top-1/2 right-1/4 w-1 h-1 bg-white/30 rounded-full animate-pulse"></div>
+        </div>
+
+        <div className="relative z-10 w-full">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 lg:py-12">
+            <div className="text-left space-y-3 sm:space-y-4">
+              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white drop-shadow-lg">
+                SkillNusa
+              </h1>
+              <div className="text-lg sm:text-xl lg:text-2xl text-white leading-relaxed mb-4 w-full">
+                <div className="min-h-[70px] sm:min-h-[80px] lg:min-h-[90px] flex items-center">
+                  <TypeAnimation
+                    sequence={[
+                      'Hubungkan dengan freelancer terbaik Indonesia',
+                      2500,
+                      'Wujudkan proyek impian dengan talenta lokal',
+                      2500,
+                      'Kembangkan bisnis bersama ahli teknologi',
+                      2500,
+                      'Solusi kreatif dari para profesional muda',
+                      2500,
+                    ]}
+                    wrapper="p"
+                    speed={60}
+                    deletionSpeed={50}
+                    style={{ 
+                      display: 'block',
+                      width: '100%',
+                      textShadow: '2px 2px 8px rgba(0,0,0,0.8)',
+                      fontWeight: '600',
+                      lineHeight: '1.3'
+                    }}
+                    repeat={Infinity}
+                  />
+                </div>
+              </div>
+              
+              {/* Search section - only show for non-logged in users */}
+              {!currentUser && (
+                <div className="w-full max-w-3xl">
+                  <form 
+                    className="w-full mb-4"
+                    onSubmit={handleSearchSubmit}
+                  >
+                    <div className="relative group">
+                      <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-300"></div>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="Apa yang ingin Anda kerjakan hari ini?"
+                          className="w-full px-8 py-4 rounded-2xl border-none text-base bg-white/95 backdrop-blur-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/50 shadow-2xl transition-all duration-300 focus:bg-white"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                        <button 
+                          type="submit" 
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 bg-gradient-to-r from-[#010042] to-[#0100a3] text-white px-5 py-2.5 rounded-xl hover:shadow-lg transition-all duration-300 hover:scale-105 font-medium text-sm"
+                        >
+                          Cari
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                  
+                  {/* Enhanced service categories without emoticons */}
+                  <div className="space-y-2">
+                    <p className="text-white/90 text-sm font-medium">Layanan Populer:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        'Website Development', 
+                        'iOS Development',
+                        'UI/UX Design',
+                        'Android Development',
+                      ].map((service, index) => (
+                        <button
+                          key={index}
+                          onClick={() => navigate(`/browse?search=${encodeURIComponent(service)}`)}
+                          className="px-3 py-1.5 bg-white/15 backdrop-blur-sm text-white text-sm rounded-full hover:bg-white/25 transition-all duration-300 hover:scale-105 hover:shadow-lg border border-white/20 font-medium"
+                        >
+                          {service}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div className="hidden lg:block lg:ml-8 flex-shrink-0">
-                    <img
-                      src="/images/robot.png"
-                      alt="AI Matching"
-                      className="rounded-lg shadow-lg h-40 xl:h-48 w-auto object-contain"
-                    />
-                  </div>
+                </div>
+              )}
+              
+              {/* Stats showcase - SkillNusa Innovation */}
+              <div className="w-full max-w-3xl mt-6 lg:mt-8">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+                  {[
+                    { title: 'Terpercaya', description: 'Keamanan Terjamin' },
+                    { title: 'Proses Cepat', description: 'Respons dalam 24 jam' },
+                    { title: 'Kualitas Terbaik', description: 'Freelancer terverifikasi' },
+                    { title: 'AI-Powered', description: 'Matching otomatis' }
+                  ].map((feature, index) => (
+                    <div key={index} className="text-left group">
+                      <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 lg:p-4 border border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 hover:shadow-xl">
+                        <div className="text-base lg:text-lg font-bold text-white mb-1">{feature.title}</div>
+                        <div className="text-white/70 text-xs lg:text-sm">{feature.description}</div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
           </div>
-        </>
-      ) : (
-        // Non-logged in view
-        <>
-          {/* Hero Section */}
-          <div className="relative min-h-[80vh] sm:min-h-[85vh] flex items-center">
-            <MeshGradientBackground />
+        </div>
+      </div>
 
-            <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-16 lg:py-20">
-              <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-                <div className="text-center lg:text-left lg:flex lg:flex-col lg:justify-center space-y-6 sm:space-y-8">
-                  <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-8xl font-bold text-white lg:max-w-xl">
-                    SkillNusa
-                  </h1>
-                  <div className="text-lg sm:text-xl lg:text-2xl xl:text-3xl text-gray-200 leading-relaxed mb-1 lg:max-w-xl h-24 sm:h-28 lg:h-32">
-                    <TypeAnimation
-                      sequence={[
-                        'SkillNusa adalah sebuah marketplace yang menghubungkan freelancer berbakat Indonesia dengan klien yang mencari layanan berkualitas.',
-                        1500,
-                        '',
-                        'Temukan pasangan yang tepat untuk kebutuhan proyek Anda dari kumpulan profesional tepercaya kami.',
-                        1500,
-                        '',
-                        'Selesaikan pekerjaan secara efisien, tepat waktu, dan sesuai dengan anggaran Anda.',
-                        1500,
-                        '',
-                      ]}
-                      wrapper="p"
-                      speed={15}
-                      deletionSpeed={80}
-                      style={{ display: 'inline-block', height: '100%' }}
-                      repeat={Infinity}
-                    />
-                  </div>
-                  <div className="w-full max-w-lg mx-auto lg:mx-0">
-                    <form 
-                      className="w-full"
-                      onSubmit={handleSearchSubmit}
-                    >
-                      <div className="relative">
-                        <input
-                          type="text"
-                          placeholder="Cari layanan, keahlian, atau proyek..."
-                          className={`w-full px-4 sm:px-6 py-3 sm:py-4 rounded-lg border text-sm sm:text-base transition-all duration-300 ${
-                            isSearchFocused 
-                              ? 'bg-white text-gray-900 border-[#010042] ring-2 ring-[#010042] focus:outline-none' 
-                              : 'bg-transparent text-white placeholder-white/80 border-white/50 focus:outline-none'
-                          }`}
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          onFocus={() => setIsSearchFocused(true)}
-                          onBlur={() => setIsSearchFocused(false)}
-                        />
-                        <button 
-                          type="submit" 
-                          className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${
-                            isSearchFocused ? 'text-[#010042]' : 'text-white'
-                          }`}
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                          </svg>
-                        </button>
-                      </div>
-                    </form>
-                  </div>
+      {/* SkillBot AI Banner Section - untuk semua user yang sudah login */}
+      {currentUser && (
+        <div className="bg-gray-50 py-8 sm:py-12">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6">
+            <div className="bg-gradient-to-r from-[#010042]/95 to-[#0100a3]/95 rounded-xl p-6 sm:p-8 lg:p-12 shadow-xl">
+              <div className="flex flex-col lg:flex-row items-center justify-between">
+                <div className="mb-6 lg:mb-0 lg:max-w-2xl text-center lg:text-left">
+                  <h2 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-bold text-white mb-4">
+                    Meet SkillBot: Your AI-Powered Freelancer Finder
+                  </h2>
+                  <p className="text-white/90 mb-6 text-sm sm:text-base lg:text-lg leading-relaxed">
+                    Sistem rekomendasi AI kami membantu mencocokkan freelancer terbaik untuk proyek spesifik Anda. Biarkan SkillBot menemukan talenta yang tepat.
+                  </p>
+                  <Link
+                    to="/messages?chatId=skillbot"
+                    className="inline-flex items-center px-6 sm:px-8 py-3 sm:py-4 bg-white rounded-lg text-[#010042] font-semibold transition-all hover:bg-opacity-90 hover:shadow-lg hover:transform hover:scale-105 text-sm sm:text-base lg:text-lg">
+                    Coba SkillBot
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 ml-2 sm:ml-3" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </Link>
                 </div>
-                <div className="hidden lg:block">
+                <div className="hidden lg:block lg:ml-8 flex-shrink-0">
                   <img
-                    src="/images/hero-typing.jpeg"
-                    alt="Person typing on laptop"
-                    className="rounded-2xl object-cover shadow-xl w-full h-[500px] xl:h-[600px]"
+                    src="https://res.cloudinary.com/dk45bajkj/image/upload/v1749731668/robot_fmhoet.png"
+                    alt="AI Matching"
+                    className="rounded-lg shadow-lg h-40 xl:h-48 w-auto object-contain"
                   />
                 </div>
               </div>
             </div>
           </div>
-        </>
+        </div>
       )}
 
       {/* Popular Categories Section - Compact */}
@@ -370,41 +436,6 @@ export default function Home() {
           </div>
         </div>
       </div>
-
-      {/* SkillBot AI Banner Section - only shown to non-logged-in users */}
-      {!currentUser && (
-        <div className="bg-gray-50 py-12">
-          <div className="max-w-7xl mx-auto px-3 sm:px-4">
-            <div className="bg-gradient-to-r from-[#010042]/95 to-[#0100a3]/95 rounded-xl p-8 md:p-12 shadow-xl">
-              <div className="flex flex-col md:flex-row items-center justify-between">
-                <div className="mb-6 md:mb-0 md:max-w-2xl">
-                  <h2 className="text-2xl md:text-4xl font-bold text-white mb-4">
-                    Meet SkillBot: Your AI-Powered Freelancer Finder
-                  </h2>
-                  <p className="text-white/90 mb-6 text-base md:text-lg leading-relaxed">
-                    Sistem rekomendasi AI kami membantu mencocokkan freelancer terbaik untuk proyek spesifik Anda. Biarkan SkillBot menemukan talenta yang tepat.
-                  </p>
-                  <Link
-                    to="/messages?chatId=skillbot"
-                    className="inline-flex items-center px-8 py-4 bg-white rounded-lg text-[#010042] font-semibold transition-all hover:bg-opacity-90 hover:shadow-lg hover:transform hover:scale-105 text-lg">
-                    Coba SkillBot
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-3" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                  </Link>
-                </div>
-                <div className="hidden md:block md:ml-8">
-                  <img
-                    src="/images/robot.png"
-                    alt="AI Matching"
-                    className="rounded-lg shadow-lg h-48 w-auto object-contain"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Gigs Section with Category Filter */}
       <div className="bg-gray-50 py-8 sm:py-12">

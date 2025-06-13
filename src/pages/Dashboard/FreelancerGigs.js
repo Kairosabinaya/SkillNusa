@@ -29,6 +29,7 @@ import {
   XCircleIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
+import Pagination from '../../components/common/Pagination';
 
 export default function FreelancerGigs() {
   const { currentUser } = useAuth();
@@ -44,6 +45,26 @@ export default function FreelancerGigs() {
     totalOrders: 0,
     averageRating: 0
   });
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const gigsPerPage = 6;
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredGigs.length / gigsPerPage);
+  const startIndex = (currentPage - 1) * gigsPerPage;
+  const endIndex = startIndex + gigsPerPage;
+  const currentGigs = filteredGigs.slice(startIndex, endIndex);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   useEffect(() => {
     fetchGigs();
@@ -316,8 +337,8 @@ export default function FreelancerGigs() {
 
       {/* Gigs List */}
       <div className="space-y-4">
-        {filteredGigs.length > 0 ? (
-          filteredGigs.map((gig, index) => (
+        {currentGigs.length > 0 ? (
+          currentGigs.map((gig, index) => (
             <motion.div
               key={gig.id}
               initial={{ opacity: 0, y: 20 }}
@@ -431,6 +452,21 @@ export default function FreelancerGigs() {
           </div>
         )}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="mt-8">
+          <Pagination 
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            showInfo={true}
+            totalItems={filteredGigs.length}
+            itemsPerPage={gigsPerPage}
+            className="justify-center"
+          />
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && selectedGig && (

@@ -17,7 +17,7 @@ import ErrorBoundary from './components/common/ErrorBoundary';
 
 // Layouts
 import PublicLayout from './components/Layout/PublicLayout';
-import DashboardLayout from './components/Layout/DashboardLayout';
+import DashboardLayoutWrapper from './components/Layout/DashboardLayoutWrapper';
 
 // Public Pages
 import Home from './pages/Home';
@@ -119,7 +119,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <RoleRoute allowedRoles={['client', 'freelancer', 'admin']}>
-                  <DashboardLayout />
+                  <DashboardLayoutWrapper />
                 </RoleRoute>
               </ProtectedRoute>
             }

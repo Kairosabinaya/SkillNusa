@@ -26,6 +26,7 @@ import {
   ClockIcon,
   DocumentTextIcon
 } from '@heroicons/react/24/outline';
+import Pagination from '../../components/common/Pagination';
 
 export default function FreelancerAnalytics() {
   const { currentUser } = useAuth();
@@ -65,6 +66,34 @@ export default function FreelancerAnalytics() {
   const [topGigs, setTopGigs] = useState([]);
   const [recentOrders, setRecentOrders] = useState([]); // All orders for chart
   const [recentOrdersDisplay, setRecentOrdersDisplay] = useState([]); // Recent orders for display
+
+  // Pagination for recent orders
+  const [ordersCurrentPage, setOrdersCurrentPage] = useState(1);
+  const ordersPerPage = 3;
+
+  // Pagination for top gigs
+  const [gigsCurrentPage, setGigsCurrentPage] = useState(1);
+  const gigsPerPage = 3;
+
+  // Calculate pagination for recent orders
+  const totalOrdersPages = Math.ceil(recentOrdersDisplay.length / ordersPerPage);
+  const startOrdersIndex = (ordersCurrentPage - 1) * ordersPerPage;
+  const endOrdersIndex = startOrdersIndex + ordersPerPage;
+  const currentOrdersDisplay = recentOrdersDisplay.slice(startOrdersIndex, endOrdersIndex);
+
+  const handleOrdersPageChange = (page) => {
+    setOrdersCurrentPage(page);
+  };
+
+  // Calculate pagination for top gigs
+  const totalGigsPages = Math.ceil(topGigs.length / gigsPerPage);
+  const startGigsIndex = (gigsCurrentPage - 1) * gigsPerPage;
+  const endGigsIndex = startGigsIndex + gigsPerPage;
+  const currentTopGigs = topGigs.slice(startGigsIndex, endGigsIndex);
+
+  const handleGigsPageChange = (page) => {
+    setGigsCurrentPage(page);
+  };
 
   useEffect(() => {
     fetchAnalytics();
@@ -484,18 +513,6 @@ export default function FreelancerAnalytics() {
             <div className="p-3 bg-green-100 rounded-full">
               <CurrencyDollarIcon className="h-6 w-6 text-green-600" />
             </div>
-            <div className="flex items-center">
-              {analytics.earnings.trend >= 0 ? (
-                <ArrowTrendingUpIcon className="h-4 w-4 text-green-500 mr-1" />
-              ) : (
-                <ArrowTrendingDownIcon className="h-4 w-4 text-red-500 mr-1" />
-              )}
-              <span className={`text-sm font-medium ${
-                analytics.earnings.trend >= 0 ? 'text-green-600' : 'text-red-600'
-              }`}>
-                {Math.abs(analytics.earnings.trend).toFixed(1)}%
-              </span>
-            </div>
           </div>
           <h3 className="text-2xl font-bold text-gray-900 mb-1">
             {formatCurrency(analytics.earnings.total)}
@@ -719,7 +736,7 @@ export default function FreelancerAnalytics() {
           </h2>
           {topGigs.length > 0 ? (
             <div className="space-y-4">
-              {topGigs.map((gig, index) => (
+              {currentTopGigs.map((gig, index) => (
                 <motion.div 
                   key={gig.id}
                   whileHover={{ scale: 1.01 }}
@@ -823,6 +840,16 @@ export default function FreelancerAnalytics() {
               </p>
             </div>
           )}
+          {totalGigsPages > 1 && (
+            <div className="mt-4">
+              <Pagination
+                currentPage={gigsCurrentPage}
+                totalPages={totalGigsPages}
+                onPageChange={handleGigsPageChange}
+                className="justify-center"
+              />
+            </div>
+          )}
         </motion.div>
 
         {/* Recent Orders */}
@@ -837,7 +864,7 @@ export default function FreelancerAnalytics() {
           </h2>
           {recentOrdersDisplay.length > 0 ? (
             <div className="space-y-3">
-              {recentOrdersDisplay.slice(0, 5).map((order) => (
+              {currentOrdersDisplay.map((order) => (
                 <div key={order.id} className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                   <div className="mb-3">
                     <h4 className="text-sm font-medium text-gray-900 mb-1 line-clamp-1">
@@ -871,6 +898,16 @@ export default function FreelancerAnalytics() {
               <p className="text-sm text-gray-400 text-center">
                 Pesanan terbaru Anda akan muncul di sini setelah ada yang memesan gig Anda
               </p>
+            </div>
+          )}
+          {totalOrdersPages > 1 && (
+            <div className="mt-4">
+              <Pagination
+                currentPage={ordersCurrentPage}
+                totalPages={totalOrdersPages}
+                onPageChange={handleOrdersPageChange}
+                className="justify-center"
+              />
             </div>
           )}
         </motion.div>

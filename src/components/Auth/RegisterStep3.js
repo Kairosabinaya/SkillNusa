@@ -26,7 +26,7 @@ export default function RegisterStep3({ formikProps }) {
             </div>
             <div className="ml-3 text-sm">
               <label htmlFor="agreeToTerms" className={`font-medium ${errors.agreeToTerms && touched.agreeToTerms ? 'text-red-700' : 'text-gray-700'}`}>
-                Saya setuju dengan <Link to="/terms" target="_blank" className="text-[#010042] hover:underline">Syarat & Ketentuan</Link> <span className="text-red-500">*</span>
+                Saya setuju dengan <a href="/Syarat dan Ketentuan Skillnusa.pdf" target="_blank" rel="noopener noreferrer" className="text-[#010042] hover:underline">Syarat & Ketentuan</a> <span className="text-red-500">*</span>
               </label>
               <ErrorMessage name="agreeToTerms" component="div" className="mt-1 text-sm text-red-600" />
             </div>
@@ -44,7 +44,7 @@ export default function RegisterStep3({ formikProps }) {
             </div>
             <div className="ml-3 text-sm">
               <label htmlFor="agreeToPrivacy" className={`font-medium ${errors.agreeToPrivacy && touched.agreeToPrivacy ? 'text-red-700' : 'text-gray-700'}`}>
-                Saya setuju dengan <Link to="/privacy" target="_blank" className="text-[#010042] hover:underline">Kebijakan Privasi</Link> <span className="text-red-500">*</span>
+                Saya setuju dengan <a href="/Kebijakan Privasi SkillNusa.pdf" target="_blank" rel="noopener noreferrer" className="text-[#010042] hover:underline">Kebijakan Privasi</a> <span className="text-red-500">*</span>
               </label>
               <ErrorMessage name="agreeToPrivacy" component="div" className="mt-1 text-sm text-red-600" />
             </div>

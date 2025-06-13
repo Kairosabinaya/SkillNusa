@@ -26,7 +26,7 @@ const BecomeFreelancerStep4 = ({ formikProps }) => {
             </div>
             <div className="ml-3 text-sm">
               <label htmlFor="agreeToFreelancerTerms" className={`font-medium ${errors.agreeToFreelancerTerms && touched.agreeToFreelancerTerms ? 'text-red-700' : 'text-gray-700'}`}>
-                Saya setuju dengan <a href="/freelancer-terms" target="_blank" className="text-[#010042] hover:underline">Ketentuan Freelancer</a> <span className="text-red-500">*</span>
+                Saya setuju dengan <a href="/Ketentuan Freelancer SkillNusa.pdf" target="_blank" rel="noopener noreferrer" className="text-[#010042] hover:underline">Ketentuan Freelancer</a> <span className="text-red-500">*</span>
               </label>
               <ErrorMessage name="agreeToFreelancerTerms" component="div" className="mt-1 text-sm text-red-600" />
             </div>
@@ -44,7 +44,7 @@ const BecomeFreelancerStep4 = ({ formikProps }) => {
             </div>
             <div className="ml-3 text-sm">
               <label htmlFor="agreeToQualityStandards" className={`font-medium ${errors.agreeToQualityStandards && touched.agreeToQualityStandards ? 'text-red-700' : 'text-gray-700'}`}>
-                Saya berkomitmen untuk mematuhi <a href="/quality-standards" target="_blank" className="text-[#010042] hover:underline">Standar Kualitas</a> SkillNusa <span className="text-red-500">*</span>
+                Saya berkomitmen untuk mematuhi <a href="/Standar Kualitas SkillNusa.pdf" target="_blank" rel="noopener noreferrer" className="text-[#010042] hover:underline">Standar Kualitas</a> SkillNusa <span className="text-red-500">*</span>
               </label>
               <ErrorMessage name="agreeToQualityStandards" component="div" className="mt-1 text-sm text-red-600" />
             </div>

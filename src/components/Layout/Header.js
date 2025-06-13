@@ -4,6 +4,10 @@ import { useAuth } from '../../context/AuthContext';
 import { useSubscriptions } from '../../context/SubscriptionContext';
 import { useState, useEffect } from 'react';
 import { getUserProfile } from '../../services/userProfileService';
+import {
+  DocumentTextIcon,
+  ShoppingCartIcon,
+} from '@heroicons/react/24/outline';
 
 export default function Header() {
   const { currentUser, userProfile, logout } = useAuth();
@@ -151,7 +155,7 @@ export default function Header() {
                   /* Regular menu items for other user roles */
                   <>
                     {/* Favorites with count - Hidden on small screens */}
-                    <Link to="/favorites" className="hidden sm:block text-gray-500 hover:text-[#010042] transition-all duration-200 relative" title="Favorit">
+                    <Link to="/dashboard/client/favorites" className="hidden sm:block text-gray-500 hover:text-[#010042] transition-all duration-200 relative" title="Favorit">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                       </svg>
@@ -159,10 +163,8 @@ export default function Header() {
                     </Link>
                     
                     {/* Cart with count - Made larger */}
-                    <Link to="/cart" className="text-gray-500 hover:text-[#010042] transition-all duration-200 relative" title="Keranjang">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 sm:h-7 sm:w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" transform="translate(0, 2)" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l-1 7a2 2 0 01-2 2H8a2 2 0 01-2-2L5 9z" />
-                      </svg>
+                    <Link to="/dashboard/client/cart" className="text-gray-500 hover:text-[#010042] transition-all duration-200 relative" title="Keranjang">
+                      <ShoppingCartIcon className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={2} />
                       {renderCountBadge(counts.cart)}
                     </Link>
                     
@@ -179,9 +181,7 @@ export default function Header() {
                     {/* Orders icon only for Freelancers - Hidden on small screens */}
                     {hasFreelancerRole && (
                       <Link to="/dashboard/freelancer/orders" className="hidden sm:block text-gray-500 hover:text-[#010042] transition-all duration-200 relative" title="Pesanan Saya">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                        </svg>
+                        <DocumentTextIcon className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={2} />
                         {renderCountBadge(counts.orders)}
                       </Link>
                     )}

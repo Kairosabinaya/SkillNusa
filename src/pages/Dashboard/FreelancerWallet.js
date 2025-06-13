@@ -30,6 +30,7 @@ import {
   DocumentTextIcon,
   InformationCircleIcon
 } from '@heroicons/react/24/outline';
+import Pagination from '../../components/common/Pagination';
 
 export default function FreelancerWallet() {
   const { currentUser } = useAuth();
@@ -52,6 +53,20 @@ export default function FreelancerWallet() {
     accountName: '',
     notes: ''
   });
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const transactionsPerPage = 3;
+
+  // Calculate pagination
+  const totalPages = Math.ceil(transactions.length / transactionsPerPage);
+  const startIndex = (currentPage - 1) * transactionsPerPage;
+  const endIndex = startIndex + transactionsPerPage;
+  const currentTransactions = transactions.slice(startIndex, endIndex);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
 
   useEffect(() => {
     fetchWalletData();
@@ -470,7 +485,7 @@ export default function FreelancerWallet() {
           </h2>
           <div className="space-y-4">
             {transactions.length > 0 ? (
-              transactions.map((transaction) => (
+              currentTransactions.map((transaction) => (
                 <div key={transaction.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                   <div className="flex items-center">
                     <div className="flex-shrink-0 mr-4">
@@ -507,6 +522,21 @@ export default function FreelancerWallet() {
               </div>
             )}
           </div>
+          
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="mt-6">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                showInfo={true}
+                totalItems={transactions.length}
+                itemsPerPage={transactionsPerPage}
+                className="justify-center"
+              />
+            </div>
+          )}
         </motion.div>
       </div>
 

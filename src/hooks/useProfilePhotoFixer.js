@@ -38,7 +38,7 @@ export const useProfilePhotoFixer = () => {
         
         if (isValidProfilePhoto(userData.profilePhoto)) {
           usersWithValidPhotos++;
-          if (userData.profilePhoto === '/images/default-profile.jpg') {
+          if (userData.profilePhoto === 'https://res.cloudinary.com/dk45bajkj/image/upload/v1749729472/default-profile_qf0gtg.jpg') {
             usersWithDefaultPhotos++;
           }
         } else {

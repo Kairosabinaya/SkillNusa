@@ -34,7 +34,7 @@ export default function About() {
             <div className="relative w-full h-auto rounded-2xl lg:rounded-3xl shadow-xl lg:shadow-2xl overflow-hidden group transform transition-all duration-700 hover:scale-105 hover:shadow-3xl order-2 lg:order-1">
               <div className="absolute inset-0 bg-gradient-to-tr from-[#010042]/20 to-[#010042]/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10"></div>
               <img
-                src="/images/team.jpg"
+                src="https://res.cloudinary.com/dk45bajkj/image/upload/v1749731670/team_sfdqmx.jpg"
                 alt="Team member working"
                 className="w-full aspect-[16/10] object-cover object-[50%_28%] transition-transform duration-700 group-hover:scale-110"
               />
@@ -329,26 +329,13 @@ export default function About() {
                   </p>
                 </div>
               </div>
-
-              {/* Action Button */}
-              <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 justify-center lg:justify-start">
-                <button
-                  onClick={(e) => handleAuthRequiredClick(e, ROUTES.BROWSE)}
-                  className="bg-gradient-to-r from-[#010042] to-[#010042]/80 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-full font-semibold transform transition-all duration-300 hover:scale-105 hover:shadow-xl hover:from-[#010042]/90 hover:to-[#010042] text-sm sm:text-base"
-                >
-                  Mulai Sekarang
-                </button>
-                <button className="border-2 border-[#010042]/30 text-[#010042] px-6 sm:px-8 py-3 sm:py-4 rounded-full font-semibold transform transition-all duration-300 hover:scale-105 hover:border-[#010042] hover:bg-[#010042]/5 text-sm sm:text-base">
-                  Pelajari Lebih Lanjut
-                </button>
-              </div>
             </div>
 
             {/* Right Image */}
             <div className="relative w-full h-auto rounded-2xl lg:rounded-3xl shadow-xl lg:shadow-2xl overflow-hidden group transform transition-all duration-700 hover:scale-105 hover:shadow-3xl order-1 lg:order-2">
               <div className="absolute inset-0 bg-gradient-to-tr from-[#010042]/20 to-[#010042]/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10"></div>
               <img
-                src="/images/indonesia.jpg"
+                src="https://res.cloudinary.com/dk45bajkj/image/upload/v1749731666/indonesia_xslurf.jpg"
                 alt="Vision of Indonesia's digital future"
                 className="w-full aspect-[4/3] object-cover transition-transform duration-700 group-hover:scale-110"
               />
