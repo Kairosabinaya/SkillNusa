@@ -188,6 +188,87 @@ export const validateFile = (file, options = {}) => {
 };
 
 /**
+ * Price validation for Indonesian Rupiah
+ * @param {number|string} price - Price to validate
+ * @returns {boolean} - True if valid
+ * @throws {ValidationError} - If invalid
+ */
+export const validatePrice = (price) => {
+  if (price === null || price === undefined || price === '') {
+    throw new ValidationError('Harga is required', 'PRICE_REQUIRED', 'price');
+  }
+  
+  const numericPrice = parseFloat(price);
+  
+  if (isNaN(numericPrice)) {
+    throw new ValidationError('Harga harus berupa angka', 'INVALID_PRICE', 'price');
+  }
+  
+  if (numericPrice < 10000) {
+    throw new ValidationError('Harga minimal Rp 10,000', 'PRICE_TOO_LOW', 'price');
+  }
+  
+  if (numericPrice > 100000000) {
+    throw new ValidationError('Harga maksimal Rp 100,000,000', 'PRICE_TOO_HIGH', 'price');
+  }
+  
+  return true;
+};
+
+/**
+ * Order requirements validation
+ * @param {string} requirements - Requirements text
+ * @returns {boolean} - True if valid
+ * @throws {ValidationError} - If invalid
+ */
+export const validateOrderRequirements = (requirements) => {
+  if (!requirements || typeof requirements !== 'string') {
+    throw new ValidationError('Persyaratan pesanan is required', 'REQUIREMENTS_REQUIRED', 'requirements');
+  }
+  
+  const trimmed = requirements.trim();
+  if (trimmed.length < 10) {
+    throw new ValidationError('Persyaratan pesanan minimal 10 karakter', 'REQUIREMENTS_TOO_SHORT', 'requirements');
+  }
+  
+  if (trimmed.length > 2000) {
+    throw new ValidationError('Persyaratan pesanan maksimal 2000 karakter', 'REQUIREMENTS_TOO_LONG', 'requirements');
+  }
+  
+  return true;
+};
+
+/**
+ * Payment data validation
+ * @param {object} paymentData - Payment data to validate
+ * @returns {boolean} - True if valid
+ * @throws {ValidationError} - If invalid
+ */
+export const validatePaymentData = (paymentData) => {
+  if (!paymentData || typeof paymentData !== 'object') {
+    throw new ValidationError('Data pembayaran is required', 'PAYMENT_DATA_REQUIRED', 'paymentData');
+  }
+  
+  // Validate customer name
+  if (!paymentData.customerName || typeof paymentData.customerName !== 'string' || !paymentData.customerName.trim()) {
+    throw new ValidationError('Nama customer is required', 'CUSTOMER_NAME_REQUIRED', 'customerName');
+  }
+  
+  // Validate customer email
+  validateEmail(paymentData.customerEmail);
+  
+  // Validate amount
+  validatePrice(paymentData.amount);
+  
+  // Validate order items
+  if (!paymentData.orderItems || !Array.isArray(paymentData.orderItems) || paymentData.orderItems.length === 0) {
+    throw new ValidationError('Item pesanan is required', 'ORDER_ITEMS_REQUIRED', 'orderItems');
+  }
+  
+  return true;
+};
+
+/**
  * Validation schemas for common forms
  */
 export const validationSchemas = {

@@ -5,6 +5,7 @@ import LoadingSpinner from '../../components/UI/LoadingSpinner';
 import FreelancerCTA from '../../components/UI/FreelancerCTA';
 import ParticleBackground from '../../components/UI/ParticleBackground';
 import DeleteAccountModal from '../../components/Profile/DeleteAccountModal';
+import BankAccountManager from '../../components/Profile/BankAccountManager';
 import { uploadProfilePhoto as uploadToCloudinary } from '../../services/cloudinaryService';
 import { getUserProfile, updateUserProfile } from '../../services/userProfileService';
 import { getIndonesianCities } from '../../services/profileService';
@@ -26,6 +27,7 @@ export default function Profile() {
   const [cities, setCities] = useState([]);
   const [loadingCities, setLoadingCities] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [activeTab, setActiveTab] = useState('profile');
 
   // Update combinedUserData when component data changes
   useEffect(() => {
@@ -363,7 +365,46 @@ export default function Profile() {
               </div>
             </div>
 
-            <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Tab Navigation */}
+            <div className="mt-12 border-b border-gray-200">
+              <nav className="-mb-px flex space-x-8">
+                <button
+                  onClick={() => setActiveTab('profile')}
+                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'profile'
+                      ? 'border-[#010042] text-[#010042]'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Profile Information
+                </button>
+                <button
+                  onClick={() => setActiveTab('bank')}
+                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'bank'
+                      ? 'border-[#010042] text-[#010042]'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Bank Accounts
+                </button>
+                <button
+                  onClick={() => setActiveTab('settings')}
+                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'settings'
+                      ? 'border-[#010042] text-[#010042]'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Account Settings
+                </button>
+              </nav>
+            </div>
+
+            {/* Tab Content */}
+            <div className="mt-8">
+              {activeTab === 'profile' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="bg-gray-50 rounded-lg p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">Informasi Profil</h2>
                 <div className="space-y-4">
@@ -534,6 +575,69 @@ export default function Profile() {
                   </div>
                 )}
               </div>
+                </div>
+              )}
+
+              {activeTab === 'bank' && (
+                <div className="max-w-4xl">
+                  <BankAccountManager />
+                </div>
+              )}
+
+              {activeTab === 'settings' && (
+                <div className="max-w-2xl">
+                  <div className="bg-white border border-gray-200 rounded-lg p-6">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Account Settings</h2>
+                    
+                    <div className="space-y-6">
+                      <div className="border-b border-gray-200 pb-6">
+                        <h3 className="text-base font-medium text-gray-900 mb-2">Privacy Settings</h3>
+                        <p className="text-sm text-gray-600 mb-4">Manage your account privacy and visibility settings.</p>
+                        <div className="space-y-3">
+                          <label className="flex items-center">
+                            <input type="checkbox" className="h-4 w-4 text-[#010042] focus:ring-[#010042] border-gray-300 rounded" />
+                            <span className="ml-2 text-sm text-gray-700">Make my profile visible to other users</span>
+                          </label>
+                          <label className="flex items-center">
+                            <input type="checkbox" className="h-4 w-4 text-[#010042] focus:ring-[#010042] border-gray-300 rounded" />
+                            <span className="ml-2 text-sm text-gray-700">Allow others to contact me directly</span>
+                          </label>
+                        </div>
+                      </div>
+                      
+                      <div className="border-b border-gray-200 pb-6">
+                        <h3 className="text-base font-medium text-gray-900 mb-2">Notification Settings</h3>
+                        <p className="text-sm text-gray-600 mb-4">Choose what notifications you want to receive.</p>
+                        <div className="space-y-3">
+                          <label className="flex items-center">
+                            <input type="checkbox" className="h-4 w-4 text-[#010042] focus:ring-[#010042] border-gray-300 rounded" defaultChecked />
+                            <span className="ml-2 text-sm text-gray-700">Email notifications for new orders</span>
+                          </label>
+                          <label className="flex items-center">
+                            <input type="checkbox" className="h-4 w-4 text-[#010042] focus:ring-[#010042] border-gray-300 rounded" defaultChecked />
+                            <span className="ml-2 text-sm text-gray-700">Email notifications for payment updates</span>
+                          </label>
+                          <label className="flex items-center">
+                            <input type="checkbox" className="h-4 w-4 text-[#010042] focus:ring-[#010042] border-gray-300 rounded" />
+                            <span className="ml-2 text-sm text-gray-700">Marketing and promotional emails</span>
+                          </label>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <h3 className="text-base font-medium text-red-600 mb-2">Danger Zone</h3>
+                        <p className="text-sm text-gray-600 mb-4">Irreversible and destructive actions.</p>
+                        <button
+                          onClick={() => setShowDeleteModal(true)}
+                          className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+                        >
+                          Delete Account
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Tombol Simpan Perubahan - dipindahkan ke bagian paling bawah profil */}

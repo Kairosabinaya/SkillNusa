@@ -248,10 +248,34 @@ class ChatService {
   // Send order notification message
   async sendOrderNotificationMessage(chatId, senderId, orderId, orderData) {
     try {
+      // Validate required parameters
+      if (!chatId || !senderId || !orderId || !orderData) {
+        console.error('❌ [ChatService] Missing required parameters for order notification:', {
+          chatId: !!chatId,
+          senderId: !!senderId,
+          orderId: !!orderId,
+          orderData: !!orderData
+        });
+        return null;
+      }
+
       const { gigTitle, packageType, price, clientRequirements } = orderData;
       
+      // Validate order data
+      if (!gigTitle) {
+        console.error('❌ [ChatService] Missing gigTitle in orderData');
+        return null;
+      }
+      
+      // Format price safely
+      const formattedPrice = price ? `Rp ${price.toLocaleString('id-ID')}` : 'Harga tidak tersedia';
+      const formattedPackage = packageType ? 
+        (packageType === 'basic' ? 'Dasar' : 
+         packageType === 'standard' ? 'Standar' : 
+         packageType === 'premium' ? 'Premium' : packageType) : 'Tidak ditentukan';
+      
       // Clean formatting with explicit line breaks
-      const notificationContent = `Pesanan Baru Dibuat!\n\nLayanan: ${gigTitle}\nPaket: ${packageType}\nTotal: Rp ${price?.toLocaleString('id-ID') || 'N/A'}\n\nKebutuhan Client:\n"${clientRequirements}"\n\nPesanan telah dibuat dan menunggu konfirmasi freelancer.`;
+      const notificationContent = `🎉 Pesanan Baru Dibuat!\n\n📋 Layanan: ${gigTitle}\n📦 Paket: ${formattedPackage}\n💰 Total: ${formattedPrice}\n\n📝 Kebutuhan Client:\n"${clientRequirements || 'Tidak ada kebutuhan khusus'}"\n\n⏰ Pesanan telah dibuat dan menunggu konfirmasi freelancer dalam 3 jam.`;
 
       const message = {
         chatId,
@@ -260,16 +284,35 @@ class ChatService {
         messageType: 'order_notification',
         metadata: {
           orderId,
-          orderData,
-          type: 'order_created'
+          orderData: {
+            ...orderData,
+            formattedPrice,
+            formattedPackage
+          },
+          type: 'order_created',
+          timestamp: new Date().toISOString()
         },
         isRead: false,
         createdAt: serverTimestamp()
       };
 
-      return await this.addMessage(message);
+      console.log('📤 [ChatService] Sending order notification message:', {
+        chatId,
+        orderId,
+        gigTitle
+      });
+
+      const result = await this.addMessage(message);
+      
+      if (result) {
+        console.log('✅ [ChatService] Order notification message sent successfully');
+      } else {
+        console.error('❌ [ChatService] Failed to send order notification message');
+      }
+      
+      return result;
     } catch (error) {
-      console.error('Error sending order notification message:', error);
+      console.error('❌ [ChatService] Error sending order notification message:', error);
       return null;
     }
   }

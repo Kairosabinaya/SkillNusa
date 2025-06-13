@@ -115,15 +115,18 @@ export const getRevisionCountText = (order) => {
  */
 export const getStatusText = (status) => {
   const statusMap = {
+    'payment': 'Menunggu Pembayaran',
     'pending': 'Menunggu Konfirmasi',
     'awaiting_confirmation': 'Menunggu Konfirmasi',
-    'active': 'Aktif',
-    'in_progress': 'Dalam Proses',
+    'active': 'Sedang Dikerjakan',
+    'in_progress': 'Sedang Dikerjakan',
     'in_revision': 'Dalam Revisi',
-    'delivered': 'Terkirim',
+    'delivered': 'Menunggu Review',
     'completed': 'Selesai',
     'cancelled': 'Dibatalkan',
-    'rejected': 'Ditolak'
+    'rejected': 'Ditolak',
+    'expired': 'Kedaluwarsa',
+    'refunded': 'Dikembalikan'
   };
   return statusMap[status] || status;
 };
@@ -135,6 +138,7 @@ export const getStatusText = (status) => {
  */
 export const getStatusColor = (status) => {
   const colorMap = {
+    'payment': 'bg-orange-100 text-orange-800',
     'pending': 'bg-yellow-100 text-yellow-800',
     'awaiting_confirmation': 'bg-yellow-100 text-yellow-800',
     'active': 'bg-blue-100 text-blue-800',
@@ -143,7 +147,9 @@ export const getStatusColor = (status) => {
     'delivered': 'bg-purple-100 text-purple-800',
     'completed': 'bg-green-100 text-green-800',
     'cancelled': 'bg-red-100 text-red-800',
-    'rejected': 'bg-red-100 text-red-800'
+    'rejected': 'bg-red-100 text-red-800',
+    'expired': 'bg-gray-100 text-gray-800',
+    'refunded': 'bg-indigo-100 text-indigo-800'
   };
   return colorMap[status] || 'bg-gray-100 text-gray-800';
 };

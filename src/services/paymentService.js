@@ -5,31 +5,29 @@ class PaymentService {
   constructor() {
     // Configuration from environment variables
     this.createPaymentUrl = process.env.REACT_APP_PHP_CREATE_URL;
-    this.tripayPrivateKey = process.env.REACT_APP_TRIPAY_PRIVATE_KEY;
-    this.tripayMerchantCode = process.env.REACT_APP_TRIPAY_MERCHANT_CODE;
     this.tripayMode = process.env.REACT_APP_TRIPAY_MODE || 'sandbox';
     
-    // Debug environment variables
+    // Debug environment variables (tanpa expose sensitive data)
     console.log('🔧 [PaymentService] Environment Variables:');
     console.log('- REACT_APP_PHP_CREATE_URL:', this.createPaymentUrl);
-    console.log('- REACT_APP_TRIPAY_PRIVATE_KEY:', this.tripayPrivateKey ? '***SET***' : 'NOT SET');
-    console.log('- REACT_APP_TRIPAY_MERCHANT_CODE:', this.tripayMerchantCode ? '***SET***' : 'NOT SET');
     console.log('- REACT_APP_TRIPAY_MODE:', this.tripayMode);
     
     // Validate configuration
-    if (!this.createPaymentUrl || !this.tripayPrivateKey || !this.tripayMerchantCode) {
-      console.error('❌ Missing Tripay configuration. Please check environment variables.');
-      console.error('Required variables:');
-      console.error('- REACT_APP_PHP_CREATE_URL');
-      console.error('- REACT_APP_TRIPAY_PRIVATE_KEY');
-      console.error('- REACT_APP_TRIPAY_MERCHANT_CODE');
+    if (!this.createPaymentUrl) {
+      console.error('❌ Missing REACT_APP_PHP_CREATE_URL configuration.');
+      
+      // Set fallback based on mode
+      if (this.tripayMode === 'production') {
+        this.createPaymentUrl = '/api/payment/create'; // Internal API endpoint
+        console.warn('⚠️ Using production fallback: Internal API endpoint');
+      } else {
+        this.createPaymentUrl = 'http://localhost:3000/create.php'; // Local development
+        console.warn('⚠️ Using development fallback: Local PHP bridge');
+      }
     }
     
-    // Fallback for development
-    if (!this.createPaymentUrl) {
-      console.warn('⚠️ Using fallback URL for development');
-      this.createPaymentUrl = 'https://skillnusa.com/create.php';
-    }
+    // NOTE: Private key dan merchant code seharusnya di backend, bukan frontend
+    // Untuk sementara masih menggunakan PHP bridge untuk backward compatibility
   }
 
   /**
@@ -72,17 +70,23 @@ class PaymentService {
       }];
 
       // Prepare payment request data (signature will be generated in PHP)
+      // Use camelCase to match PHP bridge expectations
       const paymentData = {
         amount: totalAmount,
-        customer_name: customerData.customer_name,
-        customer_email: customerData.customer_email,
-        customer_phone: customerData.customer_phone,
-        order_items: orderItems,
-        return_url: `${window.location.origin}/dashboard/client/transactions?payment=success`,
-        expired_time: expiredTime
+        customerName: customerData.customer_name,
+        customerEmail: customerData.customer_email,
+        customerPhone: customerData.customer_phone,
+        orderItems: orderItems,
+        returnUrl: `${window.location.origin}/dashboard/client/transactions?payment=success`,
+        expiredTime: expiredTime
       };
 
-      console.log('📤 [PaymentService] Sending payment request:', paymentData);
+      console.log('📤 [PaymentService] Sending payment request:', {
+        ...paymentData,
+        // Don't log sensitive data in production
+        customerEmail: paymentData.customerEmail.replace(/(.{2}).*(@.*)/, '$1***$2'),
+        customerPhone: paymentData.customerPhone ? paymentData.customerPhone.replace(/(.{3}).*(.{3})/, '$1***$2') : 'N/A'
+      });
 
       // Send request to PHP backend
       const response = await fetch(this.createPaymentUrl, {
@@ -112,7 +116,15 @@ class PaymentService {
       }
 
       const result = await response.json();
-      console.log('✅ [PaymentService] Payment created successfully:', result);
+      console.log('✅ [PaymentService] Payment created successfully:', {
+        success: result.success,
+        merchantRef: result.merchant_ref,
+        hasQrString: !!result.tripay_response?.data?.qr_string,
+        hasQrUrl: !!result.tripay_response?.data?.qr_url,
+        hasCheckoutUrl: !!result.tripay_response?.data?.checkout_url,
+        qrStringLength: result.tripay_response?.data?.qr_string?.length || 0,
+        qrStringPreview: result.tripay_response?.data?.qr_string?.substring(0, 50) + '...' || 'N/A'
+      });
 
       // Update order with payment information
       await this.updateOrderWithPayment(orderData.id, {
@@ -122,20 +134,60 @@ class PaymentService {
         paymentExpiredAt: new Date(expiredTime * 1000),
         paymentUrl: result.tripay_response?.data?.checkout_url,
         qrString: result.tripay_response?.data?.qr_string,
+        qrUrl: result.tripay_response?.data?.qr_url, // Add qr_url support
         reference: result.tripay_response?.data?.reference,
         totalAmount: totalAmount, // This already includes all fees
         updatedAt: serverTimestamp()
       });
 
+      // Validate response structure
+      if (!result.success || !result.tripay_response?.data) {
+        throw new Error('Invalid response from payment gateway');
+      }
+
+      const tripayData = result.tripay_response.data;
+      
+      // Validate required fields from Tripay response
+      if (!tripayData.reference) {
+        throw new Error('Missing payment reference from gateway');
+      }
+
+      // Log QR code data for debugging
+      console.log('🎨 [PaymentService] QR Code data analysis:', {
+        qrString: {
+          exists: !!tripayData.qr_string,
+          length: tripayData.qr_string?.length || 0,
+          isSVG: tripayData.qr_string?.includes('<svg') || false,
+          preview: tripayData.qr_string?.substring(0, 100) || 'N/A'
+        },
+        qrUrl: {
+          exists: !!tripayData.qr_url,
+          url: tripayData.qr_url || 'N/A'
+        },
+        checkoutUrl: {
+          exists: !!tripayData.checkout_url,
+          url: tripayData.checkout_url || 'N/A'
+        }
+      });
+
       return {
         success: true,
-        merchantRef: result.merchant_ref,
-        paymentUrl: result.tripay_response?.data?.checkout_url,
-        qrString: result.tripay_response?.data?.qr_string,
-        reference: result.tripay_response?.data?.reference,
+        merchantRef: result.merchant_ref || merchantRef,
+        paymentUrl: tripayData.checkout_url || null,
+        qrString: tripayData.qr_string || null, // QR string untuk QRIS (usually SVG)
+        qrUrl: tripayData.qr_url || null, // QR URL jika ada (image URL)
+        reference: tripayData.reference,
+        payCode: tripayData.pay_code || null, // Untuk virtual account
         amount: totalAmount,
         expiredAt: new Date(expiredTime * 1000),
-        instructions: result.tripay_response?.data?.instructions
+        instructions: tripayData.instructions || [],
+        // Add metadata for debugging
+        _debug: {
+          method: 'QRIS',
+          merchantRef: result.merchant_ref,
+          hasQrData: !!(tripayData.qr_string || tripayData.qr_url),
+          originalResponse: process.env.NODE_ENV === 'development' ? result : null
+        }
       };
 
     } catch (error) {
@@ -166,6 +218,8 @@ class PaymentService {
    */
   async checkPaymentStatus(merchantRef) {
     try {
+      console.log('🔍 [PaymentService] Checking payment status for:', merchantRef);
+      
       // This would typically call Tripay's transaction detail API
       // For now, we'll implement a placeholder
       const statusCheckUrl = `${this.createPaymentUrl.replace('create.php', 'status.php')}`;
@@ -175,16 +229,20 @@ class PaymentService {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ merchant_ref: merchantRef })
+        body: JSON.stringify({ merchantRef: merchantRef })
       });
 
       if (!response.ok) {
-        throw new Error('Failed to check payment status');
+        const errorText = await response.text();
+        console.error('❌ [PaymentService] Status check failed:', errorText);
+        throw new Error(`Failed to check payment status: ${response.status}`);
       }
 
-      return await response.json();
+      const result = await response.json();
+      console.log('✅ [PaymentService] Payment status checked:', result);
+      return result;
     } catch (error) {
-      console.error('Error checking payment status:', error);
+      console.error('❌ [PaymentService] Error checking payment status:', error);
       throw error;
     }
   }
@@ -251,7 +309,7 @@ class PaymentService {
    * @returns {Object} Calculation breakdown
    */
   calculateTotal(subtotal) {
-    const platformFee = Math.round(subtotal * 0.10); // 10% platform fee
+    const platformFee = Math.round(subtotal * 0.05); // FIX: 5% platform fee (was 10%)
     const total = subtotal + platformFee;
 
     return {

@@ -44,10 +44,10 @@ class OrderService {
       const dueDate = new Date();
       dueDate.setDate(dueDate.getDate() + (orderData.deliveryTime || 7));
 
-      // Calculate platform fee (10%)
-      const totalAmount = orderData.price || 0;
-      const platformFee = Math.round(totalAmount * 0.1);
-      const freelancerEarning = totalAmount - platformFee;
+      // Calculate fees and amounts
+      const platformFee = Math.round(orderData.price * 0.05); // FIX: Use 5% platform fee consistently
+      const totalAmount = orderData.price + platformFee;
+      const freelancerEarning = Math.round(orderData.price * 0.95); // 95% goes to freelancer after 5% platform fee
 
       // Get revision limit from package data if available
       let maxRevisions = 3; // default
@@ -118,33 +118,26 @@ class OrderService {
       const docRef = await addDoc(collection(db, this.collectionName), order);
       const createdOrder = { id: docRef.id, ...order };
 
-      // Create or get chat and send notification only if not payment status
-      // For payment status orders, notification will be sent after payment is successful
-      if (order.status !== 'payment') {
-      try {
-        const chat = await chatService.createOrGetChat(
-          orderData.clientId, 
-          orderData.freelancerId, 
-          orderData.gigId,
-          docRef.id
-        );
-
-        // Send order notification to freelancer
-        await chatService.sendOrderNotificationMessage(
-          chat.id,
-          orderData.clientId, // Client is sending the notification
-          docRef.id,
-          {
-            gigTitle: orderData.title,
-            packageType: orderData.packageType,
-            price: orderData.price,
-            clientRequirements: orderData.requirements
-          }
-        );
-      } catch (chatError) {
-        console.error('Error creating chat notification:', chatError);
-        // Don't fail the order creation if chat fails
+      // CRITICAL FIX: Only send notification to freelancer AFTER payment is confirmed
+      // This ensures freelancer doesn't get notified during initial order creation
+      if (order.status === 'pending') { // FIX: Changed from !== to === (only notify after payment confirmed)
+        console.log('📧 [OrderService] Payment confirmed - notifying freelancer about new order');
+        
+        try {
+          // Send notification to freelancer about new confirmed order
+          await notificationService.createOrderNotification(
+            order.freelancerId,
+            'new_order',
+            `Pesanan baru: ${order.title}`,
+            order.id
+          );
+          console.log('✅ [OrderService] Freelancer notified about confirmed order');
+        } catch (notificationError) {
+          console.error('❌ [OrderService] Failed to send freelancer notification:', notificationError);
+          // Don't fail the entire order creation for notification errors
         }
+      } else {
+        console.log('🔕 [OrderService] Order still in payment phase - freelancer will be notified after payment confirmation');
       }
 
       return createdOrder;

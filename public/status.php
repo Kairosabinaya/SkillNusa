@@ -46,31 +46,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 // Get input data
 $input = json_decode(file_get_contents('php://input'), true);
 
-// Validate required fields (updated to match frontend)
-$required_fields = ['amount', 'customerName', 'customerEmail', 'orderItems', 'expiredTime'];
-$missing_fields = [];
-
-foreach ($required_fields as $field) {
-    if (!isset($input[$field]) || (is_string($input[$field]) && empty(trim($input[$field])))) {
-        $missing_fields[] = $field;
-    }
-}
-
-// Validate amount
-if (isset($input['amount']) && (int)$input['amount'] <= 0) {
-    $missing_fields[] = 'amount (must be > 0)';
-}
-
-// Validate email format
-if (isset($input['customerEmail']) && !filter_var($input['customerEmail'], FILTER_VALIDATE_EMAIL)) {
-    $missing_fields[] = 'customerEmail (invalid format)';
-}
-
-if (!empty($missing_fields)) {
+// Validate required fields
+if (!isset($input['merchantRef']) || empty(trim($input['merchantRef']))) {
     http_response_code(400);
     echo json_encode([
-        'error' => 'Missing or invalid required fields',
-        'missing_fields' => $missing_fields,
+        'error' => 'Missing merchant reference',
         'received_fields' => array_keys($input)
     ]);
     exit;
@@ -93,38 +73,13 @@ if ($tripay_api_key === 'YOUR_TRIPAY_API_KEY' || $tripay_private_key === 'YOUR_T
 
 // Set API URL based on mode
 $api_url = $tripay_mode === 'sandbox' 
-    ? 'https://tripay.co.id/api-sandbox/transaction/create'
-    : 'https://tripay.co.id/api/transaction/create';
+    ? 'https://tripay.co.id/api-sandbox/transaction/detail'
+    : 'https://tripay.co.id/api/transaction/detail';
 
-// Use provided merchant reference or generate one
-$merchant_ref = isset($input['merchantRef']) && !empty($input['merchantRef']) 
-    ? $input['merchantRef'] 
-    : 'SKILLNUSA-' . time();
+$merchant_ref = $input['merchantRef'];
 
-// Generate signature according to Tripay documentation
-$signature = hash_hmac('sha256', $tripay_merchant_code . $merchant_ref . $input['amount'], $tripay_private_key);
-
-// Prepare transaction data (updated to match frontend parameters)
-$transaction_data = [
-    'method' => 'QRIS',
-    'merchant_ref' => $merchant_ref,
-    'amount' => (int)$input['amount'],
-    'customer_name' => $input['customerName'],
-    'customer_email' => $input['customerEmail'],
-    'customer_phone' => isset($input['customerPhone']) && !empty($input['customerPhone']) ? $input['customerPhone'] : '081234567890', // Default phone if not provided
-    'order_items' => $input['orderItems'],
-    'return_url' => isset($input['returnUrl']) && !empty($input['returnUrl']) ? $input['returnUrl'] : 'https://skillnusa.com/dashboard/client/transactions',
-    'expired_time' => (int)$input['expiredTime'],
-    'signature' => $signature
-];
-
-// Add callback URL if in production mode
-if ($tripay_mode === 'production') {
-    $transaction_data['callback_url'] = 'https://skillnusa.com/api/tripay/callback';
-} else {
-    // FIX: For sandbox mode, use proper callback URL
-    $transaction_data['callback_url'] = 'https://skillnusa.com/callback.php'; // Use PHP callback for sandbox
-}
+// Generate signature for detail request
+$signature = hash_hmac('sha256', $tripay_merchant_code . $merchant_ref, $tripay_private_key);
 
 // Prepare headers for Tripay API
 $headers = [
@@ -132,19 +87,23 @@ $headers = [
     'Content-Type: application/json',
 ];
 
-// Initialize cURL
+// Initialize cURL for GET request with query parameters
+$query_params = http_build_query([
+    'reference' => $merchant_ref,
+    'signature' => $signature
+]);
+
 $curl = curl_init();
 
 curl_setopt_array($curl, [
-    CURLOPT_URL => $api_url,
+    CURLOPT_URL => $api_url . '?' . $query_params,
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_ENCODING => '',
     CURLOPT_MAXREDIRS => 10,
     CURLOPT_TIMEOUT => 30,
     CURLOPT_FOLLOWLOCATION => true,
     CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-    CURLOPT_CUSTOMREQUEST => 'POST',
-    CURLOPT_POSTFIELDS => json_encode($transaction_data),
+    CURLOPT_CUSTOMREQUEST => 'GET',
     CURLOPT_HTTPHEADER => $headers,
 ]);
 
@@ -166,16 +125,12 @@ if ($curl_error) {
 // Decode response
 $response_data = json_decode($response, true);
 
-// Log response for debugging (mask sensitive data)
-error_log("Tripay API Response: " . json_encode([
+// Log response for debugging
+error_log("Tripay Status Check Response: " . json_encode([
+    'merchant_ref' => $merchant_ref,
     'http_code' => $http_code,
     'success' => isset($response_data['success']) ? $response_data['success'] : false,
-    'has_data' => isset($response_data['data']),
-    'has_qr_string' => isset($response_data['data']['qr_string']),
-    'has_qr_url' => isset($response_data['data']['qr_url']),
-    'has_checkout_url' => isset($response_data['data']['checkout_url']),
-    'qr_string_length' => isset($response_data['data']['qr_string']) ? strlen($response_data['data']['qr_string']) : 0,
-    'qr_string_preview' => isset($response_data['data']['qr_string']) ? substr($response_data['data']['qr_string'], 0, 50) . '...' : 'N/A'
+    'status' => isset($response_data['data']['status']) ? $response_data['data']['status'] : 'unknown'
 ]));
 
 // Handle API response
@@ -189,11 +144,11 @@ if ($http_code !== 200) {
     exit;
 }
 
-// Validate Tripay response structure
+// Validate response structure
 if (!isset($response_data['success']) || !$response_data['success']) {
     http_response_code(400);
     echo json_encode([
-        'error' => 'Tripay transaction failed',
+        'error' => 'Failed to get transaction status',
         'tripay_message' => isset($response_data['message']) ? $response_data['message'] : 'Unknown error',
         'response' => $response_data
     ]);
@@ -203,24 +158,39 @@ if (!isset($response_data['success']) || !$response_data['success']) {
 if (!isset($response_data['data'])) {
     http_response_code(400);
     echo json_encode([
-        'error' => 'Invalid Tripay response structure',
+        'error' => 'Invalid response structure',
         'response' => $response_data
     ]);
     exit;
+}
+
+$transaction_data = $response_data['data'];
+
+// Determine payment status
+$is_paid = false;
+$status = isset($transaction_data['status']) ? $transaction_data['status'] : 'UNKNOWN';
+
+// Tripay status codes: UNPAID, PAID, EXPIRED, FAILED, REFUND
+switch (strtoupper($status)) {
+    case 'PAID':
+        $is_paid = true;
+        break;
+    case 'UNPAID':
+    case 'EXPIRED':
+    case 'FAILED':
+    case 'REFUND':
+    default:
+        $is_paid = false;
+        break;
 }
 
 // Success response
 http_response_code(200);
 echo json_encode([
     'success' => true,
+    'paid' => $is_paid,
+    'status' => $status,
     'merchant_ref' => $merchant_ref,
-    'tripay_response' => $response_data,
-    // Add QR code debugging info
-    'qr_debug' => [
-        'has_qr_string' => isset($response_data['data']['qr_string']),
-        'has_qr_url' => isset($response_data['data']['qr_url']),
-        'has_checkout_url' => isset($response_data['data']['checkout_url']),
-        'qr_string_length' => isset($response_data['data']['qr_string']) ? strlen($response_data['data']['qr_string']) : 0
-    ]
+    'transaction_data' => $transaction_data
 ]);
 ?> 

@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import orderService from '../services/orderService';
 import cartService from '../services/cartService';
 import paymentService from '../services/paymentService';
-import PaymentModal from '../components/Payment/PaymentModal';
+
 import PageContainer from '../components/common/PageContainer';
 
 export default function Checkout() {
@@ -22,8 +22,7 @@ export default function Checkout() {
   const [paymentMethod, setPaymentMethod] = useState('qris'); // Only QRIS for Tripay
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [showPayment, setShowPayment] = useState(false);
-  const [paymentData, setPaymentData] = useState(null);
+
 
   useEffect(() => {
     // Redirect if no order data and no cart items
@@ -70,9 +69,16 @@ export default function Checkout() {
       return;
     }
 
+    // Additional validation for non-cart checkout
+    if (!isCartCheckout && !orderData) {
+      setError('Data pesanan tidak valid. Silakan refresh halaman.');
+      return;
+    }
+
     try {
       setLoading(true);
       setError('');
+      console.log('🛒 [Checkout] Starting order submission process');
 
       let createdOrders = [];
 
@@ -132,8 +138,14 @@ export default function Checkout() {
         }
 
     } catch (error) {
-      console.error('Error creating order:', error);
-      setError('Gagal membuat pesanan. Silakan coba lagi.');
+      console.error('❌ [Checkout] Error creating order:', error);
+      if (error.message.includes('permission')) {
+        setError('Anda tidak memiliki izin untuk membuat pesanan. Silakan login ulang.');
+      } else if (error.message.includes('network')) {
+        setError('Masalah koneksi internet. Silakan coba lagi.');
+      } else {
+        setError('Gagal membuat pesanan: ' + (error.message || 'Silakan coba lagi.'));
+      }
     } finally {
       setLoading(false);
     }
@@ -154,28 +166,40 @@ export default function Checkout() {
         clientPhone: '081234567890' // TODO: Get from user profile
       };
 
+      console.log('💳 [Checkout] Creating payment for orders:', {
+        orderCount: orders.length,
+        totalAmount,
+        primaryOrderId: primaryOrder.id
+      });
+
       const payment = await paymentService.createPayment(paymentOrderData);
       
-      if (payment.success) {
-        // Redirect to transactions with payment data as URL params
-        const paymentParams = new URLSearchParams({
-          showPayment: 'true',
-          orderId: primaryOrder.id,
+      if (payment.success && payment.paymentUrl) {
+        console.log('💳 [Checkout] Payment created successfully - redirecting to Tripay:', {
           merchantRef: payment.merchantRef,
-          amount: payment.amount,
-          expiredAt: payment.expiredAt.getTime(),
-          qrString: encodeURIComponent(payment.qrString || ''),
-          paymentUrl: encodeURIComponent(payment.paymentUrl || '')
+          paymentUrl: payment.paymentUrl,
+          amount: payment.amount
         });
         
-        navigate(`/dashboard/client/transactions?${paymentParams.toString()}`);
+        // Show success message
+        setSuccess('Pembayaran berhasil dibuat. Anda akan diarahkan ke halaman pembayaran...');
+        
+        // Redirect directly to Tripay payment page
+        setTimeout(() => {
+          window.open(payment.paymentUrl, '_blank');
+          
+          // Also redirect to transactions page
+          navigate('/dashboard/client/transactions?payment=pending');
+        }, 1500);
+        
         return;
       } else {
+        console.error('❌ [Checkout] Payment creation failed:', payment);
         throw new Error('Failed to create payment');
       }
 
     } catch (error) {
-      console.error('Error creating payment:', error);
+      console.error('❌ [Checkout] Error creating payment:', error);
       setError('Gagal membuat pembayaran. Silakan coba lagi.');
     }
   };
@@ -450,12 +474,7 @@ export default function Checkout() {
         </div>
       </PageContainer>
 
-      {/* Payment Modal */}
-      <PaymentModal
-        isOpen={showPayment}
-        onClose={() => setShowPayment(false)}
-        paymentData={paymentData}
-      />
+
     </div>
   );
 } 

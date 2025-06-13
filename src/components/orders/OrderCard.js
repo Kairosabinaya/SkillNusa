@@ -20,6 +20,7 @@ import {
 } from '../../utils/orderUtils';
 import orderService from '../../services/orderService';
 import { useAuth } from '../../context/AuthContext';
+import RefundRequestModal from './RefundRequestModal';
 
 /**
  * Reusable Order Card Component
@@ -36,6 +37,7 @@ export default function OrderCard({ order, index, onStatusUpdate, userType = 'fr
   const [revisionMessage, setRevisionMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [showRefundModal, setShowRefundModal] = useState(false);
 
   const handleAccept = () => {
     onStatusUpdate(order.id, 'active');
@@ -86,6 +88,23 @@ export default function OrderCard({ order, index, onStatusUpdate, userType = 'fr
     setShowRevisionModal(false);
     setRevisionMessage('');
     setError('');
+  };
+
+  const handleRefundClick = () => {
+    setShowRefundModal(true);
+  };
+
+  // Check if order is eligible for refund
+  const canRequestRefund = (order) => {
+    // Can request refund if:
+    // 1. Order is paid but not completed
+    // 2. Freelancer rejected or didn't respond
+    // 3. Order is cancelled but payment was made
+    return order.paymentStatus === 'paid' && 
+           (order.status === 'pending' || 
+            order.status === 'awaiting_confirmation' || 
+            order.status === 'cancelled' ||
+            order.status === 'active');
   };
 
   return (
@@ -184,22 +203,31 @@ export default function OrderCard({ order, index, onStatusUpdate, userType = 'fr
               </Link>
             )
           ) : (
-            // Client view - can request revision for delivered orders
-            order.status === 'delivered' && !isRevisionDisabled(order) ? (
-              <button
-                onClick={handleRevisionClick}
-                className="flex-1 bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium"
-              >
-                Minta Revisi
-              </button>
-            ) : (
+            // Client view - can request revision for delivered orders or refund for eligible orders
+            <>
+              {order.status === 'delivered' && !isRevisionDisabled(order) ? (
+                <button
+                  onClick={handleRevisionClick}
+                  className="flex-1 bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium"
+                >
+                  Minta Revisi
+                </button>
+              ) : canRequestRefund(order) ? (
+                <button
+                  onClick={handleRefundClick}
+                  className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm font-medium mr-3"
+                >
+                  Request Refund
+                </button>
+              ) : null}
+              
               <Link
                 to={`/dashboard/client/orders/${order.id}`}
                 className="flex-1 bg-[#010042] text-white px-4 py-2 rounded-lg hover:bg-[#010042]/90 transition-colors text-sm font-medium text-center"
               >
                 Lihat Detail
               </Link>
-            )
+            </>
           )}
         </div>
       </motion.div>
@@ -256,6 +284,13 @@ export default function OrderCard({ order, index, onStatusUpdate, userType = 'fr
           </div>
         </div>
       )}
+
+      {/* Refund Request Modal */}
+      <RefundRequestModal
+        isOpen={showRefundModal}
+        onClose={() => setShowRefundModal(false)}
+        order={order}
+      />
     </>
   );
 } 

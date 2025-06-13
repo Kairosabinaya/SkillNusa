@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
@@ -45,7 +45,7 @@ export default function FreelancerOrders() {
   const [rejectReason, setRejectReason] = useState('');
   const [isRejecting, setIsRejecting] = useState(false);
 
-  // Use custom hook for order management
+  // Use custom hook for order management with timeout handling
   const {
     orders,
     selectedOrder,
@@ -60,6 +60,20 @@ export default function FreelancerOrders() {
     setError,
     setSuccess
   } = useOrderManagement(currentUser, orderId);
+
+  // Add timeout for loading state
+  React.useEffect(() => {
+    if (loading) {
+      const timeoutId = setTimeout(() => {
+        if (loading) {
+          console.warn('⏰ [FreelancerOrders] Loading timeout after 15 seconds');
+          setError('Loading timeout. Silakan refresh halaman.');
+        }
+      }, 15000);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [loading, setError]);
 
   // Filter orders based on search and status
   const filteredOrders = filterOrders(searchQuery, filterStatus);
@@ -302,15 +316,15 @@ export default function FreelancerOrders() {
                       <span className="font-medium">{formatCurrency(selectedOrder.price || selectedOrder.amount || selectedOrder.totalPrice || 0)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Platform Fee (10%):</span>
+                      <span className="text-gray-600">Platform Fee (5%):</span>
                       <span className="font-medium text-red-600">
-                        -{formatCurrency(Math.round((selectedOrder.price || selectedOrder.amount || selectedOrder.totalPrice || 0) * 0.1))}
+                        -{formatCurrency(Math.round((selectedOrder.price || selectedOrder.amount || selectedOrder.totalPrice || 0) * 0.05))}
                       </span>
                     </div>
                     <div className="flex justify-between border-t pt-2">
                       <span className="text-gray-900 font-semibold">Penghasilan Anda:</span>
                       <span className="font-bold text-green-600">
-                        {formatCurrency(selectedOrder.freelancerEarning || Math.round((selectedOrder.price || selectedOrder.amount || selectedOrder.totalPrice || 0) * 0.9))}
+                        {formatCurrency(selectedOrder.freelancerEarning || Math.round((selectedOrder.price || selectedOrder.amount || selectedOrder.totalPrice || 0) * 0.95))}
                       </span>
                     </div>
                   </>

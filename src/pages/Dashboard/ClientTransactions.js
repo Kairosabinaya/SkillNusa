@@ -10,8 +10,14 @@ import RatingModal from '../../components/RatingModal';
 import { isRevisionDisabled, getRevisionCountText } from '../../utils/orderUtils';
 import PageContainer from '../../components/common/PageContainer';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
-import PaymentModal from '../../components/Payment/PaymentModal';
+
 import CountdownTimer from '../../components/common/CountdownTimer';
+import cleanPlaceholderQR from '../../scripts/cleanPlaceholderQR';
+
+// Make cleanup function available globally for debugging
+if (typeof window !== 'undefined') {
+  window.cleanPlaceholderQR = cleanPlaceholderQR;
+}
 
 
 export default function ClientTransactions() {
@@ -39,12 +45,13 @@ export default function ClientTransactions() {
   const [revisionMessage, setRevisionMessage] = useState('');
   const [pendingRevisionOrder, setPendingRevisionOrder] = useState(null);
 
-  // Payment modal state
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [paymentData, setPaymentData] = useState(null);
+
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
 
   useEffect(() => {
-    loadOrders();
+    if (currentUser && !isLoadingOrders) {
+      loadOrders();
+    }
   }, [currentUser]);
 
   useEffect(() => {
@@ -68,32 +75,21 @@ export default function ClientTransactions() {
     }
   }, [error]);
 
-  // Handle payment popup from URL parameters (after checkout redirect)
+  // Handle payment success from URL parameters (after Tripay redirect)
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
-    const showPayment = urlParams.get('showPayment');
+    const paymentStatus = urlParams.get('payment');
     
-    if (showPayment === 'true') {
-      const merchantRef = urlParams.get('merchantRef');
-      const amount = urlParams.get('amount');
-      const expiredAt = urlParams.get('expiredAt');
-      const qrString = urlParams.get('qrString');
-      const paymentUrl = urlParams.get('paymentUrl');
+    if (paymentStatus === 'success') {
+      setSuccess('Pembayaran berhasil! Pesanan Anda sedang diproses.');
+      // Clean URL after showing message
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
       
-      if (merchantRef && amount && expiredAt) {
-        setPaymentData({
-          merchantRef,
-          amount: parseFloat(amount),
-          expiredAt: new Date(parseInt(expiredAt)),
-          qrString: decodeURIComponent(qrString || ''),
-          paymentUrl: decodeURIComponent(paymentUrl || '')
-        });
-        setShowPaymentModal(true);
-        
-        // Clean URL after showing modal
-        const newUrl = window.location.pathname;
-        window.history.replaceState({}, document.title, newUrl);
-      }
+      // Refresh orders to get updated status
+      setTimeout(() => {
+        loadOrders();
+      }, 1000);
     }
   }, [location.search]);
 
@@ -102,11 +98,27 @@ export default function ClientTransactions() {
     
     if (!currentUser) {
       console.log('❌ [ClientTransactions] No currentUser, returning early');
+      setLoading(false);
       return;
     }
     
+    if (isLoadingOrders) {
+      console.log('⏳ [ClientTransactions] Already loading orders, skipping...');
+      return;
+    }
+    
+    // Add timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      console.warn('⏰ [ClientTransactions] Loading timeout after 15 seconds');
+      setError('Loading timeout. Silakan refresh halaman.');
+      setLoading(false);
+      setIsLoadingOrders(false);
+    }, 15000);
+    
     try {
       setLoading(true);
+      setIsLoadingOrders(true);
+      setError(''); // Clear previous errors
       console.log('📡 [ClientTransactions] Fetching orders for user:', currentUser.uid);
       
       const ordersWithDetails = await orderService.getOrdersWithDetails(currentUser.uid, 'client');
@@ -117,29 +129,39 @@ export default function ClientTransactions() {
         orders: ordersWithDetails
       });
       
-      setOrders(ordersWithDetails || []);
+      // Ensure we always set an array, even if empty
+      setOrders(Array.isArray(ordersWithDetails) ? ordersWithDetails : []);
 
-      // Check rating status for each order
+      // Check rating status for each order (with error handling)
       if (ordersWithDetails && ordersWithDetails.length > 0) {
         const ratingStatusMap = {};
-        for (const order of ordersWithDetails) {
-          try {
-            const existingReviews = await reviewService.getGigReviews(order.gigId);
-            const userReview = existingReviews.find(review => 
-              review.clientId === currentUser.uid && review.orderId === order.id
-            );
-            ratingStatusMap[order.id] = !!userReview;
-          } catch (error) {
-            console.error('Error checking rating status for order:', order.id, error);
-            ratingStatusMap[order.id] = false;
-          }
-        }
+        
+        // Process rating status in parallel with timeout
+        await Promise.allSettled(
+          ordersWithDetails.map(async (order) => {
+            try {
+              const existingReviews = await reviewService.getGigReviews(order.gigId);
+              const userReview = existingReviews.find(review => 
+                review.clientId === currentUser.uid && review.orderId === order.id
+              );
+              ratingStatusMap[order.id] = !!userReview;
+            } catch (error) {
+              console.error('Error checking rating status for order:', order.id, error);
+              ratingStatusMap[order.id] = false;
+            }
+          })
+        );
+        
         setOrderRatingStatus(ratingStatusMap);
       }
     } catch (error) {
       console.error('💥 [ClientTransactions] Error loading orders:', error);
+      setError(`Gagal memuat transaksi: ${error.message}`);
+      setOrders([]); // Set empty array on error
     } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
+      setIsLoadingOrders(false);
     }
   };
 
@@ -419,8 +441,8 @@ export default function ClientTransactions() {
         setSuccess('Pesanan berhasil diselesaikan!');
       }
       
-      // Refresh orders to get updated data
-      setTimeout(() => loadOrders(), 1000);
+      // Don't auto-reload to prevent infinite loop
+      // Orders will be updated via real-time subscriptions
     } catch (error) {
       console.error('Error completing order:', error);
       setError(error.message || 'Gagal menyelesaikan pesanan. Silakan coba lagi.');
@@ -544,8 +566,8 @@ export default function ClientTransactions() {
       setRevisionMessage('');
       setPendingRevisionOrder(null);
       
-      // Refresh orders to get updated data
-      setTimeout(() => loadOrders(), 1000);
+      // Don't auto-reload to prevent infinite loop
+      // Orders will be updated via real-time subscriptions
     } catch (error) {
       console.error('Error requesting revision:', error);
       setError(error.message || 'Gagal meminta revisi. Silakan coba lagi.');
@@ -569,31 +591,41 @@ export default function ClientTransactions() {
   // Handle payment button click
   const handlePayment = async (order) => {
     try {
+      console.log('💳 [ClientTransactions] handlePayment called with order:', {
+        id: order.id,
+        status: order.status,
+        hasPaymentUrl: !!order.paymentUrl,
+        hasQrString: !!order.qrString,
+        hasPaymentExpiredAt: !!order.paymentExpiredAt
+      });
+      
       setError('');
       
-      // Check if order already has payment data
-      if (order.paymentUrl && order.qrString && order.paymentExpiredAt) {
+      // Check if order already has valid payment URL
+      if (order.paymentUrl && order.paymentExpiredAt) {
         const expiredAt = order.paymentExpiredAt.seconds 
           ? new Date(order.paymentExpiredAt.seconds * 1000) 
           : new Date(order.paymentExpiredAt);
         
+        console.log('💳 [ClientTransactions] Payment URL analysis:', {
+          paymentUrl: order.paymentUrl,
+          isExpired: expiredAt <= new Date(),
+          expiredAt: expiredAt
+        });
+        
         // Check if payment is still valid (not expired)
         if (expiredAt > new Date()) {
-          setPaymentData({
-            merchantRef: order.merchantRef,
-            paymentUrl: order.paymentUrl,
-            qrString: order.qrString,
-            reference: order.reference,
-            amount: order.totalAmount || order.price,
-            expiredAt: expiredAt,
-            instructions: order.instructions
-          });
-          setShowPaymentModal(true);
+          console.log('💳 [ClientTransactions] Using existing payment URL - redirecting to Tripay');
+          // Redirect directly to Tripay payment page
+          window.open(order.paymentUrl, '_blank');
           return;
+        } else {
+          console.log('💳 [ClientTransactions] Payment expired - creating new payment');
         }
       }
       
-      // Create new payment if no valid payment exists
+      // Create new payment and redirect to Tripay
+      console.log('💳 [ClientTransactions] Creating new payment for order:', order.id);
       const paymentResult = await paymentService.createPayment({
         id: order.id,
         totalAmount: order.totalAmount || order.price,
@@ -603,25 +635,35 @@ export default function ClientTransactions() {
         clientPhone: currentUser.phoneNumber || '081234567890'
       });
 
-      if (paymentResult.success) {
-        setPaymentData(paymentResult);
-        setShowPaymentModal(true);
+      if (paymentResult.success && paymentResult.paymentUrl) {
+        console.log('💳 [ClientTransactions] Payment created successfully - redirecting to Tripay:', {
+          merchantRef: paymentResult.merchantRef,
+          paymentUrl: paymentResult.paymentUrl,
+          amount: paymentResult.amount
+        });
+        
+        // Redirect directly to Tripay payment page
+        window.open(paymentResult.paymentUrl, '_blank');
+        
+        // Show success message
+        setSuccess('Pembayaran berhasil dibuat. Halaman pembayaran telah dibuka di tab baru.');
+        
+        // Refresh orders after a short delay to get updated payment data
+        setTimeout(() => {
+          loadOrders();
+        }, 2000);
+        
       } else {
+        console.error('❌ [ClientTransactions] Payment creation failed:', paymentResult);
         setError('Gagal membuat pembayaran. Silakan coba lagi.');
       }
     } catch (error) {
-      console.error('Error creating payment:', error);
+      console.error('❌ [ClientTransactions] Error creating payment:', error);
       setError('Gagal membuat pembayaran. Silakan coba lagi.');
     }
   };
 
-  // Handle payment modal close
-  const handlePaymentModalClose = () => {
-    setShowPaymentModal(false);
-    setPaymentData(null);
-    // Reload orders to get updated status
-    loadOrders();
-  };
+
 
   if (loading) {
     return (
@@ -867,8 +909,8 @@ export default function ClientTransactions() {
                           type="danger"
                           className="text-sm"
                           onExpire={() => {
-                            // Reload transaction data when payment expires
-                            loadOrders();
+                            // Don't reload orders automatically to prevent infinite loop
+                            console.log('⏰ [ClientTransactions] Payment expired for transaction:', selectedTransaction.id);
                           }}
                         />
                       </div>
@@ -1144,9 +1186,44 @@ export default function ClientTransactions() {
     <div className="max-w-7xl mx-auto px-6 py-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Daftar Transaksi</h1>
-        <p className="text-gray-600">Kelola semua pesanan layanan Anda</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Daftar Transaksi</h1>
+            <p className="text-gray-600">Kelola semua pesanan layanan Anda</p>
+          </div>
+          <button
+            onClick={() => !isLoadingOrders && loadOrders()}
+            disabled={isLoadingOrders}
+            className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#010042] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <svg className={`h-4 w-4 mr-2 ${isLoadingOrders ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            {isLoadingOrders ? 'Memuat...' : 'Refresh'}
+          </button>
+        </div>
       </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="mb-6 p-4 bg-red-100 border border-red-300 text-red-700 rounded-lg flex items-center justify-between">
+          <span>{error}</span>
+          <button 
+            onClick={() => setError('')}
+            className="ml-4 text-red-500 hover:text-red-700 font-bold"
+            title="Tutup"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Success Message */}
+      {success && (
+        <div className="mb-6 p-4 bg-green-100 border border-green-300 text-green-700 rounded-lg">
+          {success}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-gray-100 mb-6">
@@ -1274,8 +1351,8 @@ export default function ClientTransactions() {
                           type="danger"
                           className="text-sm"
                           onExpire={() => {
-                            // Reload orders when payment expires
-                            loadOrders();
+                            // Don't reload orders automatically to prevent infinite loop
+                            console.log('⏰ [ClientTransactions] Payment expired for order:', order.id);
                           }}
                         />
                       </div>
@@ -1421,12 +1498,7 @@ export default function ClientTransactions() {
         </div>
       )}
 
-      {/* Payment Modal */}
-      <PaymentModal
-        isOpen={showPaymentModal}
-        onClose={handlePaymentModalClose}
-        paymentData={paymentData}
-      />
+
 
       {/* Debug showRevisionModal state */}
       {console.log('🔍 [ClientTransactions] showRevisionModal state:', showRevisionModal)}
