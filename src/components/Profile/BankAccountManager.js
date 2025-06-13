@@ -27,7 +27,7 @@ const BankAccountManager = ({ onAccountSelect, selectedAccountId, showSelector =
     if (user?.uid) {
       fetchBankAccounts();
     }
-  }, [user]);
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchBankAccounts = async () => {
     try {
@@ -112,7 +112,7 @@ const BankAccountManager = ({ onAccountSelect, selectedAccountId, showSelector =
   };
 
   const handleDelete = async (accountId) => {
-    if (!confirm('Are you sure you want to delete this bank account?')) {
+    if (!window.confirm('Are you sure you want to delete this bank account?')) {
       return;
     }
 
