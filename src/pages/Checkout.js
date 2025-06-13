@@ -18,6 +18,7 @@ export default function Checkout() {
   const isCartCheckout = cartItems.length > 0;
   
   const [loading, setLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState(''); // New state for loading steps
   const [requirements, setRequirements] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('qris'); // Only QRIS for Tripay
   const [error, setError] = useState('');
@@ -78,6 +79,7 @@ export default function Checkout() {
     try {
       setLoading(true);
       setError('');
+      setLoadingStep('Membuat pesanan...');
       console.log('🛒 [Checkout] Starting order submission process');
 
       let createdOrders = [];
@@ -105,11 +107,14 @@ export default function Checkout() {
         createdOrders = await Promise.all(orderPromises);
 
         // Clear cart after successful orders
+        setLoadingStep('Membersihkan keranjang...');
         await cartService.clearCart(currentUser.uid);
 
-        // For cart orders, create combined payment
-        const totalAmount = cartItems.reduce((sum, item) => sum + (item.packageData?.price || 0), 0);
-        await createPaymentForOrders(createdOrders, totalAmount);
+        // For cart orders, create combined payment with total including platform fee
+        setLoadingStep('Menghubungi gateway pembayaran...');
+        const subtotal = cartItems.reduce((sum, item) => sum + (item.packageData?.price || 0), 0);
+        const totalWithPlatformFee = Math.round(subtotal * 1.05); // Add 5% platform fee
+        await createPaymentForOrders(createdOrders, totalWithPlatformFee);
 
       } else {
         // Create single order with payment status
@@ -134,20 +139,27 @@ export default function Checkout() {
         });
 
         createdOrders = [newOrder];
-        await createPaymentForOrders([newOrder], orderData.price);
-        }
+        // FIX: Send total amount including 5% platform fee
+        setLoadingStep('Menghubungi gateway pembayaran...');
+        const totalWithPlatformFee = Math.round(orderData.price * 1.05); // Add 5% platform fee
+        await createPaymentForOrders([newOrder], totalWithPlatformFee);
+      }
 
     } catch (error) {
       console.error('❌ [Checkout] Error creating order:', error);
+      setLoadingStep('');
       if (error.message.includes('permission')) {
         setError('Anda tidak memiliki izin untuk membuat pesanan. Silakan login ulang.');
       } else if (error.message.includes('network')) {
         setError('Masalah koneksi internet. Silakan coba lagi.');
+      } else if (error.message.includes('timeout')) {
+        setError('Koneksi timeout. Silakan periksa koneksi internet dan coba lagi.');
       } else {
         setError('Gagal membuat pesanan: ' + (error.message || 'Silakan coba lagi.'));
       }
     } finally {
       setLoading(false);
+      setLoadingStep('');
     }
   };
 
@@ -156,6 +168,7 @@ export default function Checkout() {
       // Use the first order for payment details (for multiple orders, we combine them)
       const primaryOrder = orders[0];
       
+      setLoadingStep('Menyiapkan data pembayaran...');
       const paymentOrderData = {
         id: primaryOrder.id,
         totalAmount: totalAmount,
@@ -172,6 +185,7 @@ export default function Checkout() {
         primaryOrderId: primaryOrder.id
       });
 
+      setLoadingStep('Menghubungi Tripay...');
       const payment = await paymentService.createPayment(paymentOrderData);
       
       if (payment.success && payment.paymentUrl) {
@@ -182,6 +196,7 @@ export default function Checkout() {
         });
         
         // Show success message
+        setLoadingStep('Berhasil! Mengarahkan ke halaman pembayaran...');
         setSuccess('Pembayaran berhasil dibuat. Anda akan diarahkan ke halaman pembayaran...');
         
         // Redirect directly to Tripay payment page
@@ -424,12 +439,32 @@ export default function Checkout() {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      Memproses...
+                      <span className="text-sm">
+                        {loadingStep || 'Memproses...'}
+                      </span>
                     </div>
                   ) : (
                     isCartCheckout ? `Buat ${cartItems.length} Pesanan` : 'Buat Pesanan'
                   )}
                 </button>
+                
+                {/* Loading Progress Info */}
+                {loading && loadingStep && (
+                  <div className="mt-3 text-center">
+                    <div className="text-xs text-gray-500">
+                      Mohon tunggu, proses ini mungkin memerlukan waktu hingga 2 menit
+                    </div>
+                    <div className="mt-2 w-full bg-gray-200 rounded-full h-1">
+                      <div className="bg-[#010042] h-1 rounded-full animate-pulse" style={{
+                        width: loadingStep.includes('Membuat') ? '25%' : 
+                               loadingStep.includes('Membersihkan') ? '40%' :
+                               loadingStep.includes('Menyiapkan') ? '60%' :
+                               loadingStep.includes('Menghubungi') ? '80%' :
+                               loadingStep.includes('Berhasil') ? '100%' : '50%'
+                      }}></div>
+                    </div>
+                  </div>
+                )}
               </form>
             </div>
           </div>

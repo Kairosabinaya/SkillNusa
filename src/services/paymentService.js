@@ -88,43 +88,93 @@ class PaymentService {
         customerPhone: paymentData.customerPhone ? paymentData.customerPhone.replace(/(.{3}).*(.{3})/, '$1***$2') : 'N/A'
       });
 
-      // Send request to PHP backend
-      const response = await fetch(this.createPaymentUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(paymentData)
-      });
-
-      console.log('📥 [PaymentService] Response status:', response.status);
-      console.log('📥 [PaymentService] Response headers:', Object.fromEntries(response.headers.entries()));
-
-      if (!response.ok) {
-        const responseText = await response.text();
-        console.error('❌ [PaymentService] Error response:', responseText);
-        
-        // Try to parse as JSON, fallback to text
-        let errorData;
+      // Send request to PHP backend with timeout and retry
+      const maxRetries = 2;
+      let lastError = null;
+      let result = null; // Declare result outside the loop
+      
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-          errorData = JSON.parse(responseText);
-        } catch (e) {
-          errorData = { error: `HTTP ${response.status}: ${responseText}` };
-        }
-        
-        throw new Error(errorData.error || 'Payment creation failed');
-      }
+          console.log(`🔄 [PaymentService] Attempt ${attempt}/${maxRetries}`);
+          
+          // Create AbortController for timeout
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 second timeout
+          
+          const response = await fetch(this.createPaymentUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(paymentData),
+            signal: controller.signal
+          });
+          
+          clearTimeout(timeoutId);
+          
+          console.log(`📥 [PaymentService] Attempt ${attempt} - Response status:`, response.status);
+          
+          if (!response.ok) {
+            const responseText = await response.text();
+            console.error(`❌ [PaymentService] Attempt ${attempt} - Error response:`, responseText);
+            
+            // Try to parse as JSON, fallback to text
+            let errorData;
+            try {
+              errorData = JSON.parse(responseText);
+            } catch (e) {
+              errorData = { error: `HTTP ${response.status}: ${responseText}` };
+            }
+            
+            // If it's a server error and we have retries left, continue to next attempt
+            if (response.status >= 500 && attempt < maxRetries) {
+              lastError = new Error(errorData.error || 'Payment creation failed');
+              console.log(`⏳ [PaymentService] Server error, retrying in ${attempt * 2} seconds...`);
+              await new Promise(resolve => setTimeout(resolve, attempt * 2000));
+              continue;
+            }
+            
+            throw new Error(errorData.error || 'Payment creation failed');
+          }
 
-      const result = await response.json();
-      console.log('✅ [PaymentService] Payment created successfully:', {
-        success: result.success,
-        merchantRef: result.merchant_ref,
-        hasQrString: !!result.tripay_response?.data?.qr_string,
-        hasQrUrl: !!result.tripay_response?.data?.qr_url,
-        hasCheckoutUrl: !!result.tripay_response?.data?.checkout_url,
-        qrStringLength: result.tripay_response?.data?.qr_string?.length || 0,
-        qrStringPreview: result.tripay_response?.data?.qr_string?.substring(0, 50) + '...' || 'N/A'
-      });
+          result = await response.json(); // Assign to the outer scope variable
+          console.log('✅ [PaymentService] Payment created successfully:', {
+            success: result.success,
+            merchantRef: result.merchant_ref,
+            hasQrString: !!result.tripay_response?.data?.qr_string,
+            hasQrUrl: !!result.tripay_response?.data?.qr_url,
+            hasCheckoutUrl: !!result.tripay_response?.data?.checkout_url,
+            attempt: attempt
+          });
+          
+          // Success - break out of retry loop
+          break;
+          
+        } catch (error) {
+          lastError = error;
+          
+          if (error.name === 'AbortError') {
+            console.error(`⏰ [PaymentService] Attempt ${attempt} - Request timeout after 90 seconds`);
+            lastError = new Error('Request timeout. Silakan coba lagi.');
+          } else {
+            console.error(`❌ [PaymentService] Attempt ${attempt} - Error:`, error.message);
+          }
+          
+          // If this is the last attempt, throw the error
+          if (attempt === maxRetries) {
+            throw lastError;
+          }
+          
+          // Wait before retrying
+          console.log(`⏳ [PaymentService] Waiting ${attempt * 2} seconds before retry...`);
+          await new Promise(resolve => setTimeout(resolve, attempt * 2000));
+        }
+      }
+      
+      // If we get here without a result, throw the last error
+      if (!result) {
+        throw lastError || new Error('Payment creation failed after retries');
+      }
 
       // Update order with payment information
       await this.updateOrderWithPayment(orderData.id, {

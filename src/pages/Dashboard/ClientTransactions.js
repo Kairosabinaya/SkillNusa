@@ -626,9 +626,22 @@ export default function ClientTransactions() {
       
       // Create new payment and redirect to Tripay
       console.log('💳 [ClientTransactions] Creating new payment for order:', order.id);
+      
+      // FIX: Calculate total amount with 5% platform fee
+      const baseAmount = order.totalAmount || order.price || 0;
+      // Check if totalAmount already includes platform fee by comparing with price
+      let totalWithPlatformFee;
+      if (order.totalAmount && order.price && Math.abs(order.totalAmount - (order.price * 1.05)) < 1) {
+        // totalAmount already includes platform fee
+        totalWithPlatformFee = order.totalAmount;
+      } else {
+        // Add 5% platform fee to price
+        totalWithPlatformFee = Math.round((order.price || baseAmount) * 1.05);
+      }
+      
       const paymentResult = await paymentService.createPayment({
         id: order.id,
-        totalAmount: order.totalAmount || order.price,
+        totalAmount: totalWithPlatformFee,
         title: order.title,
         clientName: currentUser.displayName || 'SkillNusa Client',
         clientEmail: currentUser.email || 'client@skillnusa.com',

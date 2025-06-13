@@ -132,36 +132,116 @@ $headers = [
     'Content-Type: application/json',
 ];
 
-// Initialize cURL
-$curl = curl_init();
+// Function to make Tripay API request with retry
+function makeTripayRequest($api_url, $transaction_data, $headers, $max_retries = 3) {
+    $attempt = 0;
+    
+    while ($attempt < $max_retries) {
+        $attempt++;
+        error_log("Tripay API Request Attempt #{$attempt}");
+        
+        // Initialize cURL with improved configuration
+        $curl = curl_init();
+        
+        curl_setopt_array($curl, [
+            CURLOPT_URL => $api_url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 60, // Increase timeout to 60 seconds
+            CURLOPT_CONNECTTIMEOUT => 30, // Connection timeout 30 seconds
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS => json_encode($transaction_data),
+            CURLOPT_HTTPHEADER => $headers,
+            // Additional reliability settings
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_USERAGENT => 'SkillNusa/1.0',
+            CURLOPT_FRESH_CONNECT => true,
+            CURLOPT_FORBID_REUSE => true,
+            // DNS and connection settings
+            CURLOPT_DNS_CACHE_TIMEOUT => 120,
+            CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4
+        ]);
+        
+        $start_time = microtime(true);
+        $response = curl_exec($curl);
+        $end_time = microtime(true);
+        $request_duration = round(($end_time - $start_time) * 1000, 2);
+        
+        $http_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        $curl_error = curl_error($curl);
+        $curl_info = curl_getinfo($curl);
+        
+        curl_close($curl);
+        
+        error_log("Tripay API Attempt #{$attempt}: {$request_duration}ms, HTTP Code: {$http_code}");
+        
+        // If successful, return result
+        if (!$curl_error && $http_code === 200) {
+            return [
+                'success' => true,
+                'response' => $response,
+                'http_code' => $http_code,
+                'duration' => $request_duration,
+                'attempt' => $attempt
+            ];
+        }
+        
+        // Log error details
+        error_log("Tripay API Attempt #{$attempt} Failed: " . json_encode([
+            'error' => $curl_error ?: 'HTTP Error',
+            'http_code' => $http_code,
+            'total_time' => $curl_info['total_time'] ?? 'unknown',
+            'connect_time' => $curl_info['connect_time'] ?? 'unknown'
+        ]));
+        
+        // If this is not the last attempt, wait before retrying
+        if ($attempt < $max_retries) {
+            $wait_time = $attempt * 2; // Progressive backoff: 2s, 4s, 6s
+            error_log("Waiting {$wait_time} seconds before retry...");
+            sleep($wait_time);
+        }
+    }
+    
+    // All attempts failed
+    return [
+        'success' => false,
+        'error' => $curl_error ?: 'HTTP Error after ' . $max_retries . ' attempts',
+        'http_code' => $http_code ?? 0,
+        'attempts' => $max_retries
+    ];
+}
 
-curl_setopt_array($curl, [
-    CURLOPT_URL => $api_url,
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_ENCODING => '',
-    CURLOPT_MAXREDIRS => 10,
-    CURLOPT_TIMEOUT => 30,
-    CURLOPT_FOLLOWLOCATION => true,
-    CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-    CURLOPT_CUSTOMREQUEST => 'POST',
-    CURLOPT_POSTFIELDS => json_encode($transaction_data),
-    CURLOPT_HTTPHEADER => $headers,
-]);
+// Log request details for debugging
+error_log("Tripay API Request: " . json_encode([
+    'url' => $api_url,
+    'method' => 'POST',
+    'merchant_ref' => $merchant_ref,
+    'amount' => $transaction_data['amount'],
+    'timestamp' => date('Y-m-d H:i:s')
+]));
 
-$response = curl_exec($curl);
-$http_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-$curl_error = curl_error($curl);
+// Make request with retry mechanism
+$result = makeTripayRequest($api_url, $transaction_data, $headers);
 
-curl_close($curl);
-
-// Handle cURL errors
-if ($curl_error) {
+if (!$result['success']) {
     http_response_code(500);
     echo json_encode([
-        'error' => 'cURL Error: ' . $curl_error
+        'error' => 'Tripay API Error: ' . $result['error'],
+        'details' => [
+            'http_code' => $result['http_code'],
+            'attempts' => $result['attempts'],
+            'api_url' => $api_url
+        ]
     ]);
     exit;
 }
+
+$response = $result['response'];
+$http_code = $result['http_code'];
 
 // Decode response
 $response_data = json_decode($response, true);
