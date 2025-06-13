@@ -71,6 +71,9 @@ class OrderService {
         // Payment timeout - 1 minute from creation (FOR TESTING)
         paymentExpiredAt: new Date(Date.now() + 1 * 60 * 1000),
         
+        // Confirmation deadline - will be set when payment is confirmed
+        confirmationDeadline: null,
+        
         // Timeline tracking
         timeline: {
           ordered: serverTimestamp(),
