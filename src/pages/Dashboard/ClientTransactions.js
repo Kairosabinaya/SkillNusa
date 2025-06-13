@@ -1,19 +1,23 @@
 import { useState, useEffect } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import orderService from '../../services/orderService';
 import reviewService from '../../services/reviewService';
 import freelancerRatingService from '../../services/freelancerRatingService';
 import notificationService from '../../services/notificationService';
+import paymentService from '../../services/paymentService';
 import RatingModal from '../../components/RatingModal';
 import { isRevisionDisabled, getRevisionCountText } from '../../utils/orderUtils';
 import PageContainer from '../../components/common/PageContainer';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+import PaymentModal from '../../components/Payment/PaymentModal';
+import CountdownTimer from '../../components/common/CountdownTimer';
 
 
 export default function ClientTransactions() {
   const { transactionId } = useParams();
   const { currentUser } = useAuth();
+  const location = useLocation();
   const [orders, setOrders] = useState([]);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -34,6 +38,10 @@ export default function ClientTransactions() {
   const [showRevisionModal, setShowRevisionModal] = useState(false);
   const [revisionMessage, setRevisionMessage] = useState('');
   const [pendingRevisionOrder, setPendingRevisionOrder] = useState(null);
+
+  // Payment modal state
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentData, setPaymentData] = useState(null);
 
   useEffect(() => {
     loadOrders();
@@ -59,6 +67,35 @@ export default function ClientTransactions() {
       return () => clearTimeout(timer);
     }
   }, [error]);
+
+  // Handle payment popup from URL parameters (after checkout redirect)
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const showPayment = urlParams.get('showPayment');
+    
+    if (showPayment === 'true') {
+      const merchantRef = urlParams.get('merchantRef');
+      const amount = urlParams.get('amount');
+      const expiredAt = urlParams.get('expiredAt');
+      const qrString = urlParams.get('qrString');
+      const paymentUrl = urlParams.get('paymentUrl');
+      
+      if (merchantRef && amount && expiredAt) {
+        setPaymentData({
+          merchantRef,
+          amount: parseFloat(amount),
+          expiredAt: new Date(parseInt(expiredAt)),
+          qrString: decodeURIComponent(qrString || ''),
+          paymentUrl: decodeURIComponent(paymentUrl || '')
+        });
+        setShowPaymentModal(true);
+        
+        // Clean URL after showing modal
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, newUrl);
+      }
+    }
+  }, [location.search]);
 
   const loadOrders = async () => {
     console.log('🔍 [ClientTransactions] loadOrders called with currentUser:', currentUser?.uid);
@@ -148,6 +185,7 @@ export default function ClientTransactions() {
 
   const getStatusBadge = (status) => {
     const statusConfig = {
+      payment: { label: 'Menunggu Pembayaran', color: 'bg-orange-100 text-orange-800' },
       pending: { label: 'Menunggu Konfirmasi', color: 'bg-yellow-100 text-yellow-800' },
       active: { label: 'Sedang Dikerjakan', color: 'bg-blue-100 text-blue-800' },
       in_progress: { label: 'Sedang Dikerjakan', color: 'bg-blue-100 text-blue-800' },
@@ -172,6 +210,8 @@ export default function ClientTransactions() {
     
     if (activeTab === 'all') {
       matchesTab = true;
+    } else if (activeTab === 'payment') {
+      matchesTab = order.status === 'payment';
     } else if (activeTab === 'pending') {
       matchesTab = order.status === 'pending';
     } else if (activeTab === 'in_progress') {
@@ -201,6 +241,7 @@ export default function ClientTransactions() {
 
   const statusCounts = {
     all: orders.length,
+    payment: orders.filter(o => o.status === 'payment').length,
     pending: orders.filter(o => o.status === 'pending').length,
     in_progress: orders.filter(o => ['active', 'in_progress', 'in_revision', 'delivered'].includes(o.status)).length,
     completed: orders.filter(o => o.status === 'completed').length,
@@ -209,6 +250,7 @@ export default function ClientTransactions() {
 
   const tabs = [
     { id: 'all', label: 'Semua', count: statusCounts.all },
+    { id: 'payment', label: 'Menunggu Pembayaran', count: statusCounts.payment },
     { id: 'pending', label: 'Menunggu Konfirmasi', count: statusCounts.pending },
     { id: 'in_progress', label: 'Sedang Dikerjakan', count: statusCounts.in_progress },
     { id: 'completed', label: 'Selesai', count: statusCounts.completed },
@@ -524,6 +566,63 @@ export default function ClientTransactions() {
     setShowRatingModal(true);
   };
 
+  // Handle payment button click
+  const handlePayment = async (order) => {
+    try {
+      setError('');
+      
+      // Check if order already has payment data
+      if (order.paymentUrl && order.qrString && order.paymentExpiredAt) {
+        const expiredAt = order.paymentExpiredAt.seconds 
+          ? new Date(order.paymentExpiredAt.seconds * 1000) 
+          : new Date(order.paymentExpiredAt);
+        
+        // Check if payment is still valid (not expired)
+        if (expiredAt > new Date()) {
+          setPaymentData({
+            merchantRef: order.merchantRef,
+            paymentUrl: order.paymentUrl,
+            qrString: order.qrString,
+            reference: order.reference,
+            amount: order.totalAmount || order.price,
+            expiredAt: expiredAt,
+            instructions: order.instructions
+          });
+          setShowPaymentModal(true);
+          return;
+        }
+      }
+      
+      // Create new payment if no valid payment exists
+      const paymentResult = await paymentService.createPayment({
+        id: order.id,
+        totalAmount: order.totalAmount || order.price,
+        title: order.title,
+        clientName: currentUser.displayName || 'SkillNusa Client',
+        clientEmail: currentUser.email || 'client@skillnusa.com',
+        clientPhone: currentUser.phoneNumber || '081234567890'
+      });
+
+      if (paymentResult.success) {
+        setPaymentData(paymentResult);
+        setShowPaymentModal(true);
+      } else {
+        setError('Gagal membuat pembayaran. Silakan coba lagi.');
+      }
+    } catch (error) {
+      console.error('Error creating payment:', error);
+      setError('Gagal membuat pembayaran. Silakan coba lagi.');
+    }
+  };
+
+  // Handle payment modal close
+  const handlePaymentModalClose = () => {
+    setShowPaymentModal(false);
+    setPaymentData(null);
+    // Reload orders to get updated status
+    loadOrders();
+  };
+
   if (loading) {
     return (
       <div className="p-6">
@@ -743,6 +842,54 @@ export default function ClientTransactions() {
               )}
               
               <div className="space-y-2">
+                {/* Payment action for payment status */}
+                {selectedTransaction.status === 'payment' && (
+                  <>
+                    <button
+                      onClick={() => handlePayment(selectedTransaction)}
+                      className="w-full flex items-center justify-center gap-2 bg-orange-600 text-white py-3 px-4 rounded-lg hover:bg-orange-700 transition-colors font-medium"
+                    >
+                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Bayar Sekarang
+                    </button>
+                    
+                    {/* Payment countdown */}
+                    {selectedTransaction.paymentExpiredAt && (
+                      <div className="mt-3">
+                        <CountdownTimer
+                          targetDate={selectedTransaction.paymentExpiredAt.seconds 
+                            ? new Date(selectedTransaction.paymentExpiredAt.seconds * 1000) 
+                            : new Date(selectedTransaction.paymentExpiredAt)
+                          }
+                          label="Batas waktu pembayaran"
+                          type="danger"
+                          className="text-sm"
+                          onExpire={() => {
+                            // Reload transaction data when payment expires
+                            loadOrders();
+                          }}
+                        />
+                      </div>
+                    )}
+                    
+                    {/* Payment info */}
+                    <div className="w-full p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                      <div className="flex items-center gap-2 text-orange-800">
+                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-sm font-medium">
+                          Menunggu Pembayaran
+                        </span>
+                      </div>
+                      <p className="text-sm text-orange-600 mt-1">
+                        Silakan lakukan pembayaran untuk melanjutkan pesanan. Setelah pembayaran berhasil, pesanan akan diteruskan ke freelancer.
+                      </p>
+                    </div>
+                  </>
+                )}
                 {selectedTransaction.status === 'completed' && (
                   <>
                     <Link
@@ -1115,18 +1262,53 @@ export default function ClientTransactions() {
                       <span>{formatDate(order.createdAt)}</span>
                     </div>
                     
+                    {/* Payment countdown for payment status */}
+                    {order.status === 'payment' && order.paymentExpiredAt && (
+                      <div className="mb-2">
+                        <CountdownTimer
+                          targetDate={order.paymentExpiredAt.seconds 
+                            ? new Date(order.paymentExpiredAt.seconds * 1000) 
+                            : new Date(order.paymentExpiredAt)
+                          }
+                          label="Batas waktu pembayaran"
+                          type="danger"
+                          className="text-sm"
+                          onExpire={() => {
+                            // Reload orders when payment expires
+                            loadOrders();
+                          }}
+                        />
+                      </div>
+                    )}
+                    
                     <div className="text-lg font-bold text-[#010042]">
                       {formatPrice(getOrderPrice(order))}
                     </div>
                   </div>
                   
                   <div className="flex items-center space-x-3 ml-4">
-                    <Link
-                      to={`/messages/${order.conversationId || order.id}`}
-                      className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                    >
-                      Pesan
-                    </Link>
+                    {/* Show payment button for payment status orders */}
+                    {order.status === 'payment' && (
+                      <button
+                        onClick={() => handlePayment(order)}
+                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700"
+                      >
+                        <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Bayar Sekarang
+                      </button>
+                    )}
+                    
+                    {/* Show message button for non-payment status orders */}
+                    {order.status !== 'payment' && (
+                      <Link
+                        to={`/messages/${order.conversationId || order.id}`}
+                        className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                      >
+                        Pesan
+                      </Link>
+                    )}
                     
                     {/* Show rating button for completed orders that haven't been rated */}
                     {order.status === 'completed' && !orderRatingStatus[order.id] && (
@@ -1152,12 +1334,15 @@ export default function ClientTransactions() {
                       </span>
                     )}
                     
-                    <Link
-                      to={`/dashboard/client/transactions/${order.id}`}
-                      className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-[#010042] hover:bg-[#010042]/90"
-                    >
-                      Detail
-                    </Link>
+                    {/* Show detail button only for non-payment status orders */}
+                    {order.status !== 'payment' && (
+                      <Link
+                        to={`/dashboard/client/transactions/${order.id}`}
+                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-[#010042] hover:bg-[#010042]/90"
+                      >
+                        Detail
+                      </Link>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1235,6 +1420,13 @@ export default function ClientTransactions() {
           </div>
         </div>
       )}
+
+      {/* Payment Modal */}
+      <PaymentModal
+        isOpen={showPaymentModal}
+        onClose={handlePaymentModalClose}
+        paymentData={paymentData}
+      />
 
       {/* Debug showRevisionModal state */}
       {console.log('🔍 [ClientTransactions] showRevisionModal state:', showRevisionModal)}

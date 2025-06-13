@@ -166,12 +166,7 @@ export default function Header() {
                       {renderCountBadge(counts.cart)}
                     </Link>
                     
-                    {/* Transactions - Hidden on small screens */}
-                    {/* <Link to="/transactions" className="hidden md:block text-gray-500 hover:text-[#010042] transition-all duration-200" title="Riwayat Transaksi">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                    </Link> */}
+                    {/* Transactions functionality moved to dashboard */}
                     
                     {/* Messages with count */}
                     <Link to="/messages" className="text-gray-500 hover:text-[#010042] transition-all duration-200 relative" title="Pesan">

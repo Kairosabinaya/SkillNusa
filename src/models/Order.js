@@ -12,7 +12,7 @@ export class Order extends BaseModel {
     this.price = data.price || 0;
     this.deliveryTime = data.deliveryTime || '';
     this.revisions = data.revisions || 0;
-    this.status = data.status || 'pending'; // pending, in_progress, in_review, completed, cancelled, dispute
+    this.status = data.status || 'pending'; // payment, pending, in_progress, in_review, completed, cancelled, dispute
     this.requirements = data.requirements || '';
     this.paymentStatus = data.paymentStatus || 'pending'; // pending, paid, refunded
     this.deliveryDate = data.deliveryDate || null;
@@ -65,6 +65,7 @@ export class Order extends BaseModel {
 
   getStatusColor() {
     const statusColors = {
+      payment: 'orange',
       pending: 'yellow',
       in_progress: 'blue',
       in_review: 'orange',
@@ -73,6 +74,19 @@ export class Order extends BaseModel {
       dispute: 'purple'
     };
     return statusColors[this.status] || 'gray';
+  }
+
+  getStatusText() {
+    const statusTexts = {
+      payment: 'Menunggu Pembayaran',
+      pending: 'Menunggu Konfirmasi',
+      in_progress: 'Sedang Dikerjakan',
+      in_review: 'Review Client',
+      completed: 'Selesai',
+      cancelled: 'Dibatalkan',
+      dispute: 'Sengketa'
+    };
+    return statusTexts[this.status] || this.status;
   }
 
   toJSON() {

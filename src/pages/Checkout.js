@@ -3,6 +3,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import orderService from '../services/orderService';
 import cartService from '../services/cartService';
+import paymentService from '../services/paymentService';
+import PaymentModal from '../components/Payment/PaymentModal';
 import PageContainer from '../components/common/PageContainer';
 
 export default function Checkout() {
@@ -17,9 +19,11 @@ export default function Checkout() {
   
   const [loading, setLoading] = useState(false);
   const [requirements, setRequirements] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('bank_transfer');
+  const [paymentMethod, setPaymentMethod] = useState('qris'); // Only QRIS for Tripay
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showPayment, setShowPayment] = useState(false);
+  const [paymentData, setPaymentData] = useState(null);
 
   useEffect(() => {
     // Redirect if no order data and no cart items
@@ -70,8 +74,10 @@ export default function Checkout() {
       setLoading(true);
       setError('');
 
+      let createdOrders = [];
+
       if (isCartCheckout) {
-        // Create multiple orders from cart items
+        // Create multiple orders from cart items with payment status
         const orderPromises = cartItems.map(item => 
           orderService.createOrder({
             clientId: currentUser.uid,
@@ -84,24 +90,28 @@ export default function Checkout() {
             deliveryTime: parseInt(item.packageData?.deliveryTime) || 7,
             revisions: item.packageData?.revisions || 3,
             requirements: requirements.trim(),
-            paymentMethod,
-            paymentStatus: 'pending'
+            paymentMethod: 'qris',
+            paymentStatus: 'pending',
+            status: 'payment' // New status for awaiting payment
           })
         );
 
-        await Promise.all(orderPromises);
+        createdOrders = await Promise.all(orderPromises);
 
         // Clear cart after successful orders
         await cartService.clearCart(currentUser.uid);
 
-        setSuccess(`${cartItems.length} pesanan berhasil dibuat! Anda akan diarahkan ke halaman transaksi.`);
+        // For cart orders, create combined payment
+        const totalAmount = cartItems.reduce((sum, item) => sum + (item.packageData?.price || 0), 0);
+        await createPaymentForOrders(createdOrders, totalAmount);
+
       } else {
-        // Create single order - extract number from deliveryTime if it's a string
+        // Create single order with payment status
         const deliveryDays = typeof orderData.deliveryTime === 'string' 
           ? parseInt(orderData.deliveryTime.replace(/\D/g, '')) || 7
           : orderData.deliveryTime || 7;
 
-        await orderService.createOrder({
+        const newOrder = await orderService.createOrder({
           clientId: currentUser.uid,
           freelancerId: orderData.freelancerId,
           gigId: orderData.gigId,
@@ -112,28 +122,61 @@ export default function Checkout() {
           deliveryTime: deliveryDays,
           revisions: orderData.revisions,
           requirements: requirements.trim(),
-          paymentMethod,
-          paymentStatus: 'pending'
+          paymentMethod: 'qris',
+          paymentStatus: 'pending',
+          status: 'payment' // New status for awaiting payment
         });
 
-        setSuccess('Pesanan berhasil dibuat! Anda akan diarahkan ke halaman transaksi.');
-      }
-      
-      // Redirect to transactions after 2 seconds
-      setTimeout(() => {
-        navigate('/transactions');
-        
-        // Refresh order count in client dashboard if function exists
-        if (window.refreshClientOrdersCount) {
-          window.refreshClientOrdersCount();
+        createdOrders = [newOrder];
+        await createPaymentForOrders([newOrder], orderData.price);
         }
-      }, 2000);
 
     } catch (error) {
       console.error('Error creating order:', error);
       setError('Gagal membuat pesanan. Silakan coba lagi.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const createPaymentForOrders = async (orders, totalAmount) => {
+    try {
+      // Use the first order for payment details (for multiple orders, we combine them)
+      const primaryOrder = orders[0];
+      
+      const paymentOrderData = {
+        id: primaryOrder.id,
+        totalAmount: totalAmount,
+        title: orders.length > 1 ? `${orders.length} Layanan SkillNusa` : primaryOrder.title,
+        gigId: primaryOrder.gigId,
+        clientName: currentUser.displayName || 'SkillNusa Client',
+        clientEmail: currentUser.email,
+        clientPhone: '081234567890' // TODO: Get from user profile
+      };
+
+      const payment = await paymentService.createPayment(paymentOrderData);
+      
+      if (payment.success) {
+        // Redirect to transactions with payment data as URL params
+        const paymentParams = new URLSearchParams({
+          showPayment: 'true',
+          orderId: primaryOrder.id,
+          merchantRef: payment.merchantRef,
+          amount: payment.amount,
+          expiredAt: payment.expiredAt.getTime(),
+          qrString: encodeURIComponent(payment.qrString || ''),
+          paymentUrl: encodeURIComponent(payment.paymentUrl || '')
+        });
+        
+        navigate(`/dashboard/client/transactions?${paymentParams.toString()}`);
+        return;
+      } else {
+        throw new Error('Failed to create payment');
+      }
+
+    } catch (error) {
+      console.error('Error creating payment:', error);
+      setError('Gagal membuat pembayaran. Silakan coba lagi.');
     }
   };
 
@@ -304,71 +347,44 @@ export default function Checkout() {
                   </label>
                   
                   <div className="space-y-3">
-                    <label className="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <label className="flex items-center p-3 border-2 border-[#010042] bg-blue-50 rounded-lg cursor-pointer">
                       <input
                         type="radio"
                         name="paymentMethod"
-                        value="bank_transfer"
-                        checked={paymentMethod === 'bank_transfer'}
+                        value="qris"
+                        checked={paymentMethod === 'qris'}
                         onChange={(e) => setPaymentMethod(e.target.value)}
-                        className="mr-3"
+                        className="mr-3 text-[#010042]"
+                        disabled={true} // Only QRIS available
                       />
                       <div className="flex items-center">
-                        <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center mr-3">
-                          <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
+                        <div className="w-8 h-8 bg-[#010042] rounded flex items-center justify-center mr-3">
+                          <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M3 11h8V3H3v8zm2-6h4v4H5V5zm8-2v8h8V3h-8zm6 6h-4V5h4v4zM3 21h8v-8H3v8zm2-6h4v4H5v-4z"/>
+                            <path d="M15 13h1v1h-1zm0 2h1v1h-1zm2-2h1v1h-1zm0 2h1v1h-1zm2-2h1v1h-1zm0 2h1v1h-1zm0 2h1v1h-1zm-2 0h1v1h-1zm-2 0h1v1h-1z"/>
                           </svg>
                         </div>
                         <div>
-                          <div className="font-medium text-gray-900">Transfer Bank</div>
-                          <div className="text-sm text-gray-500">BCA, Mandiri, BNI, BRI</div>
+                          <div className="font-medium text-gray-900">QRIS (Scan & Pay)</div>
+                          <div className="text-sm text-gray-500">Scan QR Code dengan aplikasi e-wallet atau mobile banking Anda</div>
                         </div>
                       </div>
                     </label>
 
-                    <label className="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                      <input
-                        type="radio"
-                        name="paymentMethod"
-                        value="e_wallet"
-                        checked={paymentMethod === 'e_wallet'}
-                        onChange={(e) => setPaymentMethod(e.target.value)}
-                        className="mr-3"
-                      />
-                      <div className="flex items-center">
-                        <div className="w-8 h-8 bg-green-100 rounded flex items-center justify-center mr-3">
-                          <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    {/* Info about QRIS */}
+                    <div className="bg-blue-50 p-3 rounded-lg">
+                      <div className="flex items-start gap-2">
+                        <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M11,16.5L6.5,12L7.91,10.59L11,13.67L16.59,8.09L18,9.5L11,16.5Z"/>
                           </svg>
-                        </div>
                         <div>
-                          <div className="font-medium text-gray-900">E-Wallet</div>
-                          <div className="text-sm text-gray-500">GoPay, OVO, Dana, LinkAja</div>
+                          <div className="text-sm font-medium text-blue-900">Mendukung Semua E-Wallet</div>
+                          <div className="text-xs text-blue-700 mt-1">
+                            GoPay, OVO, DANA, LinkAja, ShopeePay, dan aplikasi mobile banking
+                          </div>
+                        </div>
                         </div>
                       </div>
-                    </label>
-
-                    <label className="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                      <input
-                        type="radio"
-                        name="paymentMethod"
-                        value="credit_card"
-                        checked={paymentMethod === 'credit_card'}
-                        onChange={(e) => setPaymentMethod(e.target.value)}
-                        className="mr-3"
-                      />
-                      <div className="flex items-center">
-                        <div className="w-8 h-8 bg-purple-100 rounded flex items-center justify-center mr-3">
-                          <svg className="w-5 h-5 text-purple-600" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zM4 6h16v2H4V6zm0 6h16v6H4v-6z"/>
-                          </svg>
-                        </div>
-                        <div>
-                          <div className="font-medium text-gray-900">Kartu Kredit</div>
-                          <div className="text-sm text-gray-500">Visa, Mastercard</div>
-                        </div>
-                      </div>
-                    </label>
                   </div>
                 </div>
 
@@ -433,6 +449,13 @@ export default function Checkout() {
           </div>
         </div>
       </PageContainer>
+
+      {/* Payment Modal */}
+      <PaymentModal
+        isOpen={showPayment}
+        onClose={() => setShowPayment(false)}
+        paymentData={paymentData}
+      />
     </div>
   );
 } 

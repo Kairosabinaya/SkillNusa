@@ -45,7 +45,7 @@ import Browse from './pages/Browse';
 import Favorites from './pages/Favorites';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
-import Transactions from './pages/Transactions';
+
 import Messages from './pages/Messages';
 
 // Dashboard Pages
@@ -363,16 +363,7 @@ function App() {
             <Route index element={<Checkout />} />
           </Route>
 
-          <Route 
-            path="/transactions" 
-            element={
-              <ProtectedRoute>
-                <PublicLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<Transactions />} />
-          </Route>
+
 
           <Route 
             path="/messages" 
@@ -398,7 +389,6 @@ function App() {
           </Route>
 
           {/* Test Routes */}
-          
           <Route path="/seeding" element={<SeedingPage />} />
 
           {/* Auth Routes */}

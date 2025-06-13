@@ -65,8 +65,11 @@ class OrderService {
       const order = {
         ...orderData,
         orderNumber,
-        status: 'pending',
+        status: 'payment',
         paymentStatus: 'pending',
+        
+        // Payment timeout - 60 minutes from creation
+        paymentExpiredAt: new Date(Date.now() + 60 * 60 * 1000),
         
         // Timeline tracking
         timeline: {
@@ -115,7 +118,9 @@ class OrderService {
       const docRef = await addDoc(collection(db, this.collectionName), order);
       const createdOrder = { id: docRef.id, ...order };
 
-      // Create or get chat and send notification
+      // Create or get chat and send notification only if not payment status
+      // For payment status orders, notification will be sent after payment is successful
+      if (order.status !== 'payment') {
       try {
         const chat = await chatService.createOrGetChat(
           orderData.clientId, 
@@ -139,6 +144,7 @@ class OrderService {
       } catch (chatError) {
         console.error('Error creating chat notification:', chatError);
         // Don't fail the order creation if chat fails
+        }
       }
 
       return createdOrder;
@@ -372,6 +378,7 @@ class OrderService {
   // Get valid status transitions
   getValidStatusTransitions(currentStatus) {
     const transitions = {
+      'payment': ['pending', 'cancelled'], // Payment can proceed to pending after successful payment or be cancelled
       'pending': ['active', 'cancelled', 'rejected'], // Support both cancelled and rejected for backward compatibility
       'active': ['in_progress', 'delivered', 'completed', 'cancelled'],
       'in_progress': ['delivered', 'cancelled'],
@@ -953,6 +960,58 @@ class OrderService {
       return await this.getOrder(orderId);
     } catch (error) {
       console.error('Error updating payment status:', error);
+      throw error;
+    }
+  }
+
+  // Complete payment and move to pending status
+  async completePayment(orderId, paymentData = {}) {
+    try {
+      const order = await this.getOrder(orderId);
+      
+      // Validate order is in payment status
+      if (order.status !== 'payment') {
+        throw new Error(`Cannot complete payment for order with status '${order.status}'. Order must be in payment status.`);
+      }
+
+      // Update order status to pending and add payment information
+      await updateDoc(doc(db, this.collectionName, orderId), {
+        status: 'pending',
+        paymentStatus: 'paid',
+        paymentCompletedAt: serverTimestamp(),
+        paymentData: paymentData,
+        updatedAt: serverTimestamp()
+      });
+
+      // Now create chat and send notification since payment is complete
+      try {
+        const chat = await chatService.createOrGetChat(
+          order.clientId, 
+          order.freelancerId, 
+          order.gigId,
+          orderId
+        );
+
+        // Send order notification to freelancer
+        await chatService.sendOrderNotificationMessage(
+          chat.id,
+          order.clientId, // Client is sending the notification
+          orderId,
+          {
+            gigTitle: order.title,
+            packageType: order.packageType,
+            price: order.price,
+            clientRequirements: order.requirements
+          }
+        );
+      } catch (chatError) {
+        console.error('Error creating chat notification after payment:', chatError);
+        // Don't fail the payment completion if chat fails
+      }
+
+      return await this.getOrder(orderId);
+    } catch (error) {
+      console.error('Error completing payment:', error);
       throw error;
     }
   }
