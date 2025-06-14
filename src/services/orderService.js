@@ -37,8 +37,20 @@ class OrderService {
   // Create new order with enhanced workflow
   async createOrder(orderData) {
     try {
+      console.log('🚀 [OrderService] createOrder called with data:', {
+        clientId: orderData.clientId,
+        freelancerId: orderData.freelancerId,
+        gigId: orderData.gigId,
+        packageType: orderData.packageType,
+        title: orderData.title,
+        price: orderData.price,
+        deliveryTime: orderData.deliveryTime,
+        requirements: orderData.requirements?.length || 0
+      });
+
       // Generate order number
       const orderNumber = this.generateOrderNumber();
+      console.log('📋 [OrderService] Generated order number:', orderNumber);
       
       // Calculate due date based on delivery time
       const dueDate = new Date();
@@ -112,14 +124,34 @@ class OrderService {
         updatedAt: serverTimestamp()
       };
 
+      console.log('🔍 [OrderService] Order object prepared:', {
+        orderNumber,
+        status: order.status,
+        paymentStatus: order.paymentStatus,
+        totalAmount: order.totalAmount,
+        platformFee: order.platformFee,
+        freelancerEarning: order.freelancerEarning,
+        paymentExpiredAt: order.paymentExpiredAt,
+        maxRevisions: order.maxRevisions
+      });
+
       // Validate order data
       const errors = this.validateOrderData(order);
       if (Object.keys(errors).length > 0) {
+        console.error('❌ [OrderService] Validation failed:', errors);
         throw new Error(`Validation failed: ${Object.values(errors).join(', ')}`);
       }
 
+      console.log('✅ [OrderService] Order validation passed, creating document...');
       const docRef = await addDoc(collection(db, this.collectionName), order);
       const createdOrder = { id: docRef.id, ...order };
+      
+      console.log('🎉 [OrderService] Order created successfully:', {
+        id: docRef.id,
+        orderNumber: createdOrder.orderNumber,
+        status: createdOrder.status,
+        totalAmount: createdOrder.totalAmount
+      });
 
       // CRITICAL FIX: Only send notification to freelancer AFTER payment is confirmed
       // This ensures freelancer doesn't get notified during initial order creation
@@ -145,7 +177,16 @@ class OrderService {
 
       return createdOrder;
     } catch (error) {
-      console.error('Error creating order:', error);
+      console.error('❌ [OrderService] Error creating order:', {
+        error: error.message,
+        stack: error.stack,
+        orderData: {
+          clientId: orderData.clientId,
+          freelancerId: orderData.freelancerId,
+          gigId: orderData.gigId,
+          title: orderData.title
+        }
+      });
       throw error;
     }
   }

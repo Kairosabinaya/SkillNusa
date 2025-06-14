@@ -193,35 +193,62 @@ export default function GigDetail() {
 
   // Handle direct checkout
   const handleDirectCheckout = () => {
+    console.log('🛒 [GigDetail] handleDirectCheckout called');
+    console.log('🛒 [GigDetail] Current user:', currentUser ? { uid: currentUser.uid, email: currentUser.email } : 'Not logged in');
+    console.log('🛒 [GigDetail] Gig data:', gig ? {
+      id: gig.id,
+      title: gig.title,
+      freelancerId: gig.freelancerId,
+      isActive: gig.isActive
+    } : 'No gig data');
+    console.log('🛒 [GigDetail] Selected package:', selectedPackage);
+    console.log('🛒 [GigDetail] Is own gig:', isOwnGig);
+    
     if (!currentUser) {
+      console.log('❌ [GigDetail] User not logged in, redirecting to login');
       navigate('/login');
       return;
     }
     
-    if (!gig) return;
+    if (!gig) {
+      console.log('❌ [GigDetail] No gig data available');
+      return;
+    }
 
     // Prevent freelancer from checking out own gig
     if (isOwnGig) {
+      console.log('❌ [GigDetail] User trying to purchase own gig');
       setError('You cannot purchase your own gig');
       return;
     }
     
     const currentPackage = gig.packages[selectedPackage];
+    console.log('🛒 [GigDetail] Current package data:', {
+      name: currentPackage?.name,
+      price: currentPackage?.price,
+      deliveryTime: currentPackage?.deliveryTime,
+      revisions: currentPackage?.revisions,
+      features: currentPackage?.features?.length || 0
+    });
+    
+    const orderData = {
+      gigId: gig.id,
+      title: gig.title,
+      description: currentPackage.description,
+      freelancerId: gig.freelancerId,
+      freelancer: gig.freelancer,
+      packageType: selectedPackage,
+      price: currentPackage.price,
+      deliveryTime: `${currentPackage.deliveryTime} hari`,
+      revisions: currentPackage.revisions,
+      features: currentPackage.features
+    };
+    
+    console.log('🛒 [GigDetail] Order data prepared for checkout:', orderData);
+    console.log('🛒 [GigDetail] Navigating to checkout...');
+    
     navigate('/checkout', {
-      state: {
-        orderData: {
-          gigId: gig.id,
-          title: gig.title,
-          description: currentPackage.description,
-          freelancerId: gig.freelancerId,
-          freelancer: gig.freelancer,
-          packageType: selectedPackage,
-          price: currentPackage.price,
-          deliveryTime: `${currentPackage.deliveryTime} hari`,
-          revisions: currentPackage.revisions,
-          features: currentPackage.features
-        }
-      }
+      state: { orderData }
     });
   };
 

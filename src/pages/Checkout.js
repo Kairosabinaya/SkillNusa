@@ -60,18 +60,34 @@ export default function Checkout() {
   const handleSubmitOrder = async (e) => {
     e.preventDefault();
     
+    console.log('🛒 [Checkout] handleSubmitOrder called');
+    console.log('🛒 [Checkout] Current user:', currentUser ? { uid: currentUser.uid, email: currentUser.email } : 'Not logged in');
+    console.log('🛒 [Checkout] Is cart checkout:', isCartCheckout);
+    console.log('🛒 [Checkout] Order data:', orderData ? {
+      gigId: orderData.gigId,
+      freelancerId: orderData.freelancerId,
+      packageType: orderData.packageType,
+      price: orderData.price,
+      title: orderData.title
+    } : 'No order data');
+    console.log('🛒 [Checkout] Cart items:', cartItems.length);
+    console.log('🛒 [Checkout] Requirements length:', requirements.trim().length);
+    
     if (!currentUser) {
+      console.log('❌ [Checkout] User not logged in, redirecting to login');
       navigate('/login', { state: { from: location } });
       return;
     }
 
     if (!requirements.trim()) {
+      console.log('❌ [Checkout] Requirements empty');
       setError('Harap jelaskan kebutuhan proyek Anda');
       return;
     }
 
     // Additional validation for non-cart checkout
     if (!isCartCheckout && !orderData) {
+      console.log('❌ [Checkout] No order data for single checkout');
       setError('Data pesanan tidak valid. Silakan refresh halaman.');
       return;
     }
@@ -85,9 +101,19 @@ export default function Checkout() {
       let createdOrders = [];
 
       if (isCartCheckout) {
+        console.log('🛒 [Checkout] Processing cart checkout with', cartItems.length, 'items');
+        
         // Create multiple orders from cart items with payment status
-        const orderPromises = cartItems.map(item => 
-          orderService.createOrder({
+        const orderPromises = cartItems.map((item, index) => {
+          console.log(`🛒 [Checkout] Preparing cart item ${index + 1}:`, {
+            gigId: item.gigId,
+            freelancerId: item.freelancerId,
+            packageType: item.packageType,
+            price: item.packageData?.price,
+            title: item.gigData?.title
+          });
+          
+          return orderService.createOrder({
             clientId: currentUser.uid,
             freelancerId: item.freelancerId,
             gigId: item.gigId,
@@ -101,10 +127,12 @@ export default function Checkout() {
             paymentMethod: 'qris',
             paymentStatus: 'pending',
             status: 'payment' // New status for awaiting payment
-          })
-        );
+          });
+        });
 
+        console.log('🛒 [Checkout] Creating', orderPromises.length, 'orders...');
         createdOrders = await Promise.all(orderPromises);
+        console.log('✅ [Checkout] Cart orders created:', createdOrders.map(o => ({ id: o.id, orderNumber: o.orderNumber })));
 
         // Clear cart after successful orders
         setLoadingStep('Membersihkan keranjang...');
@@ -117,10 +145,23 @@ export default function Checkout() {
         await createPaymentForOrders(createdOrders, totalWithPlatformFee);
 
       } else {
+        console.log('🛒 [Checkout] Processing single order checkout');
+        
         // Create single order with payment status
         const deliveryDays = typeof orderData.deliveryTime === 'string' 
           ? parseInt(orderData.deliveryTime.replace(/\D/g, '')) || 7
           : orderData.deliveryTime || 7;
+
+        console.log('🛒 [Checkout] Single order data prepared:', {
+          clientId: currentUser.uid,
+          freelancerId: orderData.freelancerId,
+          gigId: orderData.gigId,
+          packageType: orderData.packageType,
+          title: orderData.title,
+          price: orderData.price,
+          deliveryTime: deliveryDays,
+          revisions: orderData.revisions
+        });
 
         const newOrder = await orderService.createOrder({
           clientId: currentUser.uid,
@@ -138,6 +179,7 @@ export default function Checkout() {
           status: 'payment' // New status for awaiting payment
         });
 
+        console.log('✅ [Checkout] Single order created:', { id: newOrder.id, orderNumber: newOrder.orderNumber });
         createdOrders = [newOrder];
         // FIX: Send total amount including 5% platform fee
         setLoadingStep('Menghubungi gateway pembayaran...');
@@ -165,6 +207,12 @@ export default function Checkout() {
 
   const createPaymentForOrders = async (orders, totalAmount) => {
     try {
+      console.log('💳 [Checkout] createPaymentForOrders called with:', {
+        orderCount: orders.length,
+        totalAmount,
+        orderIds: orders.map(o => o.id)
+      });
+      
       // Use the first order for payment details (for multiple orders, we combine them)
       const primaryOrder = orders[0];
       
@@ -179,6 +227,7 @@ export default function Checkout() {
         clientPhone: '081234567890' // TODO: Get from user profile
       };
 
+      console.log('💳 [Checkout] Payment order data prepared:', paymentOrderData);
       console.log('💳 [Checkout] Creating payment for orders:', {
         orderCount: orders.length,
         totalAmount,

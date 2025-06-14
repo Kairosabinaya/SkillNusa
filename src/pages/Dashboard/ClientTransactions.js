@@ -75,6 +75,24 @@ export default function ClientTransactions() {
     }
   }, [error]);
 
+  // Auto-refresh to check for expired orders every 30 seconds
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const interval = setInterval(() => {
+      console.log('🔄 [ClientTransactions] Auto-refresh checking for expired orders...');
+      
+      // Only check if we have orders with payment status
+      const hasPaymentOrders = orders.some(order => order.status === 'payment');
+      if (hasPaymentOrders) {
+        console.log('🔄 [ClientTransactions] Found payment orders, refreshing...');
+        loadOrders();
+      }
+    }, 30000); // Check every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [currentUser, orders]);
+
   // Handle payment success from URL parameters (after Tripay redirect)
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
@@ -129,6 +147,11 @@ export default function ClientTransactions() {
         orders: ordersWithDetails
       });
       
+      // Check for expired payment orders and auto-cancel them
+      if (ordersWithDetails && ordersWithDetails.length > 0) {
+        await checkAndHandleExpiredOrders(ordersWithDetails);
+      }
+      
       // Ensure we always set an array, even if empty
       setOrders(Array.isArray(ordersWithDetails) ? ordersWithDetails : []);
 
@@ -162,6 +185,98 @@ export default function ClientTransactions() {
       clearTimeout(timeoutId);
       setLoading(false);
       setIsLoadingOrders(false);
+    }
+  };
+
+  // Check and handle expired orders
+  const checkAndHandleExpiredOrders = async (ordersData) => {
+    try {
+      const now = new Date();
+      const expiredOrders = ordersData.filter(order => {
+        if (order.status !== 'payment' || !order.paymentExpiredAt) return false;
+        
+        const expiredAt = order.paymentExpiredAt.seconds 
+          ? new Date(order.paymentExpiredAt.seconds * 1000) 
+          : new Date(order.paymentExpiredAt);
+        
+        return expiredAt <= now;
+      });
+
+      console.log('🔍 [ClientTransactions] Found expired orders:', {
+        total: expiredOrders.length,
+        orderIds: expiredOrders.map(o => o.id),
+        currentTime: now.toISOString(),
+        expiredOrdersDetails: expiredOrders.map(o => ({
+          id: o.id,
+          status: o.status,
+          expiredAt: o.paymentExpiredAt.seconds 
+            ? new Date(o.paymentExpiredAt.seconds * 1000).toISOString()
+            : new Date(o.paymentExpiredAt).toISOString()
+        }))
+      });
+
+      // Cancel expired orders
+      let successfulCancellations = 0;
+      for (const order of expiredOrders) {
+        try {
+          console.log('⏰ [ClientTransactions] Auto-cancelling expired order:', {
+            orderId: order.id,
+            expiredAt: order.paymentExpiredAt.seconds 
+              ? new Date(order.paymentExpiredAt.seconds * 1000).toISOString()
+              : new Date(order.paymentExpiredAt).toISOString(),
+            currentTime: now.toISOString(),
+            timeDifference: now - (order.paymentExpiredAt.seconds 
+              ? new Date(order.paymentExpiredAt.seconds * 1000) 
+              : new Date(order.paymentExpiredAt))
+          });
+          
+          // Use orderService to update status with proper validation
+          await orderService.updateOrderStatus(order.id, 'cancelled', currentUser.uid, {
+            statusMessage: 'Payment timeout - order cancelled automatically',
+            cancellationReason: 'Payment timeout (TESTING)',
+            cancelledAt: now.toISOString(),
+            autoCancel: true
+          });
+          
+          // Update the order in the local state immediately for better UX
+          order.status = 'cancelled';
+          order.cancellationReason = 'Payment timeout (TESTING)';
+          order.cancelledAt = now;
+          
+          successfulCancellations++;
+          console.log('✅ [ClientTransactions] Successfully cancelled expired order:', order.id);
+          
+        } catch (error) {
+          console.error('❌ [ClientTransactions] Error cancelling expired order:', order.id, error);
+          console.error('❌ [ClientTransactions] Error details:', {
+            errorMessage: error.message,
+            errorCode: error.code,
+            orderId: order.id,
+            orderStatus: order.status,
+            userId: currentUser.uid
+          });
+        }
+      }
+
+      if (expiredOrders.length > 0) {
+        console.log('✅ [ClientTransactions] Auto-cancellation summary:', {
+          totalExpired: expiredOrders.length,
+          successfulCancellations,
+          failedCancellations: expiredOrders.length - successfulCancellations
+        });
+        
+        // Force a UI refresh if any orders were cancelled
+        if (successfulCancellations > 0) {
+          console.log('🔄 [ClientTransactions] Forcing UI refresh after cancellations');
+          setTimeout(() => {
+            loadOrders();
+          }, 2000); // Give time for database updates to propagate
+        }
+      }
+      
+    } catch (error) {
+      console.error('❌ [ClientTransactions] Error checking expired orders:', error);
+      console.error('❌ [ClientTransactions] Error stack:', error.stack);
     }
   };
 
@@ -589,6 +704,30 @@ export default function ClientTransactions() {
   };
 
   // Handle payment button click
+  // Handle payment expiry
+  const handlePaymentExpiry = async (orderId) => {
+    try {
+      console.log('⏰ [ClientTransactions] handlePaymentExpiry called for order:', orderId);
+      
+      // Update order status to cancelled due to payment timeout
+      await orderService.updateOrderStatus(orderId, 'cancelled', currentUser.uid, {
+        statusMessage: 'Payment timeout - order cancelled automatically',
+        cancellationReason: 'Payment timeout (TESTING)',
+        cancelledAt: new Date().toISOString()
+      });
+      
+      console.log('✅ [ClientTransactions] Order cancelled due to payment expiry:', orderId);
+      
+      // Refresh orders to show updated status
+      setTimeout(() => {
+        loadOrders();
+      }, 1000);
+      
+    } catch (error) {
+      console.error('❌ [ClientTransactions] Error handling payment expiry:', error);
+    }
+  };
+
   const handlePayment = async (order) => {
     try {
       console.log('💳 [ClientTransactions] handlePayment called with order:', {
@@ -676,7 +815,61 @@ export default function ClientTransactions() {
     }
   };
 
+  // Debug helper function - can be called from browser console
+  const debugPaymentStatus = async (orderId) => {
+    try {
+      console.log('🔧 [ClientTransactions] Debug payment status for order:', orderId);
+      
+      const order = orders.find(o => o.id === orderId);
+      if (!order) {
+        console.error('❌ Order not found:', orderId);
+        return;
+      }
+      
+      console.log('📋 [ClientTransactions] Order details:', {
+        id: order.id,
+        status: order.status,
+        paymentStatus: order.paymentStatus,
+        merchantRef: order.merchantRef,
+        paymentExpiredAt: order.paymentExpiredAt,
+        tripayStatus: order.tripayStatus
+      });
+      
+      if (order.merchantRef) {
+        console.log('🔍 [ClientTransactions] Checking payment status with Tripay...');
+        const statusResult = await paymentService.manualPaymentStatusCheck(order.id, order.merchantRef);
+        console.log('📊 [ClientTransactions] Payment status result:', statusResult);
+        
+        if (statusResult.success) {
+          console.log('✅ [ClientTransactions] Payment confirmed - refreshing orders');
+          setTimeout(() => {
+            loadOrders();
+          }, 1000);
+        }
+      } else {
+        console.warn('⚠️ [ClientTransactions] No merchant reference found for order');
+      }
+      
+    } catch (error) {
+      console.error('❌ [ClientTransactions] Error in debug payment status:', error);
+    }
+  };
 
+  // Make debug function available globally for console access
+  useEffect(() => {
+    window.debugPaymentStatus = debugPaymentStatus;
+    window.debugClientTransactions = {
+      orders,
+      loadOrders,
+      checkAndHandleExpiredOrders: () => checkAndHandleExpiredOrders(orders),
+      debugPaymentStatus
+    };
+    
+    return () => {
+      delete window.debugPaymentStatus;
+      delete window.debugClientTransactions;
+    };
+  }, [orders]);
 
   if (loading) {
     return (
@@ -1219,22 +1412,80 @@ export default function ClientTransactions() {
 
       {/* Error Message */}
       {error && (
-        <div className="mb-6 p-4 bg-red-100 border border-red-300 text-red-700 rounded-lg flex items-center justify-between">
-          <span>{error}</span>
-          <button 
-            onClick={() => setError('')}
-            className="ml-4 text-red-500 hover:text-red-700 font-bold"
-            title="Tutup"
-          >
-            ✕
-          </button>
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex items-center">
+            <svg className="h-5 w-5 text-red-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-red-800 font-medium">Error:</p>
+          </div>
+          <p className="text-red-700 mt-1">{error}</p>
+          <div className="mt-3 flex space-x-2">
+            <button
+              onClick={() => setError('')}
+              className="text-sm text-red-600 hover:text-red-800 underline"
+            >
+              Dismiss
+            </button>
+            <button
+              onClick={() => {
+                setError('');
+                loadOrders();
+              }}
+              className="text-sm text-red-600 hover:text-red-800 underline"
+            >
+              Retry
+            </button>
+          </div>
         </div>
       )}
 
       {/* Success Message */}
       {success && (
-        <div className="mb-6 p-4 bg-green-100 border border-green-300 text-green-700 rounded-lg">
-          {success}
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <div className="flex items-center">
+            <svg className="h-5 w-5 text-green-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-green-800">{success}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Debug Panel - Only show in development */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <h3 className="text-sm font-medium text-blue-800 mb-2">Debug Panel</h3>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => {
+                console.log('🔄 [Debug] Force refreshing orders...');
+                loadOrders();
+              }}
+              className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Force Refresh
+            </button>
+            <button
+              onClick={() => {
+                console.log('🔍 [Debug] Checking expired orders...');
+                checkAndHandleExpiredOrders(orders);
+              }}
+              className="px-3 py-1 text-xs bg-orange-600 text-white rounded hover:bg-orange-700"
+            >
+              Check Expired Orders
+            </button>
+            <button
+              onClick={() => {
+                console.log('📊 [Debug] Current orders:', orders);
+                console.log('📊 [Debug] Payment orders:', orders.filter(o => o.status === 'payment'));
+                console.log('📊 [Debug] Available debug functions:', Object.keys(window.debugClientTransactions || {}));
+              }}
+              className="px-3 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700"
+            >
+              Log Debug Info
+            </button>
+          </div>
         </div>
       )}
 
@@ -1364,8 +1615,9 @@ export default function ClientTransactions() {
                           type="danger"
                           className="text-sm"
                           onExpire={() => {
-                            // Don't reload orders automatically to prevent infinite loop
                             console.log('⏰ [ClientTransactions] Payment expired for order:', order.id);
+                            // Auto-update order status to cancelled after expiry
+                            handlePaymentExpiry(order.id);
                           }}
                         />
                       </div>

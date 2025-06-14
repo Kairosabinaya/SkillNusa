@@ -37,8 +37,18 @@ class PaymentService {
    */
   async createPayment(orderData) {
     try {
+      console.log('💳 [PaymentService] createPayment called with data:', {
+        id: orderData?.id,
+        totalAmount: orderData?.totalAmount,
+        title: orderData?.title,
+        gigId: orderData?.gigId,
+        clientName: orderData?.clientName,
+        clientEmail: orderData?.clientEmail
+      });
+      
       // Validate required order data
       if (!orderData || !orderData.id || !orderData.totalAmount) {
+        console.error('❌ [PaymentService] Invalid order data:', orderData);
         throw new Error('Invalid order data provided');
       }
 
@@ -52,7 +62,15 @@ class PaymentService {
       // Don't add platform fee again as it's already included in totalAmount
 
       // Set payment expiry (1 minute from now - FOR TESTING)
-              const expiredTime = Math.floor(Date.now() / 1000) + (1 * 60); // 1 minute for testing
+      // IMPORTANT: This should be 60 minutes (3600 seconds) in production
+      const expiredTime = Math.floor(Date.now() / 1000) + (1 * 60); // 1 minute for testing
+      
+      console.log('⏰ [PaymentService] Payment expiry time set:', {
+        currentTime: new Date().toISOString(),
+        expiredTime: expiredTime,
+        expiredDate: new Date(expiredTime * 1000).toISOString(),
+        durationMinutes: 1
+      });
 
       // Prepare customer data
       const customerData = {
@@ -80,6 +98,15 @@ class PaymentService {
         returnUrl: `${window.location.origin}/dashboard/client/transactions?payment=success`,
         expiredTime: expiredTime
       };
+
+      console.log('💳 [PaymentService] Payment data prepared:', {
+        amount: paymentData.amount,
+        customerName: paymentData.customerName,
+        customerEmail: paymentData.customerEmail,
+        orderItemsCount: paymentData.orderItems.length,
+        expiredTime: new Date(expiredTime * 1000).toISOString(),
+        merchantRef
+      });
 
       console.log('📤 [PaymentService] Sending payment request:', {
         ...paymentData,
@@ -177,6 +204,14 @@ class PaymentService {
       }
 
       // Update order with payment information
+      console.log('🔄 [PaymentService] Updating order with payment data:', {
+        orderId: orderData.id,
+        merchantRef: merchantRef,
+        paymentUrl: result.tripay_response?.data?.checkout_url,
+        reference: result.tripay_response?.data?.reference,
+        totalAmount: totalAmount
+      });
+      
       await this.updateOrderWithPayment(orderData.id, {
         merchantRef: merchantRef,
         status: 'payment', // New status for awaiting payment
@@ -189,6 +224,8 @@ class PaymentService {
         totalAmount: totalAmount, // This already includes all fees
         updatedAt: serverTimestamp()
       });
+      
+      console.log('✅ [PaymentService] Order updated with payment data successfully');
 
       // Validate response structure
       if (!result.success || !result.tripay_response?.data) {
@@ -253,10 +290,24 @@ class PaymentService {
    */
   async updateOrderWithPayment(orderId, paymentData) {
     try {
+      console.log('🔄 [PaymentService] updateOrderWithPayment called:', {
+        orderId,
+        paymentDataKeys: Object.keys(paymentData),
+        merchantRef: paymentData.merchantRef,
+        status: paymentData.status,
+        paymentStatus: paymentData.paymentStatus
+      });
+      
       const orderRef = doc(db, 'orders', orderId);
       await updateDoc(orderRef, paymentData);
+      
+      console.log('✅ [PaymentService] Order document updated successfully');
     } catch (error) {
-      console.error('Error updating order with payment:', error);
+      console.error('❌ [PaymentService] Error updating order with payment:', {
+        orderId,
+        error: error.message,
+        code: error.code
+      });
       throw error;
     }
   }
@@ -293,6 +344,75 @@ class PaymentService {
       return result;
     } catch (error) {
       console.error('❌ [PaymentService] Error checking payment status:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Manual payment status check and update for testing
+   * @param {string} orderId - Order ID
+   * @param {string} merchantRef - Merchant reference
+   * @returns {Promise<Object>} Update result
+   */
+  async manualPaymentStatusCheck(orderId, merchantRef) {
+    try {
+      console.log('🔍 [PaymentService] Manual payment status check:', { orderId, merchantRef });
+      
+      // Check payment status from Tripay
+      const statusResult = await this.checkPaymentStatus(merchantRef);
+      
+      console.log('📊 [PaymentService] Payment status result:', {
+        orderId,
+        merchantRef,
+        paid: statusResult.paid,
+        status: statusResult.status,
+        transactionData: statusResult.transaction_data
+      });
+      
+      // If payment is successful, update order status
+      if (statusResult.paid && statusResult.status === 'PAID') {
+        console.log('💰 [PaymentService] Payment confirmed - updating order status to pending');
+        
+        // Update order status to pending (payment successful)
+        const orderRef = doc(db, 'orders', orderId);
+        await updateDoc(orderRef, {
+          status: 'pending',
+          paymentStatus: 'paid',
+          tripayStatus: statusResult.status,
+          paidAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          manualStatusCheck: true,
+          manualCheckAt: serverTimestamp()
+        });
+        
+        console.log('✅ [PaymentService] Order status updated to pending after manual check');
+        
+        return {
+          success: true,
+          message: 'Payment confirmed and order updated to pending',
+          orderId,
+          merchantRef,
+          newStatus: 'pending',
+          paymentStatus: 'paid'
+        };
+      } else {
+        console.log('⚠️ [PaymentService] Payment not yet confirmed:', {
+          paid: statusResult.paid,
+          status: statusResult.status
+        });
+        
+        return {
+          success: false,
+          message: 'Payment not yet confirmed',
+          orderId,
+          merchantRef,
+          paymentStatus: statusResult.status,
+          paid: statusResult.paid
+        };
+      }
+      
+    } catch (error) {
+      console.error('❌ [PaymentService] Error in manual payment status check:', error);
       throw error;
     }
   }

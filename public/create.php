@@ -215,14 +215,24 @@ function makeTripayRequest($api_url, $transaction_data, $headers, $max_retries =
     ];
 }
 
-// Log request details for debugging
+// Enhanced logging for debugging
+error_log("=== TRIPAY CREATE.PHP DEBUG START ===");
+error_log("Request Method: " . $_SERVER['REQUEST_METHOD']);
+error_log("Content Type: " . ($_SERVER['CONTENT_TYPE'] ?? 'Not set'));
+error_log("Raw Input: " . file_get_contents('php://input'));
+error_log("Parsed Input: " . json_encode($input));
+error_log("Generated Merchant Ref: " . $merchant_ref);
 error_log("Tripay API Request: " . json_encode([
     'url' => $api_url,
     'method' => 'POST',
     'merchant_ref' => $merchant_ref,
     'amount' => $transaction_data['amount'],
+    'customer_name' => $transaction_data['customer_name'],
+    'customer_email' => $transaction_data['customer_email'],
+    'order_items_count' => count($transaction_data['order_items']),
     'timestamp' => date('Y-m-d H:i:s')
 ]));
+error_log("Transaction Data: " . json_encode($transaction_data));
 
 // Make request with retry mechanism
 $result = makeTripayRequest($api_url, $transaction_data, $headers);
@@ -290,6 +300,16 @@ if (!isset($response_data['data'])) {
 }
 
 // Success response
+error_log("=== TRIPAY CREATE.PHP SUCCESS ===");
+error_log("Final Response: " . json_encode([
+    'success' => true,
+    'merchant_ref' => $merchant_ref,
+    'has_tripay_data' => isset($response_data['data']),
+    'tripay_reference' => $response_data['data']['reference'] ?? 'N/A',
+    'checkout_url' => $response_data['data']['checkout_url'] ?? 'N/A'
+]));
+error_log("=== TRIPAY CREATE.PHP DEBUG END ===");
+
 http_response_code(200);
 echo json_encode([
     'success' => true,
