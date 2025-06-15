@@ -341,49 +341,6 @@ class OrderService {
         userId
       });
 
-      // Send notifications to both client and freelancer
-      try {
-        // Determine user types for notifications
-        const isClientUpdate = userId === orderData.clientId;
-        const isFreelancerUpdate = userId === orderData.freelancerId;
-
-        // Send notification to the other party (not the one who made the update)
-        if (isClientUpdate && orderData.freelancerId) {
-          await notificationService.createOrderStatusNotification(
-            orderId,
-            orderData.freelancerId,
-            'freelancer',
-            newStatus,
-            { 
-              metadata: { 
-                updatedBy: 'client',
-                clientName: orderData.client?.displayName || 'Client'
-              } 
-            }
-          );
-          console.log('📧 [OrderService] Notification sent to freelancer:', orderData.freelancerId);
-        }
-
-        if (isFreelancerUpdate && orderData.clientId) {
-          await notificationService.createOrderStatusNotification(
-            orderId,
-            orderData.clientId,
-            'client',
-            newStatus,
-            { 
-              metadata: { 
-                updatedBy: 'freelancer',
-                freelancerName: orderData.freelancer?.displayName || 'Freelancer'
-              } 
-            }
-          );
-          console.log('📧 [OrderService] Notification sent to client:', orderData.clientId);
-        }
-      } catch (notificationError) {
-        console.error('⚠️ [OrderService] Failed to send status notification:', notificationError);
-        // Don't fail the status update if notification fails
-      }
-
       return {
         success: true,
         orderId,
@@ -498,26 +455,6 @@ class OrderService {
         fileCount: deliveryData.files?.length || 0
       });
 
-      // Send notification to client about delivery
-      try {
-        await notificationService.createOrderStatusNotification(
-          orderId,
-          orderData.clientId,
-          'client',
-          'delivered',
-          { 
-            metadata: { 
-              deliveryMessage: deliveryData.message,
-              fileCount: deliveryData.files?.length || 0,
-              freelancerName: orderData.freelancer?.displayName || 'Freelancer'
-            } 
-          }
-        );
-        console.log('📧 [OrderService] Delivery notification sent to client:', orderData.clientId);
-      } catch (notificationError) {
-        console.error('⚠️ [OrderService] Failed to send delivery notification:', notificationError);
-      }
-
       return {
         success: true,
         orderId,
@@ -593,26 +530,6 @@ class OrderService {
         message: revisionMessage
       });
 
-      // Send notification to freelancer about revision request
-      try {
-        await notificationService.createOrderStatusNotification(
-          orderId,
-          orderData.freelancerId,
-          'freelancer',
-          'in_revision',
-          { 
-            metadata: { 
-              revisionMessage: revisionMessage,
-              revisionCount: currentRevisions + 1,
-              clientName: orderData.client?.displayName || 'Client'
-            } 
-          }
-        );
-        console.log('📧 [OrderService] Revision notification sent to freelancer:', orderData.freelancerId);
-      } catch (notificationError) {
-        console.error('⚠️ [OrderService] Failed to send revision notification:', notificationError);
-      }
-
       return {
         success: true,
         orderId,
@@ -682,27 +599,6 @@ class OrderService {
         message: deliveryData.message,
         fileCount: deliveryData.files?.length || 0
       });
-
-      // Send notification to client about revision completion
-      try {
-        await notificationService.createOrderStatusNotification(
-          orderId,
-          orderData.clientId,
-          'client',
-          'delivered',
-          { 
-            metadata: { 
-              revisionCompleted: true,
-              deliveryMessage: deliveryData.message,
-              fileCount: deliveryData.files?.length || 0,
-              freelancerName: orderData.freelancer?.displayName || 'Freelancer'
-            } 
-          }
-        );
-        console.log('📧 [OrderService] Revision completion notification sent to client:', orderData.clientId);
-      } catch (notificationError) {
-        console.error('⚠️ [OrderService] Failed to send revision completion notification:', notificationError);
-      }
 
       return {
         success: true,
@@ -1205,27 +1101,6 @@ class OrderService {
         updatedAt: serverTimestamp()
       });
 
-      // Send notification to freelancer about new order
-      try {
-        await notificationService.createOrderStatusNotification(
-          orderId,
-          order.freelancerId,
-          'freelancer',
-          'pending',
-          { 
-            metadata: { 
-              paymentCompleted: true,
-              clientName: order.client?.displayName || 'Client',
-              gigTitle: order.title,
-              price: order.price
-            } 
-          }
-        );
-        console.log('📧 [OrderService] New order notification sent to freelancer:', order.freelancerId);
-      } catch (notificationError) {
-        console.error('⚠️ [OrderService] Failed to send new order notification:', notificationError);
-      }
-
       // Now create chat and send notification since payment is complete
       try {
         const chat = await chatService.createOrGetChat(
@@ -1280,32 +1155,6 @@ class OrderService {
         cancelledAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
-
-      // Send cancellation notification to the other party
-      try {
-        const isClientCancellation = userId === order.clientId;
-        const recipientId = isClientCancellation ? order.freelancerId : order.clientId;
-        const recipientType = isClientCancellation ? 'freelancer' : 'client';
-
-        await notificationService.createOrderStatusNotification(
-          orderId,
-          recipientId,
-          recipientType,
-          'cancelled',
-          { 
-            metadata: { 
-              cancellationReason: reason,
-              cancelledBy: isClientCancellation ? 'client' : 'freelancer',
-              cancellerName: isClientCancellation 
-                ? (order.client?.displayName || 'Client')
-                : (order.freelancer?.displayName || 'Freelancer')
-            } 
-          }
-        );
-        console.log('📧 [OrderService] Cancellation notification sent to:', recipientId);
-      } catch (notificationError) {
-        console.error('⚠️ [OrderService] Failed to send cancellation notification:', notificationError);
-      }
 
       // Send cancellation notification
       try {

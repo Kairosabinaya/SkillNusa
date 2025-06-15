@@ -1554,6 +1554,43 @@ export default function ClientTransactions() {
         </div>
       )}
 
+      {/* Debug Panel - Only show in development */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <h3 className="text-sm font-medium text-blue-800 mb-2">Debug Panel</h3>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => {
+                console.log('🔄 [Debug] Force refreshing orders...');
+                loadOrders();
+              }}
+              className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Force Refresh
+            </button>
+            <button
+              onClick={() => {
+                console.log('🔍 [Debug] Checking expired orders...');
+                checkAndHandleExpiredOrders(orders);
+              }}
+              className="px-3 py-1 text-xs bg-orange-600 text-white rounded hover:bg-orange-700"
+            >
+              Check Expired Orders
+            </button>
+            <button
+              onClick={() => {
+                console.log('📊 [Debug] Current orders:', orders);
+                console.log('📊 [Debug] Payment orders:', orders.filter(o => o.status === 'payment'));
+                console.log('📊 [Debug] Available debug functions:', Object.keys(window.debugClientTransactions || {}));
+              }}
+              className="px-3 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700"
+            >
+              Log Debug Info
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-gray-100 mb-6">
         <div className="p-6 border-b border-gray-100">
