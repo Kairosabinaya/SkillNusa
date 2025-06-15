@@ -58,6 +58,7 @@ import ClientMessages from './pages/Dashboard/ClientMessages';
 // Test Pages
 
 import SeedingPage from './pages/SeedingPage';
+import AdminCleanup from './pages/AdminCleanup';
 import FreelancerProfile from './pages/FreelancerProfile';
 
 // Protected Routes
@@ -390,6 +391,7 @@ function App() {
 
           {/* Test Routes */}
           <Route path="/seeding" element={<SeedingPage />} />
+          <Route path="/admin-cleanup" element={<AdminCleanup />} />
 
           {/* Auth Routes */}
           <Route path={ROUTES.LOGIN} element={<Login />} />

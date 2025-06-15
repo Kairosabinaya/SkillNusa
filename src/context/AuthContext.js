@@ -157,7 +157,22 @@ export function AuthProvider({ children }) {
         handleCodeInApp: true
       };
       
-      await sendEmailVerification(user, actionCodeSettings);
+      console.log('📧 [AuthContext] Attempting to send email verification to:', user.email);
+      console.log('🔐 [AuthContext] User authenticated:', !!user);
+      console.log('📍 [AuthContext] Action URL:', actionCodeSettings.url);
+      
+      try {
+        await sendEmailVerification(user, actionCodeSettings);
+        console.log('✅ [AuthContext] Email verification sent successfully to:', user.email);
+      } catch (emailError) {
+        console.error('❌ [AuthContext] Email verification failed:', emailError);
+        console.error('Email error code:', emailError.code);
+        console.error('Email error message:', emailError.message);
+        
+        // Don't throw the error here - registration should still complete
+        // but log it for debugging
+        Logger.operationFailed('sendEmailVerification', emailError);
+      }
       
       console.log(`✅ [AuthContext] User signup completed successfully for ${user.uid}`);
       

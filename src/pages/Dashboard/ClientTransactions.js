@@ -7,7 +7,14 @@ import freelancerRatingService from '../../services/freelancerRatingService';
 import notificationService from '../../services/notificationService';
 import paymentService from '../../services/paymentService';
 import RatingModal from '../../components/RatingModal';
-import { isRevisionDisabled, getRevisionCountText } from '../../utils/orderUtils';
+import { 
+  isRevisionDisabled, 
+  getRevisionCountText, 
+  getOrderDeadline,
+  calculateWorkDeadline,
+  calculateAutoCompletionDeadline,
+  calculateRevisionDeadline
+} from '../../utils/orderUtils';
 import PageContainer from '../../components/common/PageContainer';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 
@@ -316,7 +323,9 @@ export default function ClientTransactions() {
     return dateObj.toLocaleDateString('id-ID', {
       day: 'numeric',
       month: 'short',
-      year: 'numeric'
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
@@ -652,9 +661,7 @@ export default function ClientTransactions() {
         message: revisionMessage.trim()
       });
       
-      const result = await orderService.requestRevision(pendingRevisionOrder, currentUser.uid, {
-        message: revisionMessage.trim()
-      });
+      const result = await orderService.requestRevision(pendingRevisionOrder, currentUser.uid, revisionMessage.trim());
 
       console.log('✅ [ClientTransactions] Revision request successful:', result);
       
@@ -957,15 +964,23 @@ export default function ClientTransactions() {
                   <span className="text-gray-600">Tanggal Pemesanan:</span>
                   <span>{formatDate(selectedTransaction.createdAt)}</span>
                 </div>
-                {/* Only show deadline for non-cancelled orders */}
-                {selectedTransaction.status !== 'cancelled' && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Tenggat Waktu:</span>
-                    <span className="font-medium">
-                      {selectedTransaction.dueDate ? formatDate(selectedTransaction.dueDate) : 'Tidak ditentukan'}
-                    </span>
-                  </div>
-                )}
+                
+
+                {/* Show deadline based on status using new utility function */}
+                {selectedTransaction.status !== 'cancelled' && (() => {
+                  const deadlineInfo = getOrderDeadline(selectedTransaction);
+                  if (deadlineInfo.date) {
+                    return (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">{deadlineInfo.label}:</span>
+                        <span className="font-medium">
+                          {formatDate(deadlineInfo.date)}
+                        </span>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
                 {/* Show cancellation date for cancelled orders */}
                 {selectedTransaction.status === 'cancelled' && selectedTransaction.cancelledAt && (
                   <div className="flex justify-between">
@@ -1046,9 +1061,9 @@ export default function ClientTransactions() {
             {/* Freelancer Info */}
             <div className="bg-white rounded-lg shadow p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Freelancer</h3>
-              <div className="flex items-center mb-4">
+                            <div className="flex items-center mb-4">
                 <img 
-                  src={selectedTransaction.freelancer?.profilePhoto || 'https://picsum.photos/48/48'} 
+                  src={selectedTransaction.freelancer?.profilePhoto || 'https://picsum.photos/48/48'}
                   alt={selectedTransaction.freelancer?.displayName}
                   className="h-12 w-12 rounded-full object-cover"
                 />
@@ -1062,15 +1077,7 @@ export default function ClientTransactions() {
                 </div>
               </div>
               
-              <Link 
-                to={`/messages?freelancerId=${selectedTransaction.freelancerId}&orderId=${selectedTransaction.id}`}
-                className="w-full flex items-center justify-center gap-2 bg-[#010042] text-white py-2 px-4 rounded-lg hover:bg-[#0100a3]"
-              >
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-                Chat
-              </Link>
+
             </div>
 
             {/* Quick Actions */}
@@ -1090,6 +1097,35 @@ export default function ClientTransactions() {
               )}
               
               <div className="space-y-2">
+                {/* Chat button - always available */}
+                <button
+                  onClick={async () => {
+                    try {
+                      // Import chatService dynamically
+                      const { default: chatService } = await import('../../services/chatService');
+                      
+                      // Create or get chat with freelancer
+                      const chat = await chatService.createOrGetChat(
+                        currentUser.uid, 
+                        selectedTransaction.freelancerId
+                      );
+                      
+                      // Navigate to the chat
+                      window.location.href = `/messages?chatId=${chat.id}`;
+                    } catch (error) {
+                      console.error('Error creating chat:', error);
+                      // Fallback to basic messages page
+                      window.location.href = `/messages`;
+                    }
+                  }}
+                  className="w-full flex items-center justify-center gap-2 bg-[#010042] text-white py-2 px-4 rounded-lg hover:bg-[#0100a3] transition-colors"
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                  Chat dengan Freelancer
+                </button>
+                
                 {/* Payment action for payment status */}
                 {selectedTransaction.status === 'payment' && (
                   <>
@@ -1103,25 +1139,7 @@ export default function ClientTransactions() {
                       Bayar Sekarang
                     </button>
                     
-                    {/* Payment countdown */}
-                    {selectedTransaction.paymentExpiredAt && (
-                      <div className="mt-3">
-                        <CountdownTimer
-                          targetDate={selectedTransaction.paymentExpiredAt.seconds 
-                            ? new Date(selectedTransaction.paymentExpiredAt.seconds * 1000) 
-                            : new Date(selectedTransaction.paymentExpiredAt)
-                          }
-                          label="Batas waktu pembayaran"
-                          type="danger"
-                          className="text-sm"
-                          onExpire={() => {
-                            // Don't reload orders automatically to prevent infinite loop
-                            console.log('⏰ [ClientTransactions] Payment expired for transaction:', selectedTransaction.id);
-                          }}
-                        />
-                      </div>
-                    )}
-                    
+
                     {/* Payment info */}
                     <div className="w-full p-3 bg-orange-50 border border-orange-200 rounded-lg">
                       <div className="flex items-center gap-2 text-orange-800">
@@ -1320,7 +1338,7 @@ export default function ClientTransactions() {
           isOpen={showRatingModal}
           onClose={handleRatingSkip}
           onSubmit={handleRatingSubmit}
-          freelancerName={selectedTransaction?.freelancer?.displayName || 'Freelancer'}
+                          freelancerName={selectedTransaction?.freelancer?.displayName || 'Freelancer'}
           gigTitle={selectedTransaction?.title || ''}
           isSubmitting={isSubmittingRating}
         />
@@ -1452,43 +1470,6 @@ export default function ClientTransactions() {
         </div>
       )}
 
-      {/* Debug Panel - Only show in development */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <h3 className="text-sm font-medium text-blue-800 mb-2">Debug Panel</h3>
-          <div className="flex space-x-2">
-            <button
-              onClick={() => {
-                console.log('🔄 [Debug] Force refreshing orders...');
-                loadOrders();
-              }}
-              className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Force Refresh
-            </button>
-            <button
-              onClick={() => {
-                console.log('🔍 [Debug] Checking expired orders...');
-                checkAndHandleExpiredOrders(orders);
-              }}
-              className="px-3 py-1 text-xs bg-orange-600 text-white rounded hover:bg-orange-700"
-            >
-              Check Expired Orders
-            </button>
-            <button
-              onClick={() => {
-                console.log('📊 [Debug] Current orders:', orders);
-                console.log('📊 [Debug] Payment orders:', orders.filter(o => o.status === 'payment'));
-                console.log('📊 [Debug] Available debug functions:', Object.keys(window.debugClientTransactions || {}));
-              }}
-              className="px-3 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700"
-            >
-              Log Debug Info
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Filters */}
       <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-gray-100 mb-6">
         <div className="p-6 border-b border-gray-100">
@@ -1598,28 +1579,17 @@ export default function ClientTransactions() {
                     <div className="flex items-center text-sm text-gray-500 space-x-4 mb-2">
                       <span>ID: {order.id}</span>
                       <span>•</span>
-                      <span>Freelancer: {order.freelancer?.displayName || 'Unknown'}</span>
-                      <span>•</span>
                       <span>{formatDate(order.createdAt)}</span>
                     </div>
                     
-                    {/* Payment countdown for payment status */}
+                    {/* Payment deadline banner for payment status */}
                     {order.status === 'payment' && order.paymentExpiredAt && (
-                      <div className="mb-2">
-                        <CountdownTimer
-                          targetDate={order.paymentExpiredAt.seconds 
-                            ? new Date(order.paymentExpiredAt.seconds * 1000) 
-                            : new Date(order.paymentExpiredAt)
-                          }
-                          label="Batas waktu pembayaran"
-                          type="danger"
-                          className="text-sm"
-                          onExpire={() => {
-                            console.log('⏰ [ClientTransactions] Payment expired for order:', order.id);
-                            // Auto-update order status to cancelled after expiry
-                            handlePaymentExpiry(order.id);
-                          }}
-                        />
+                      <div className="mb-2 text-sm text-orange-600">
+                        <span className="font-medium">Batas waktu pembayaran: </span>
+                        {formatDate(order.paymentExpiredAt.seconds 
+                          ? new Date(order.paymentExpiredAt.seconds * 1000) 
+                          : new Date(order.paymentExpiredAt)
+                        )}
                       </div>
                     )}
                     
@@ -1676,15 +1646,13 @@ export default function ClientTransactions() {
                       </span>
                     )}
                     
-                    {/* Show detail button only for non-payment status orders */}
-                    {order.status !== 'payment' && (
-                      <Link
-                        to={`/dashboard/client/transactions/${order.id}`}
-                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-[#010042] hover:bg-[#010042]/90"
-                      >
-                        Detail
-                      </Link>
-                    )}
+                    {/* Show detail button for all orders */}
+                    <Link
+                      to={`/dashboard/client/transactions/${order.id}`}
+                      className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-[#010042] hover:bg-[#010042]/90"
+                    >
+                      Detail
+                    </Link>
                   </div>
                 </div>
               </div>
@@ -1698,7 +1666,7 @@ export default function ClientTransactions() {
         isOpen={showRatingModal}
         onClose={handleRatingSkip}
         onSubmit={handleRatingSubmit}
-        freelancerName={orders.find(o => o.id === pendingOrderCompletion)?.freelancer?.displayName || 'Freelancer'}
+                    freelancerName={orders.find(o => o.id === pendingOrderCompletion)?.freelancer?.displayName || 'Freelancer'}
         gigTitle={orders.find(o => o.id === pendingOrderCompletion)?.title || ''}
         isSubmitting={isSubmittingRating}
       />

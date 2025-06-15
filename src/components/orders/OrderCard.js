@@ -197,6 +197,12 @@ export default function OrderCard({ order, index, onStatusUpdate, userType = 'fr
             order.status === 'pending' || order.status === 'awaiting_confirmation' ? (
               <>
                 <button
+                  onClick={() => window.location.href = `/dashboard/freelancer/orders/${order.id}`}
+                  className="flex-1 bg-[#010042] text-white px-4 py-2 rounded-lg hover:bg-[#010042]/90 transition-colors text-sm font-medium text-center"
+                >
+                  Detail
+                </button>
+                <button
                   onClick={handleAccept}
                   className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
                 >

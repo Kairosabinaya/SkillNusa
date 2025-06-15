@@ -13,7 +13,8 @@ import {
   limit as firestoreLimit,
   startAfter,
   updateDoc,
-  increment
+  increment,
+  serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { COLLECTIONS } from '../utils/constants';
@@ -588,7 +589,8 @@ export const incrementGigViews = async (gigId, viewerId = null) => {
     // Increment the view count atomically
     const gigRef = doc(db, COLLECTIONS.GIGS, gigId);
     await updateDoc(gigRef, {
-      views: increment(1)
+      views: increment(1),
+      updatedAt: serverTimestamp()
     });
 
     console.log('👁️ Gig view count incremented for gig:', gigId);

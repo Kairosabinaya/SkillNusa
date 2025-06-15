@@ -12,6 +12,7 @@ export default function GigAnalysisChat({ gig, onClose }) {
   const [sending, setSending] = useState(false);
   const [skillBotTyping, setSkillBotTyping] = useState(false);
   const messagesEndRef = useRef(null);
+  const scrollContainerRef = useRef(null);
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
@@ -32,7 +33,18 @@ export default function GigAnalysisChat({ gig, onClose }) {
   }, [messages]);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (scrollContainerRef.current && messagesEndRef.current) {
+      // Scroll within the chat container only
+      const container = scrollContainerRef.current;
+      const scrollHeight = container.scrollHeight;
+      const height = container.clientHeight;
+      const maxScrollTop = scrollHeight - height;
+      
+      container.scrollTo({
+        top: maxScrollTop,
+        behavior: 'smooth'
+      });
+    }
   };
 
   // Initialize chat with gig analysis
@@ -215,7 +227,7 @@ Ada yang mau ditanyakan tentang layanan ini?`,
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-lg border border-gray-200 min-h-[600px] max-h-[800px] flex flex-col">
+    <div className="bg-white rounded-lg shadow-lg border border-gray-200 min-h-[600px] max-h-[800px] flex flex-col overflow-hidden">
       {/* Header */}
       <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center space-x-2">
@@ -248,7 +260,11 @@ Ada yang mau ditanyakan tentang layanan ini?`,
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-4">
+      <div 
+        ref={scrollContainerRef} 
+        className="flex-1 overflow-y-auto p-6 space-y-4"
+        style={{ scrollBehavior: 'smooth' }}
+      >
         {!geminiService.isServiceAvailable() && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
             <div className="flex items-center space-x-2">

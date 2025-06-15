@@ -279,10 +279,32 @@ class OrderService {
         ...additionalData
       };
 
+<<<<<<< HEAD
       // Update timeline
       const timeline = { ...order.timeline };
       if (newStatus === 'in_progress') {
         timeline.confirmed = serverTimestamp();
+=======
+      // Add timeline entry
+      if (newStatus === 'active' && orderData.status === 'pending') {
+        updateData['timeline.confirmed'] = serverTimestamp();
+        
+        // Set work deadline - use deliveryTime from order
+        const workDeadline = new Date();
+        workDeadline.setDate(workDeadline.getDate() + (orderData.deliveryTime || 7));
+        updateData.workDeadline = workDeadline;
+        
+        console.log('⏰ [OrderService] Setting work deadline:', {
+          orderId,
+          deliveryDays: orderData.deliveryTime || 7,
+          workDeadline: workDeadline.toISOString()
+        });
+      } else if (newStatus === 'in_progress') {
+        updateData['timeline.started'] = serverTimestamp();
+      } else if (newStatus === 'submitted') {
+        updateData['timeline.submitted'] = serverTimestamp();
+        updateData.submittedAt = serverTimestamp();
+>>>>>>> 7a62244 (fix bugs)
       } else if (newStatus === 'completed') {
         timeline.completed = serverTimestamp();
         updateData.completedAt = serverTimestamp();
@@ -359,6 +381,7 @@ class OrderService {
         const notifyUserId = isClientUpdating ? order.freelancerId : order.clientId;
         const notifyUserType = isClientUpdating ? 'freelancer' : 'client';
 
+<<<<<<< HEAD
         // Validate notification data before sending
         if (!notifyUserId || !orderId || !newStatus) {
           console.error('❌ [OrderService] Invalid notification data:', {
@@ -404,6 +427,65 @@ class OrderService {
         });
         // Don't throw - notification failure shouldn't block the main operation
       }
+=======
+      console.log('✅ [OrderService] Order status updated successfully:', {
+        orderId,
+        oldStatus: orderData.status,
+        newStatus,
+        userId
+      });
+
+      // Send notifications to both client and freelancer
+      try {
+        // Determine user types for notifications
+        const isClientUpdate = userId === orderData.clientId;
+        const isFreelancerUpdate = userId === orderData.freelancerId;
+
+        // Send notification to the other party (not the one who made the update)
+        if (isClientUpdate && orderData.freelancerId) {
+          await notificationService.createOrderStatusNotification(
+            orderId,
+            orderData.freelancerId,
+            'freelancer',
+            newStatus,
+            { 
+              metadata: { 
+                updatedBy: 'client',
+                clientName: orderData.client?.displayName || 'Client'
+              } 
+            }
+          );
+          console.log('📧 [OrderService] Notification sent to freelancer:', orderData.freelancerId);
+        }
+
+        if (isFreelancerUpdate && orderData.clientId) {
+          await notificationService.createOrderStatusNotification(
+            orderId,
+            orderData.clientId,
+            'client',
+            newStatus,
+            { 
+              metadata: { 
+                updatedBy: 'freelancer',
+                freelancerName: orderData.freelancer?.displayName || 'Freelancer'
+              } 
+            }
+          );
+          console.log('📧 [OrderService] Notification sent to client:', orderData.clientId);
+        }
+      } catch (notificationError) {
+        console.error('⚠️ [OrderService] Failed to send status notification:', notificationError);
+        // Don't fail the status update if notification fails
+      }
+
+      return {
+        success: true,
+        orderId,
+        oldStatus: orderData.status,
+        newStatus,
+        updatedAt: new Date()
+      };
+>>>>>>> 7a62244 (fix bugs)
 
       return await this.getOrder(orderId);
     } catch (error) {
@@ -412,6 +494,7 @@ class OrderService {
     }
   }
 
+<<<<<<< HEAD
   // Get valid status transitions
   getValidStatusTransitions(currentStatus) {
     const transitions = {
@@ -425,6 +508,19 @@ class OrderService {
       'completed': [], // Final state
       'cancelled': [], // Final state
       'rejected': [] // Final state - backward compatibility
+=======
+  isValidStatusTransition(currentStatus, newStatus, userId, orderData) {
+    // Define valid transitions
+    const validTransitions = {
+      'draft': ['payment', 'cancelled'],
+      'payment': ['pending', 'cancelled'], // Payment successful -> pending for freelancer confirmation
+      'pending': ['active', 'cancelled'], // Freelancer can accept (active) or client can cancel
+      'active': ['delivered', 'cancelled'], // Freelancer working -> delivered or cancelled
+      'delivered': ['in_revision', 'completed', 'cancelled'], // Client can request revision or complete
+      'in_revision': ['delivered', 'cancelled'], // Freelancer resubmits or cancelled
+      'completed': [], // Terminal state
+      'cancelled': []  // Terminal state
+>>>>>>> 7a62244 (fix bugs)
     };
 
     return transitions[currentStatus] || [];
@@ -440,6 +536,7 @@ class OrderService {
         throw new Error('Only the freelancer can add deliveries');
       }
 
+<<<<<<< HEAD
       const delivery = {
         id: Date.now().toString(),
         message: deliveryData.message,
@@ -455,16 +552,31 @@ class OrderService {
         status: 'in_review',
         updatedAt: serverTimestamp()
       });
+=======
+    // Additional permission checks
+    if (newStatus === 'active' && userId !== orderData.freelancerId) {
+      return false; // Only freelancer can accept order
+    }
+
+    if (newStatus === 'delivered' && userId !== orderData.freelancerId) {
+      return false; // Only freelancer can deliver work
+    }
+>>>>>>> 7a62244 (fix bugs)
 
       // Update status to in_review
       await this.updateOrderStatus(orderId, 'in_review', userId, {
         statusMessage: deliveryData.message
       });
 
+<<<<<<< HEAD
       return await this.getOrder(orderId);
     } catch (error) {
       console.error('Error adding delivery:', error);
       throw error;
+=======
+    if (newStatus === 'in_revision' && userId !== orderData.clientId) {
+      return false; // Only client can request revision
+>>>>>>> 7a62244 (fix bugs)
     }
   }
 
@@ -572,6 +684,286 @@ class OrderService {
       return await this.getOrder(orderId);
     } catch (error) {
       console.error('Error requesting revision:', error);
+      throw error;
+    }
+  }
+
+  // Deliver order with message and files
+  async deliverOrder(orderId, userId, deliveryData = {}) {
+    try {
+      console.log('📦 [OrderService] deliverOrder called:', {
+        orderId,
+        userId,
+        hasMessage: !!deliveryData.message,
+        fileCount: deliveryData.files?.length || 0
+      });
+
+      // Get current order to validate
+      const orderDoc = await getDoc(doc(this.ordersCollection, orderId));
+      if (!orderDoc.exists()) {
+        throw new Error('Order not found');
+      }
+
+      const orderData = orderDoc.data();
+      
+      // Validate that user is the freelancer
+      if (orderData.freelancerId !== userId) {
+        throw new Error('Only the freelancer can deliver this order');
+      }
+
+      // Validate current status allows delivery
+      if (!['active', 'in_revision'].includes(orderData.status)) {
+        throw new Error(`Cannot deliver order with status: ${orderData.status}`);
+      }
+
+      // Prepare delivery data
+      const deliveryUpdate = {
+        status: 'delivered',
+        deliveryMessage: deliveryData.message || '',
+        deliveredAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        timeline: {
+          ...orderData.timeline,
+          delivered: serverTimestamp()
+        }
+      };
+
+      // Add files if provided
+      if (deliveryData.files && deliveryData.files.length > 0) {
+        deliveryUpdate.deliveryFiles = deliveryData.files.map(file => ({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          url: file.url || null // URL would be set after upload
+        }));
+      }
+
+      // Update order status to delivered
+      await updateDoc(doc(this.ordersCollection, orderId), deliveryUpdate);
+
+      console.log('✅ [OrderService] Order delivered successfully:', {
+        orderId,
+        message: deliveryData.message,
+        fileCount: deliveryData.files?.length || 0
+      });
+
+      // Send notification to client about delivery
+      try {
+        await notificationService.createOrderStatusNotification(
+          orderId,
+          orderData.clientId,
+          'client',
+          'delivered',
+          { 
+            metadata: { 
+              deliveryMessage: deliveryData.message,
+              fileCount: deliveryData.files?.length || 0,
+              freelancerName: orderData.freelancer?.displayName || 'Freelancer'
+            } 
+          }
+        );
+        console.log('📧 [OrderService] Delivery notification sent to client:', orderData.clientId);
+      } catch (notificationError) {
+        console.error('⚠️ [OrderService] Failed to send delivery notification:', notificationError);
+      }
+
+      return {
+        success: true,
+        orderId,
+        status: 'delivered',
+        deliveredAt: new Date()
+      };
+
+    } catch (error) {
+      console.error('❌ [OrderService] Error delivering order:', error);
+      throw error;
+    }
+  }
+
+  // Request revision for delivered order
+  async requestRevision(orderId, userId, revisionMessage) {
+    try {
+      console.log('🔄 [OrderService] requestRevision called:', {
+        orderId,
+        userId,
+        hasMessage: !!revisionMessage
+      });
+
+      // Get current order to validate
+      const orderDoc = await getDoc(doc(this.ordersCollection, orderId));
+      if (!orderDoc.exists()) {
+        throw new Error('Order not found');
+      }
+
+      const orderData = orderDoc.data();
+      
+      // Validate that user is the client
+      if (orderData.clientId !== userId) {
+        throw new Error('Only the client can request revision for this order');
+      }
+
+      // Validate current status allows revision request
+      if (orderData.status !== 'delivered') {
+        throw new Error(`Cannot request revision for order with status: ${orderData.status}`);
+      }
+
+      // Check revision limits
+      const currentRevisions = orderData.revisionRequests?.length || 0;
+      const maxRevisions = orderData.revisions || 3; // Default to 3 revisions
+
+      if (currentRevisions >= maxRevisions) {
+        throw new Error(`Maximum revision limit (${maxRevisions}) has been reached`);
+      }
+
+      // Prepare revision request data with regular Date instead of serverTimestamp for arrayUnion
+      const now = new Date();
+      const revisionRequest = {
+        message: revisionMessage,
+        requestedAt: now,
+        requestedBy: userId
+      };
+
+      // Update order with revision request
+      const revisionUpdate = {
+        status: 'in_revision',
+        revisionRequests: arrayUnion(revisionRequest),
+        updatedAt: serverTimestamp(),
+        timeline: {
+          ...orderData.timeline,
+          revision_requested: serverTimestamp()
+        }
+      };
+
+      await updateDoc(doc(this.ordersCollection, orderId), revisionUpdate);
+
+      console.log('✅ [OrderService] Revision requested successfully:', {
+        orderId,
+        revisionCount: currentRevisions + 1,
+        maxRevisions,
+        message: revisionMessage
+      });
+
+      // Send notification to freelancer about revision request
+      try {
+        await notificationService.createOrderStatusNotification(
+          orderId,
+          orderData.freelancerId,
+          'freelancer',
+          'in_revision',
+          { 
+            metadata: { 
+              revisionMessage: revisionMessage,
+              revisionCount: currentRevisions + 1,
+              clientName: orderData.client?.displayName || 'Client'
+            } 
+          }
+        );
+        console.log('📧 [OrderService] Revision notification sent to freelancer:', orderData.freelancerId);
+      } catch (notificationError) {
+        console.error('⚠️ [OrderService] Failed to send revision notification:', notificationError);
+      }
+
+      return {
+        success: true,
+        orderId,
+        status: 'in_revision',
+        revisionCount: currentRevisions + 1,
+        maxRevisions
+      };
+
+    } catch (error) {
+      console.error('❌ [OrderService] Error requesting revision:', error);
+      throw error;
+    }
+  }
+
+  // Complete revision and re-deliver order
+  async completeRevision(orderId, userId, deliveryData = {}) {
+    try {
+      console.log('🔄 [OrderService] completeRevision called:', {
+        orderId,
+        userId,
+        hasMessage: !!deliveryData.message,
+        hasFiles: !!deliveryData.files?.length
+      });
+
+      // Get current order to validate
+      const orderDoc = await getDoc(doc(this.ordersCollection, orderId));
+      if (!orderDoc.exists()) {
+        throw new Error('Order not found');
+      }
+
+      const orderData = orderDoc.data();
+      
+      // Validate that user is the freelancer
+      if (orderData.freelancerId !== userId) {
+        throw new Error('Only the freelancer can complete revision for this order');
+      }
+
+      // Validate current status allows revision completion
+      if (orderData.status !== 'in_revision') {
+        throw new Error(`Cannot complete revision for order with status: ${orderData.status}`);
+      }
+
+      // Prepare revision completion data with regular Date instead of serverTimestamp for arrayUnion
+      const now = new Date();
+      const revisionCompletion = {
+        message: deliveryData.message || 'Revision completed',
+        files: deliveryData.files || [],
+        completedAt: now,
+        completedBy: userId
+      };
+
+      // Update order with revision completion
+      const revisionUpdate = {
+        status: 'delivered',
+        revisionCompletions: arrayUnion(revisionCompletion),
+        updatedAt: serverTimestamp(),
+        timeline: {
+          ...orderData.timeline,
+          revision_completed: serverTimestamp(),
+          delivered: serverTimestamp() // Update delivered timestamp
+        }
+      };
+
+      await updateDoc(doc(this.ordersCollection, orderId), revisionUpdate);
+
+      console.log('✅ [OrderService] Revision completed successfully:', {
+        orderId,
+        message: deliveryData.message,
+        fileCount: deliveryData.files?.length || 0
+      });
+
+      // Send notification to client about revision completion
+      try {
+        await notificationService.createOrderStatusNotification(
+          orderId,
+          orderData.clientId,
+          'client',
+          'delivered',
+          { 
+            metadata: { 
+              revisionCompleted: true,
+              deliveryMessage: deliveryData.message,
+              fileCount: deliveryData.files?.length || 0,
+              freelancerName: orderData.freelancer?.displayName || 'Freelancer'
+            } 
+          }
+        );
+        console.log('📧 [OrderService] Revision completion notification sent to client:', orderData.clientId);
+      } catch (notificationError) {
+        console.error('⚠️ [OrderService] Failed to send revision completion notification:', notificationError);
+      }
+
+      return {
+        success: true,
+        orderId,
+        status: 'delivered',
+        completedAt: new Date()
+      };
+
+    } catch (error) {
+      console.error('❌ [OrderService] Error completing revision:', error);
       throw error;
     }
   }
@@ -812,6 +1204,7 @@ class OrderService {
       
       const { orders } = await this[userType === 'client' ? 'getClientOrders' : 'getFreelancerOrders'](userId);
       
+<<<<<<< HEAD
       console.log('📥 [OrderService] Raw orders received:', {
         count: orders.length,
         orders: orders.map(o => ({
@@ -823,6 +1216,109 @@ class OrderService {
           gigId: o.gigId,
           title: o.title
         }))
+=======
+      for (const orderDoc of querySnapshot.docs) {
+        const orderData = orderDoc.data();
+        const orderId = orderDoc.id;
+
+        try {
+          // Get gig details
+          let gigData = null;
+          if (orderData.gigId) {
+            const gigDoc = await getDoc(doc(this.gigsCollection, orderData.gigId));
+            if (gigDoc.exists()) {
+              gigData = gigDoc.data();
+            }
+          }
+
+          // Get user details (client or freelancer based on userType)
+          let userData = null;
+          const otherUserId = userType === 'client' ? orderData.freelancerId : orderData.clientId;
+          
+          if (otherUserId) {
+            const userDoc = await getDoc(doc(this.usersCollection, otherUserId));
+            if (userDoc.exists()) {
+              const userDocData = userDoc.data();
+              userData = {
+                displayName: userDocData.displayName || 'Unknown User',
+                profilePhoto: userDocData.profilePhoto || null,
+                email: userDocData.email || null
+              };
+              console.log(`📋 [OrderService] User data loaded for ${userType}:`, {
+                orderId,
+                otherUserId,
+                displayName: userDocData.displayName,
+                hasProfilePhoto: !!userDocData.profilePhoto,
+                email: userDocData.email
+              });
+            } else {
+              console.warn(`⚠️ [OrderService] User document not found:`, {
+                orderId,
+                userType,
+                otherUserId,
+                freelancerId: orderData.freelancerId,
+                clientId: orderData.clientId
+              });
+            }
+          } else {
+            console.warn(`⚠️ [OrderService] No otherUserId found:`, {
+              orderId,
+              userType,
+              freelancerId: orderData.freelancerId,
+              clientId: orderData.clientId
+            });
+          }
+
+          // Convert Firestore timestamps to JavaScript dates
+          const processedOrder = {
+            id: orderId,
+            ...orderData,
+            createdAt: orderData.createdAt?.toDate?.() || new Date(),
+            updatedAt: orderData.updatedAt?.toDate?.() || new Date(),
+            paymentExpiredAt: orderData.paymentExpiredAt?.toDate?.() || null,
+            confirmationDeadline: orderData.confirmationDeadline?.toDate?.() || null,
+            workDeadline: orderData.workDeadline?.toDate?.() || null,
+            paidAt: orderData.paidAt?.toDate?.() || null,
+            completedAt: orderData.completedAt?.toDate?.() || null,
+            cancelledAt: orderData.cancelledAt?.toDate?.() || null,
+            gigData,
+            [userType === 'client' ? 'freelancer' : 'client']: userData
+          };
+
+          ordersWithDetails.push(processedOrder);
+
+        } catch (detailError) {
+          console.error('⚠️ [OrderService] Error loading details for order:', orderId, detailError);
+          console.error('⚠️ [OrderService] Order data that failed:', {
+            orderId,
+            freelancerId: orderData.freelancerId,
+            clientId: orderData.clientId,
+            gigId: orderData.gigId,
+            userType
+          });
+          
+          // Include order without details rather than failing completely
+          ordersWithDetails.push({
+            id: orderId,
+            ...orderData,
+            createdAt: orderData.createdAt?.toDate?.() || new Date(),
+            updatedAt: orderData.updatedAt?.toDate?.() || new Date(),
+            gigData: null,
+            [userType === 'client' ? 'freelancerData' : 'clientData']: null,
+            _loadError: true
+          });
+        }
+      }
+
+      console.log('✅ [OrderService] Orders with details loaded:', {
+        userId,
+        userType,
+        totalOrders: ordersWithDetails.length,
+        statusBreakdown: ordersWithDetails.reduce((acc, order) => {
+          acc[order.status] = (acc[order.status] || 0) + 1;
+          return acc;
+        }, {})
+>>>>>>> 7a62244 (fix bugs)
       });
       
       // Get additional details for each order
@@ -1020,6 +1516,27 @@ class OrderService {
         updatedAt: serverTimestamp()
       });
 
+      // Send notification to freelancer about new order
+      try {
+        await notificationService.createOrderStatusNotification(
+          orderId,
+          order.freelancerId,
+          'freelancer',
+          'pending',
+          { 
+            metadata: { 
+              paymentCompleted: true,
+              clientName: order.client?.displayName || 'Client',
+              gigTitle: order.title,
+              price: order.price
+            } 
+          }
+        );
+        console.log('📧 [OrderService] New order notification sent to freelancer:', order.freelancerId);
+      } catch (notificationError) {
+        console.error('⚠️ [OrderService] Failed to send new order notification:', notificationError);
+      }
+
       // Now create chat and send notification since payment is complete
       try {
         const chat = await chatService.createOrGetChat(
@@ -1074,6 +1591,32 @@ class OrderService {
         cancelledAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
+
+      // Send cancellation notification to the other party
+      try {
+        const isClientCancellation = userId === order.clientId;
+        const recipientId = isClientCancellation ? order.freelancerId : order.clientId;
+        const recipientType = isClientCancellation ? 'freelancer' : 'client';
+
+        await notificationService.createOrderStatusNotification(
+          orderId,
+          recipientId,
+          recipientType,
+          'cancelled',
+          { 
+            metadata: { 
+              cancellationReason: reason,
+              cancelledBy: isClientCancellation ? 'client' : 'freelancer',
+              cancellerName: isClientCancellation 
+                ? (order.client?.displayName || 'Client')
+                : (order.freelancer?.displayName || 'Freelancer')
+            } 
+          }
+        );
+        console.log('📧 [OrderService] Cancellation notification sent to:', recipientId);
+      } catch (notificationError) {
+        console.error('⚠️ [OrderService] Failed to send cancellation notification:', notificationError);
+      }
 
       // Send cancellation notification
       try {
@@ -1204,6 +1747,8 @@ class OrderService {
   // Helper method to get order with details (used by subscription)
   async getOrderWithDetails(orderData) {
     try {
+      console.log('🔍 [OrderService] getOrderWithDetails called for order:', orderData.id);
+
       // Get gig details
       let gigData = null;
       if (orderData.gigId) {
@@ -1216,30 +1761,90 @@ class OrderService {
       // Get client details
       let clientData = null;
       if (orderData.clientId) {
+<<<<<<< HEAD
         const clientDoc = await getDoc(doc(db, 'users', orderData.clientId));
+=======
+        console.log('🔍 [OrderService] Loading client data for:', orderData.clientId);
+        const clientDoc = await getDoc(doc(this.usersCollection, orderData.clientId));
+>>>>>>> 7a62244 (fix bugs)
         if (clientDoc.exists()) {
-          clientData = { id: clientDoc.id, ...clientDoc.data() };
+          const rawClientData = clientDoc.data();
+          clientData = {
+            displayName: rawClientData.displayName || 'Unknown User',
+            profilePhoto: rawClientData.profilePhoto || null,
+            email: rawClientData.email || null
+          };
+          console.log('✅ [OrderService] Client data loaded:', {
+            orderId: orderData.id,
+            clientId: orderData.clientId,
+            displayName: clientData.displayName
+          });
+        } else {
+          console.warn('⚠️ [OrderService] Client document not found:', orderData.clientId);
         }
       }
 
       // Get freelancer details
       let freelancerData = null;
       if (orderData.freelancerId) {
+<<<<<<< HEAD
         const freelancerDoc = await getDoc(doc(db, 'users', orderData.freelancerId));
+=======
+        console.log('🔍 [OrderService] Loading freelancer data for:', orderData.freelancerId);
+        const freelancerDoc = await getDoc(doc(this.usersCollection, orderData.freelancerId));
+>>>>>>> 7a62244 (fix bugs)
         if (freelancerDoc.exists()) {
-          freelancerData = { id: freelancerDoc.id, ...freelancerDoc.data() };
+          const rawFreelancerData = freelancerDoc.data();
+          freelancerData = {
+            displayName: rawFreelancerData.displayName || 'Unknown User',
+            profilePhoto: rawFreelancerData.profilePhoto || null,
+            email: rawFreelancerData.email || null
+          };
+          console.log('✅ [OrderService] Freelancer data loaded:', {
+            orderId: orderData.id,
+            freelancerId: orderData.freelancerId,
+            displayName: freelancerData.displayName
+          });
+        } else {
+          console.warn('⚠️ [OrderService] Freelancer document not found:', orderData.freelancerId);
         }
       }
 
-      return {
+      // Convert Firestore timestamps to JavaScript dates
+      const processedOrder = {
         ...orderData,
-        gig: gigData,
-        client: clientData,
-        freelancer: freelancerData
+        createdAt: orderData.createdAt?.toDate?.() || new Date(),
+        updatedAt: orderData.updatedAt?.toDate?.() || new Date(),
+        paymentExpiredAt: orderData.paymentExpiredAt?.toDate?.() || null,
+        confirmationDeadline: orderData.confirmationDeadline?.toDate?.() || null,
+        workDeadline: orderData.workDeadline?.toDate?.() || null,
+        paidAt: orderData.paidAt?.toDate?.() || null,
+        completedAt: orderData.completedAt?.toDate?.() || null,
+        cancelledAt: orderData.cancelledAt?.toDate?.() || null,
+        gigData,
+        client: clientData,      // Use 'client' to match OrderCard expectations
+        freelancer: freelancerData   // Use 'freelancer' to match OrderCard expectations
       };
+
+      console.log('✅ [OrderService] Order with details processed:', {
+        orderId: orderData.id,
+        hasGigData: !!gigData,
+        hasClient: !!clientData,
+        hasFreelancer: !!freelancerData,
+        clientDisplayName: clientData?.displayName,
+        freelancerDisplayName: freelancerData?.displayName
+      });
+
+      return processedOrder;
     } catch (error) {
       console.error('❌ [OrderService] Error getting order details:', error);
-      return orderData;
+      return {
+        ...orderData,
+        gigData: null,
+        client: null,
+        freelancer: null,
+        _loadError: true
+      };
     }
   }
 

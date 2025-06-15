@@ -240,4 +240,139 @@ export const calculateOrderStats = (orders) => {
   });
   
   return stats;
+};
+
+/**
+ * Calculate work deadline for active orders
+ * @param {Object} order - The order object
+ * @returns {Date|null} Calculated work deadline
+ */
+export const calculateWorkDeadline = (order) => {
+  if (!order.timeline?.confirmed || !order.deliveryTime) {
+    return null;
+  }
+  
+  const confirmationDate = order.timeline.confirmed.toDate ? 
+    order.timeline.confirmed.toDate() : 
+    new Date(order.timeline.confirmed);
+  
+  const deadline = new Date(confirmationDate);
+  deadline.setDate(deadline.getDate() + order.deliveryTime);
+  return deadline;
+};
+
+/**
+ * Calculate auto-completion deadline for delivered orders
+ * @param {Object} order - The order object
+ * @returns {Date|null} Auto-completion deadline (1 day after delivery)
+ */
+export const calculateAutoCompletionDeadline = (order) => {
+  if (!order.deliveredAt && !order.timeline?.delivered) {
+    return null;
+  }
+  
+  const deliveryDate = order.deliveredAt ? 
+    (order.deliveredAt.toDate ? order.deliveredAt.toDate() : new Date(order.deliveredAt)) :
+    (order.timeline.delivered.toDate ? order.timeline.delivered.toDate() : new Date(order.timeline.delivered));
+  
+  const autoCompleteDeadline = new Date(deliveryDate);
+  autoCompleteDeadline.setDate(autoCompleteDeadline.getDate() + 1); // 1 day after delivery
+  return autoCompleteDeadline;
+};
+
+/**
+ * Calculate revision deadline (max of original deadline or 1 day after revision request)
+ * @param {Object} order - The order object
+ * @returns {Date|null} Revision deadline
+ */
+export const calculateRevisionDeadline = (order) => {
+  if (!order.revisionRequests || order.revisionRequests.length === 0) {
+    return null;
+  }
+  
+  // Get the latest revision request
+  const latestRevision = order.revisionRequests[order.revisionRequests.length - 1];
+  const revisionRequestDate = latestRevision.requestedAt.toDate ? 
+    latestRevision.requestedAt.toDate() : 
+    new Date(latestRevision.requestedAt);
+  
+  // Calculate 1 day after revision request
+  const revisionDeadline = new Date(revisionRequestDate);
+  revisionDeadline.setDate(revisionDeadline.getDate() + 1);
+  
+  // Get original work deadline
+  const originalDeadline = calculateWorkDeadline(order);
+  
+  // Return the later of the two deadlines
+  if (originalDeadline && revisionDeadline < originalDeadline) {
+    return originalDeadline;
+  }
+  
+  return revisionDeadline;
+};
+
+/**
+ * Get the appropriate deadline based on order status
+ * @param {Object} order - The order object
+ * @returns {Object} Deadline info with date and type
+ */
+export const getOrderDeadline = (order) => {
+  switch (order.status) {
+    case 'payment':
+      return {
+        date: order.paymentExpiredAt,
+        type: 'payment',
+        label: 'Batal Otomatis'
+      };
+    
+    case 'pending':
+      return {
+        date: order.confirmationDeadline,
+        type: 'confirmation',
+        label: 'Batal Otomatis'
+      };
+    
+    case 'active':
+    case 'in_progress':
+      return {
+        date: calculateWorkDeadline(order),
+        type: 'work',
+        label: 'Deadline'
+      };
+    
+    case 'in_revision':
+      return {
+        date: calculateRevisionDeadline(order),
+        type: 'revision',
+        label: 'Deadline'
+      };
+    
+    case 'delivered':
+      return {
+        date: calculateAutoCompletionDeadline(order),
+        type: 'auto_completion',
+        label: 'Selesai Otomatis'
+      };
+    
+    case 'completed':
+      return {
+        date: order.completedAt || order.timeline?.completed,
+        type: 'completed',
+        label: 'Tanggal Selesai'
+      };
+    
+    case 'cancelled':
+      return {
+        date: order.cancelledAt || order.timeline?.cancelled,
+        type: 'cancelled',
+        label: 'Tanggal Dibatalkan'
+      };
+    
+    default:
+      return {
+        date: null,
+        type: 'unknown',
+        label: 'Tidak ada deadline'
+      };
+  }
 }; 

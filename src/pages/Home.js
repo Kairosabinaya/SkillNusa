@@ -25,6 +25,11 @@ export default function Home() {
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
 
+  // Guides state for freelancer section
+  const [guides, setGuides] = useState([]);
+  const [guidesLoading, setGuidesLoading] = useState(true);
+  const [selectedGuide, setSelectedGuide] = useState(null);
+
   // Handle clicks outside the search box
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -61,6 +66,130 @@ export default function Home() {
     { icon: "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10", name: "Business" },
     { icon: "M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z", name: "Customer Support" },
     { icon: "M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z", name: "Video & Animation" }
+  ];
+
+  // Sample guides data - same structure as FreelancerGuides.js
+  const sampleGuides = [
+    {
+      id: '1',
+      title: 'Cara Membuat Gigs di Fiverr bagi Pemula 2025',
+      description: 'Cara membuat Gigs secara cepat dan mudah.',
+      thumbnail: 'https://img.youtube.com/vi/4NMJW_YRog8/maxresdefault.jpg',
+      videoUrl: 'https://www.youtube.com/embed/4NMJW_YRog8',
+      duration: '13:35',
+      category: 'Membuat Gig',
+      views: 1234,
+      likes: 89,
+      publishedAt: new Date('2024-02-28')
+    },
+    {
+      id: '2',
+      title: 'Rumus Untuk Menentukan Harga Jasa Freelance Kita',
+      description: 'Berbagi pengalaman profesional di dunia freelance, khususnya dalam menentukan strategi harga yang tepat',
+      thumbnail: 'https://img.youtube.com/vi/2q7G5NouvBo/maxresdefault.jpg',
+      videoUrl: 'https://www.youtube.com/embed/2q7G5NouvBo',
+      duration: '7:55',
+      category: 'Pricing Strategy',
+      views: 2341,
+      likes: 156,
+      publishedAt: new Date('2021-03-09')
+    },
+    {
+      id: '3',
+      title: 'Komunikasi Efektif dengan Client',
+      description: 'Cara berkomunikasi profesional untuk membangun hubungan jangka panjang',
+      thumbnail: 'https://img.youtube.com/vi/lCioIb6GLXY/maxresdefault.jpg',
+      videoUrl: 'https://www.youtube.com/embed/lCioIb6GLXY',
+      duration: '10:06',
+      category: 'Komunikasi Client',
+      views: 3456,
+      likes: 234,
+      publishedAt: new Date('2023-10-11')
+    },
+    {
+      id: '4',
+      title: 'Tips Memulai Karir Sebagai Freelancer Pemula!',
+      description: 'Membagikan tips dan cara untuk memulai karir sebagai seorang freelancer pemula',
+      thumbnail: 'https://img.youtube.com/vi/4ao9ie7vneE/maxresdefault.jpg',
+      videoUrl: 'https://www.youtube.com/embed/4ao9ie7vneE',
+      duration: '5:49',
+      category: 'Memulai',
+      views: 5678,
+      likes: 456,
+      publishedAt: new Date('2023-03-07')
+    },
+    {
+      id: '5',
+      title: 'Cara Membuat Portofolio Kerja Remote untuk Pemula',
+      description: 'Membahas langkah-langkah dalam menyusun portofolio profesional.',
+      thumbnail: 'https://img.youtube.com/vi/AP39tJnIQP8/maxresdefault.jpg',
+      videoUrl: 'https://www.youtube.com/embed/AP39tJnIQP8',
+      duration: '7:06',
+      category: 'Portfolio',
+      views: 4321,
+      likes: 321,
+      publishedAt: new Date('2025-01-14')
+    },
+    {
+      id: '6',
+      title: 'Belajar Digital Marketing dari 0',
+      description: 'Strategi pemasaran personal branding untuk meningkatkan visibility',
+      thumbnail: 'https://img.youtube.com/vi/aQbZdee5PXI/maxresdefault.jpg',
+      videoUrl: 'https://www.youtube.com/embed/aQbZdee5PXI',
+      duration: '9:24',
+      category: 'Marketing',
+      views: 2890,
+      likes: 198,
+      publishedAt: new Date('2023-10-01')
+    },
+    {
+      id: '7',
+      title: 'Gimana sih Jadi Freelancer? Dari Pemula Jadi FREELANCER Sukses di 2021!',
+      description: 'Video ini membahas tentang bagaimana menjadi seorang freelancer yang sukses, mulai dari pemula hingga menjadi profesional di tahun 2021.',
+      thumbnail: 'https://img.youtube.com/vi/BoXWT9Rv8ZA/maxresdefault.jpg',
+      videoUrl: 'https://www.youtube.com/embed/BoXWT9Rv8ZA',
+      duration: '23:11',
+      category: 'Tips Sukses',
+      views: 171415,
+      likes: 6771,
+      publishedAt: new Date('2021-02-19')
+    },
+    {
+      id: '8',
+      title: "Cara Merespon Client Yang Pesan Desain & Minta Revisi Terus",
+      description: "Video ini memberikan tips tentang cara merespons klien yang memesan desain dan terus-menerus meminta revisi.",
+      thumbnail: "https://img.youtube.com/vi/5P_L-7rnaFc/maxresdefault.jpg",
+      videoUrl: "https://www.youtube.com/embed/5P_L-7rnaFc",
+      duration: "12:13",
+      category: "Komunikasi Client",
+      views: 56764,
+      likes: 2649,
+      publishedAt: new Date('2019-03-22')
+    },
+    {
+      id: '9',
+      title: "CARA SAYA MENENTUKAN HARGA JASA FREELANCE | WEB DESIGN, WEB DEVELOPMENT, WORDPRESS DEVELOPMENT",
+      description: "Video ini membahas cara menentukan harga jasa freelance untuk desain web, pengembangan web, dan pengembangan WordPress.",
+      thumbnail: "https://img.youtube.com/vi/G1AZX_2cMNg/maxresdefault.jpg",
+      videoUrl: "https://www.youtube.com/embed/G1AZX_2cMNg",
+      duration: "5:51",
+      category: "Pricing Strategy",
+      views: 3679,
+      likes: 101,
+      publishedAt: new Date('2020-08-07')
+    },
+    {
+      id: '10',
+      title: "Buat portofolio dari NOL, tanpa pengalaman kerja!",
+      description: "Video ini menjelaskan cara membuat portofolio dari awal, bahkan tanpa pengalaman kerja sebelumnya.",
+      thumbnail: "https://img.youtube.com/vi/Vg_De3SGOL4/maxresdefault.jpg",
+      videoUrl: "https://www.youtube.com/embed/Vg_De3SGOL4",
+      duration: "8:04",
+      category: "Portfolio",
+      views: 48304,
+      likes: 1408,
+      publishedAt: new Date('2023-11-02')
+    }
   ];
 
   // Fetch gigs and calculate reviews
@@ -122,6 +251,135 @@ export default function Home() {
 
     fetchGigsAndReviews();
   }, []);
+
+  // Fetch guides for freelancer section
+  useEffect(() => {
+    const fetchGuides = () => {
+      setGuidesLoading(true);
+      try {
+        // Sort guides by publishedAt in descending order (newest first) and take first 8
+        const sortedGuides = sampleGuides
+          .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt))
+          .slice(0, 8);
+        setGuides(sortedGuides);
+      } catch (error) {
+        console.error('Error fetching guides:', error);
+      } finally {
+        setGuidesLoading(false);
+      }
+    };
+
+    fetchGuides();
+  }, []);
+
+  // Handle modal keyboard events and body scroll
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape' && selectedGuide) {
+        setSelectedGuide(null);
+      }
+    };
+
+    if (selectedGuide) {
+      // Disable body scroll when modal is open
+      document.body.style.overflow = 'hidden';
+      // Add keyboard event listener
+      document.addEventListener('keydown', handleKeyDown);
+    } else {
+      // Re-enable body scroll when modal is closed
+      document.body.style.overflow = 'unset';
+    }
+
+    // Cleanup function
+    return () => {
+      document.body.style.overflow = 'unset';
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectedGuide]);
+
+  // Helper function to format views
+  const formatViews = (views) => {
+    if (views >= 1000000) {
+      return `${(views / 1000000).toFixed(1)}M`;
+    } else if (views >= 1000) {
+      return `${(views / 1000).toFixed(1)}K`;
+    }
+    return views.toString();
+  };
+
+  // Helper function to format date
+  const formatDate = (date) => {
+    const publishDate = date instanceof Date ? date : new Date(date);
+    const now = new Date();
+    const diffTime = Math.abs(now - publishDate);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 1) return '1 hari yang lalu';
+    if (diffDays <= 7) return `${diffDays} hari yang lalu`;
+    if (diffDays <= 30) return `${Math.ceil(diffDays / 7)} minggu yang lalu`;
+    if (diffDays <= 365) return `${Math.ceil(diffDays / 30)} bulan yang lalu`;
+    return `${Math.ceil(diffDays / 365)} tahun yang lalu`;
+  };
+
+  // Video Guide Modal Component
+  const GuideVideoModal = ({ guide, onClose }) => {
+    if (!guide) return null;
+
+    return (
+      <div 
+        className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4"
+        onClick={onClose}
+      >
+        <div 
+          className="bg-white rounded-lg w-[90%] max-w-4xl max-h-[90vh] overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="relative">
+            <button 
+              onClick={onClose}
+              className="absolute top-4 right-4 z-10 p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            
+            <div className="aspect-video bg-black">
+              <iframe
+                src={guide.videoUrl}
+                title={guide.title}
+                className="w-full h-full"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+            
+            <div className="p-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">{guide.title}</h2>
+              <div className="flex items-center gap-4 text-sm text-gray-600 mb-4">
+                <span>{formatViews(guide.views)} tayangan</span>
+                <span>{formatDate(guide.publishedAt)}</span>
+                <span className="bg-[#010042] text-white text-xs px-2 py-1 rounded-full">
+                  {guide.category}
+                </span>
+              </div>
+              <p className="text-gray-700">{guide.description}</p>
+              
+              <div className="flex items-center gap-4 mt-6">
+                <Link 
+                  to="/dashboard/freelancer/guides"
+                  className="px-4 py-2 bg-[#010042] text-white rounded-lg hover:bg-[#0100a3] transition-colors"
+                >
+                  Lihat Panduan Lainnya
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   // Filter gigs based on selected category
   const filteredGigs = activeCategory === 'All' 
@@ -196,6 +454,9 @@ export default function Home() {
                   
   // User dianggap freelancer jika secara eksplisit ditandai dengan isFreelancer = true
   const isFreelancer = !!userData && userData.isFreelancer === true;
+  
+  // Additional check for freelancer role in roles array
+  const hasFreelancerRole = !!userData && (userData.roles?.includes('freelancer') || userData.isFreelancer === true);
   
   
   // Logging detail untuk debugging
@@ -520,6 +781,109 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* Panduan Freelancer Section - Only for freelancers */}
+      {currentUser && hasFreelancerRole && (
+        <div className="bg-gray-50 py-8 sm:py-12">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
+              <h2 className="text-xl sm:text-2xl font-bold text-[#010042] text-center sm:text-left">Panduan Freelancer</h2>
+              <Link 
+                to="/dashboard/freelancer/guides"
+                className="text-sm text-[#010042] hover:underline flex items-center justify-center sm:justify-start gap-2 bg-transparent hover:text-[#0100a3] transition-all duration-200"
+              >
+                Lihat semua panduan
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+            </div>
+
+            {/* Guides Grid */}
+            {guidesLoading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+                {[...Array(8)].map((_, index) => (
+                  <div key={index} className="bg-white rounded-lg border border-gray-200 animate-pulse">
+                    <div className="bg-gray-300 aspect-video rounded-t-lg mb-4"></div>
+                    <div className="p-4">
+                      <div className="bg-gray-300 h-4 rounded mb-2"></div>
+                      <div className="bg-gray-300 h-3 rounded w-3/4 mb-2"></div>
+                      <div className="bg-gray-300 h-3 rounded w-1/2"></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : guides.length === 0 ? (
+              <div className="text-center py-8 sm:py-12">
+                <p className="text-gray-600 text-sm sm:text-base">Tidak ada panduan yang tersedia saat ini.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+                {guides.map((guide) => (
+                  <div
+                    key={guide.id}
+                    onClick={() => setSelectedGuide(guide)}
+                    className="bg-white rounded-lg border border-gray-200 shadow hover:shadow-lg transition-all duration-300 hover:scale-105 group cursor-pointer"
+                  >
+                    <div className="relative aspect-video bg-gray-100 rounded-t-lg overflow-hidden">
+                      <div className="absolute top-2 left-2 z-10">
+                        <span className="bg-[#010042] text-white text-xs px-2 py-1 rounded-full">
+                          {guide.category}
+                        </span>
+                      </div>
+                      <img 
+                        src={guide.thumbnail} 
+                        alt={guide.title}
+                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                      />
+                      <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <div className="absolute bottom-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
+                        {guide.duration}
+                      </div>
+                    </div>
+                    
+                    <div className="p-4">
+                      <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2 text-sm leading-tight">
+                        {guide.title}
+                      </h3>
+                      <p className="text-xs text-gray-600 mb-3 line-clamp-2 leading-relaxed">
+                        {guide.description}
+                      </p>
+                      
+                      <div className="flex items-center justify-between text-xs text-gray-500">
+                        <span>{formatViews(guide.views)} tayangan</span>
+                        <span>{formatDate(guide.publishedAt)}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex justify-center mt-8 sm:mt-10">
+              <Link 
+                to="/dashboard/freelancer/guides"
+                className="px-4 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium bg-transparent border border-[#010042] text-[#010042] rounded-lg transition-all duration-300 hover:bg-[#010042] hover:text-white hover:shadow-md hover:transform hover:scale-105"
+              >
+                Lihat Semua Panduan
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Guide Video Modal */}
+      {selectedGuide && (
+        <GuideVideoModal 
+          guide={selectedGuide} 
+          onClose={() => setSelectedGuide(null)} 
+        />
+      )}
 
       {/* Banner `Freelancer`CTA - ditampilkan hanya untuk user yang login sebagai client tapi belum menjadi freelancer */}
       {currentUser && !isFreelancer && (

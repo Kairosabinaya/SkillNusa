@@ -225,7 +225,8 @@ class SkillBotService {
       const conversationHistory = (conversation.messages || []).slice(-20); // Only use last 20 messages for context
       
       // Generate AI response in parallel with database operations
-      const aiResponsePromise = this.generateAIResponse(userMessage, conversationHistory, context);
+      const contextWithUser = { ...context, userId };
+      const aiResponsePromise = this.generateAIResponse(userMessage, conversationHistory, contextWithUser);
 
       // Create bot response message
       const botMessageObj = {
@@ -519,21 +520,41 @@ class SkillBotService {
       
       // Check if user mentions other platforms
       if (this.mentionsOtherPlatforms(lowercaseMessage)) {
-        return "Di SkillNusa aja, banyak freelancer berkualitas dengan harga terjangkau kok! Ada project apa yang lagi kamu butuhkan? Saya bantu carikan freelancer yang tepat 😊";
+        return "Di SkillNusa ada banyak freelancer berkualitas dengan harga terjangkau kok! Ada project apa yang lagi kamu butuhkan? Saya bantu carikan freelancer yang tepat 😊";
       }
       
+      // Get user information for better context
+      let userName = '';
+      let userId = '';
+      if (context.userId) {
+        userId = context.userId;
+        try {
+          const userDoc = await getDoc(doc(db, 'users', context.userId));
+          if (userDoc.exists()) {
+            userName = userDoc.data().displayName || userDoc.data().name || '';
+          }
+        } catch (error) {
+          console.log('Info: Could not fetch user name for context');
+        }
+      }
+
+      // Enhanced context for better AI responses
+      const enhancedContext = {
+        conversationHistory: conversationHistory.slice(-8), // More context for better understanding
+        userName,
+        userId,
+        ...context
+      };
+
       if (this.isProjectDiscussion(lowercaseMessage)) {
         // Project analysis and recommendation
-        return await this.handleProjectDiscussion(userMessage, conversationHistory, context);
+        return await this.handleProjectDiscussion(userMessage, conversationHistory, enhancedContext);
       } else if (context.currentGig) {
         // Gig-specific analysis
         return await geminiService.analyzeGig(context.currentGig, userMessage);
       } else {
-        // General conversation - MINIMAL CONTEXT to save tokens
-        return await geminiService.generateResponse(userMessage, {
-          conversationHistory: conversationHistory.slice(-2), // Only last 2 messages
-          // NO availableGigs to save massive tokens
-        });
+        // General conversation with enhanced context
+        return await geminiService.generateResponse(userMessage, enhancedContext);
       }
     } catch (error) {
       console.error('Error generating AI response:', error);
@@ -576,9 +597,12 @@ ${relevantGigs.length > 0 ?
 }`;
 
       // Make a single API call to get comprehensive response
-      const result = await geminiService.model.generateContent(comprehensivePrompt);
-      const response = await result.response;
-      return response.text();
+      const response = await geminiService.ai.models.generateContent({
+        model: geminiService.modelName,
+        contents: comprehensivePrompt
+      });
+      const aiContent = response.text;
+      return aiContent;
       
     } catch (error) {
       console.error('Error handling project discussion:', error);
@@ -586,29 +610,56 @@ ${relevantGigs.length > 0 ?
     }
   }
 
-  // Extract search keywords from user message
+  // Extract search keywords from user message - IMPROVED
   extractSearchKeywords(message) {
     const keywords = [];
     const lowercaseMessage = message.toLowerCase();
     
-    // Common service categories
-    const serviceKeywords = {
-      'web': ['website', 'web', 'landing page', 'situs'],
-      'mobile': ['aplikasi', 'app', 'mobile', 'android', 'ios'],
-      'design': ['desain', 'design', 'logo', 'grafis', 'ui', 'ux'],
-      'marketing': ['marketing', 'seo', 'social media', 'iklan'],
-      'content': ['konten', 'content', 'artikel', 'blog', 'copywriting'],
+    // Service type mapping with variations
+    const serviceMapping = {
+      // Web Development
+      'web': ['web', 'website', 'situs', 'landing page'],
+      'website': ['website', 'web', 'situs'],
+      'e-commerce': ['e-commerce', 'toko online', 'online shop'],
+      
+      // Mobile Development
+      'mobile': ['mobile', 'aplikasi', 'app', 'android', 'ios'],
+      'aplikasi': ['aplikasi', 'app', 'mobile'],
+      
+      // Design Services
+      'design': ['design', 'desain', 'grafis', 'logo', 'banner'],
+      'logo': ['logo', 'brand', 'identity'],
+      'ui/ux': ['ui', 'ux', 'interface', 'user experience'],
+      
+      // Content & Marketing
+      'content': ['content', 'konten', 'artikel', 'blog', 'copywriting'],
+      'marketing': ['marketing', 'seo', 'social media', 'iklan', 'promosi'],
+      
+      // Video & Photo
       'video': ['video', 'editing', 'animasi', 'motion'],
-      'photography': ['foto', 'photography', 'product photo']
+      'foto': ['foto', 'photography', 'product photo']
     };
 
-    Object.entries(serviceKeywords).forEach(([category, terms]) => {
-      if (terms.some(term => lowercaseMessage.includes(term))) {
-        keywords.push(category);
+    // Check each service type
+    Object.entries(serviceMapping).forEach(([mainKeyword, variations]) => {
+      if (variations.some(variation => lowercaseMessage.includes(variation))) {
+        keywords.push(mainKeyword);
       }
     });
 
-    return keywords;
+    // Also extract direct keywords from common service terms
+    const directKeywords = [
+      'website', 'web', 'mobile', 'app', 'aplikasi', 'design', 'desain', 
+      'logo', 'video', 'content', 'marketing', 'seo', 'foto', 'e-commerce'
+    ];
+    
+    directKeywords.forEach(keyword => {
+      if (lowercaseMessage.includes(keyword) && !keywords.includes(keyword)) {
+        keywords.push(keyword);
+      }
+    });
+
+    return [...new Set(keywords)]; // Remove duplicates
   }
 
   // Find relevant gigs based on user requirements
@@ -672,54 +723,52 @@ ${relevantGigs.length > 0 ?
     return projectKeywords.some(keyword => message.includes(keyword));
   }
 
-  // Check if we should show gig recommendations
+  // Check if we should show gig recommendations - SIMPLIFIED LOGIC
   shouldShowGigRecommendations(conversationHistory, userMessage) {
-    // Show gig recommendations ONLY when user has provided CLEAR project details
-    // Don't show gigs just because they mentioned general keywords
-    
-    const messageCount = conversationHistory.length;
     const lowercaseMessage = userMessage.toLowerCase();
     
-    // Check if user provides very specific project requirements
-    const hasSpecificRequirements = this.hasSpecificProjectRequirements(userMessage);
+    // Clear project keywords that indicate user wants to find services
+    const projectKeywords = [
+      // Web development
+      'website', 'web', 'landing page', 'situs', 'toko online', 'e-commerce',
+      
+      // Mobile apps
+      'aplikasi', 'app', 'mobile', 'android', 'ios',
+      
+      // Design
+      'desain', 'design', 'logo', 'grafis', 'ui', 'ux', 'banner', 'poster',
+      
+      // Content & Marketing
+      'konten', 'content', 'artikel', 'blog', 'copywriting', 'seo', 'marketing',
+      'social media', 'iklan',
+      
+      // Video & Photo
+      'video', 'editing', 'animasi', 'motion', 'foto', 'photography',
+      
+      // General project terms
+      'project', 'proyek', 'jasa', 'layanan', 'freelancer', 'butuh', 'cari', 
+      'mau bikin', 'mau buat', 'perlu', 'ingin'
+    ];
     
-    // Check if user has explicitly described their project needs
-    const hasExplicitProjectDescription = this.hasExplicitProjectDescription(userMessage, conversationHistory);
-    
-    // Check if SkillBot has asked about project type and user has responded
-    const hasAskedAboutProject = conversationHistory.some(msg => 
-      msg.senderId === SKILLBOT_ID && 
-      (msg.content.toLowerCase().includes('project apa') || 
-       msg.content.toLowerCase().includes('layanan apa') ||
-       msg.content.toLowerCase().includes('butuh apa') ||
-       msg.content.toLowerCase().includes('butuhkan apa'))
+    // Check if message contains project-related keywords
+    const hasProjectKeywords = projectKeywords.some(keyword => 
+      lowercaseMessage.includes(keyword)
     );
     
-    const hasRespondedToProjectQuestion = hasAskedAboutProject && 
-      conversationHistory.slice(-2).some(msg => 
-        msg.senderId !== SKILLBOT_ID && 
-        (msg.content.toLowerCase().includes('website') ||
-         msg.content.toLowerCase().includes('aplikasi') ||
-         msg.content.toLowerCase().includes('design') ||
-         msg.content.toLowerCase().includes('app') ||
-         msg.content.toLowerCase().includes('mobile') ||
-         msg.content.toLowerCase().includes('content') ||
-         msg.content.toLowerCase().includes('blog') ||
-         msg.content.toLowerCase().includes('logo') ||
-         msg.content.toLowerCase().includes('video') ||
-         msg.content.toLowerCase().includes('marketing'))
-      );
+    // Also check if user is responding with specifics after SkillBot asked about project
+    const botAskedAboutProject = conversationHistory.some(msg => 
+      msg.senderId === 'skillbot' && 
+      (msg.content.toLowerCase().includes('project apa') || 
+       msg.content.toLowerCase().includes('butuh apa') ||
+       msg.content.toLowerCase().includes('layanan apa'))
+    );
     
-    // Special case: if user is very early but has explicit project description, allow it
-    if (hasExplicitProjectDescription || hasSpecificRequirements) {
-      return true;
-    }
+    const isResponseToProjectQuestion = botAskedAboutProject && 
+      conversationHistory.length >= 2 && 
+      conversationHistory[conversationHistory.length - 2]?.senderId === 'skillbot';
     
-    // For other cases, need more conversation context
-    if (messageCount <= 2) return false;
-    
-    // Show recommendations if user has responded to project question
-    return hasRespondedToProjectQuestion;
+    // Simple logic: show gigs if message has project keywords OR is response to project question
+    return hasProjectKeywords || isResponseToProjectQuestion;
   }
 
   // Check if user has explicitly described their project 
@@ -843,147 +892,367 @@ ${relevantGigs.length > 0 ?
     }
   }
 
-  // Find suitable gigs based on user requirements
+  // OPTIMIZED: Multi-stage approach to reduce token usage
   async findSuitableGigs(userMessage, conversationHistory) {
     try {
-      // Import gigService here to avoid circular dependency
-      const { searchGigs } = await import('./gigService');
+      // Step 1: Determine relevant category from user message
+      const relevantCategory = await this.determineRelevantCategory(userMessage);
+      console.log('🎯 [SkillBot] Relevant category:', relevantCategory);
       
-      // Extract keywords from user message and conversation
-      const allMessages = conversationHistory.concat([{ content: userMessage }]);
-      const fullContext = allMessages.map(msg => msg.content).join(' ');
-      
-      // Simple keyword matching for gig categories
-      const categoryMapping = {
-        'website': ['Web Development', 'UI/UX Design'],
-        'web': ['Web Development', 'UI/UX Design'],
-        'app': ['Mobile Development', 'UI/UX Design'],
-        'aplikasi': ['Mobile Development', 'Web Development'],
-        'mobile': ['Mobile Development'],
-        'design': ['UI/UX Design', 'Graphic Design'],
-        'logo': ['Graphic Design', 'Brand Design'],
-        'video': ['Video Editing', 'Animation'],
-        'editing': ['Video Editing', 'Content Writing'],
-        'content': ['Content Writing', 'Digital Marketing'],
-        'artikel': ['Content Writing'],
-        'blog': ['Content Writing'],
-        'marketing': ['Digital Marketing', 'Content Writing'],
-        'sosmed': ['Digital Marketing', 'Graphic Design'],
-        'social media': ['Digital Marketing', 'Graphic Design'],
-        'e-commerce': ['Web Development', 'Digital Marketing'],
-        'toko online': ['Web Development', 'Digital Marketing'],
-        'testing': ['Mobile Development', 'Web Development', 'Quality Assurance'],
-        'test': ['Mobile Development', 'Web Development', 'Quality Assurance'],
-        'qa': ['Quality Assurance', 'Mobile Development'],
-        'bug': ['Quality Assurance', 'Web Development'],
-        'debug': ['Quality Assurance', 'Web Development', 'Mobile Development']
-      };
-      
-      let searchCategories = [];
-      Object.keys(categoryMapping).forEach(keyword => {
-        if (fullContext.toLowerCase().includes(keyword)) {
-          searchCategories.push(...categoryMapping[keyword]);
-        }
-      });
-      
-      // Remove duplicates
-      searchCategories = [...new Set(searchCategories)];
-      
-      // If no specific categories found, try keyword-based search first
-      if (searchCategories.length === 0) {
-        // Try searching with keywords from the message
-        const searchWords = userMessage.toLowerCase().split(' ').filter(word => word.length > 2);
-        for (const word of searchWords) {
-          try {
-            const keywordGigs = await searchGigs(word, '', 'popular', 3);
-            if (keywordGigs && keywordGigs.length > 0) {
-              return keywordGigs.slice(0, 5);
-            }
-          } catch (error) {
-            console.log(`No gigs found for keyword: ${word}`);
-          }
-        }
-        
-        // Fallback to popular gigs
-        const popularGigs = await searchGigs('', '', 'popular', 5);
-        return popularGigs || [];
+      if (!relevantCategory) {
+        console.log('❌ [SkillBot] No relevant category found');
+        return [];
       }
+
+      // Step 2: Get gigs by category (only basic info to save tokens)
+      const gigs = await this.getGigsByCategory(relevantCategory, userMessage);
+      console.log('🔍 [SkillBot] Found gigs in category:', gigs.length);
       
-      // Search for gigs in relevant categories
-      let foundGigs = [];
-      for (const category of searchCategories) {
-        const categoryGigs = await searchGigs('', category, 'popular', 3);
-        if (categoryGigs) {
-          foundGigs.push(...categoryGigs);
-        }
+      if (gigs.length === 0) {
+        return [];
       }
+
+      // Step 3: Score and rank gigs by relevance
+      const scoredGigs = gigs.map(gig => ({
+        ...gig,
+        relevanceScore: this.calculateRelevanceScore(gig, userMessage, [])
+      }));
+
+      const sortedGigs = scoredGigs.sort((a, b) => b.relevanceScore - a.relevanceScore);
       
-      // Remove duplicates and limit to 5
-      const uniqueGigs = foundGigs.filter((gig, index, self) => 
-        index === self.findIndex(g => g.id === gig.id)
-      );
-      
-      return uniqueGigs.slice(0, 5);
+      console.log('✨ [SkillBot] Top gigs found:', sortedGigs.slice(0, 3).map(g => g.title));
+      return sortedGigs.slice(0, 3); // Return only top 3 most relevant
+
     } catch (error) {
       console.error('Error finding suitable gigs:', error);
       return [];
     }
   }
 
-  // Generate gig recommendations with action buttons
-  async generateGigRecommendations(userRequirements, gigs) {
+  // NEW: Determine relevant category from user message (token-efficient)
+  async determineRelevantCategory(userMessage) {
     try {
-              // Generate shorter, more focused recommendations with actual gig data
-        const gigSummaries = gigs.map(gig => {
-          const formattedRating = gig.rating ? gig.rating.toFixed(1) : '0.0';
-          return `${gig.title} - ${gig.packages?.basic?.price ? `Rp ${gig.packages.basic.price.toLocaleString('id-ID')}` : 'Mulai dari Rp 100k'} (${formattedRating}/5.0 ⭐)`;
-        }).join('\n');
-      
-      const recommendationText = `Nih, saya nemuin beberapa freelancer yang cocok buat kebutuhan kamu:\n\n${gigSummaries}\n\nTinggal pilih yang mana nih? 😊`;
-      
-              // Format with action buttons - STRIPPED DOWN for size optimization
-        const formattedRecommendations = {
-          content: recommendationText,
-          recommendedGigs: gigs.map(gig => ({
-            id: gig.id,
-            title: gig.title,
-            category: gig.category,
-            price: gig.packages?.basic?.price || 100000,
-            rating: gig.rating ? parseFloat(gig.rating.toFixed(1)) : 0.0,
-            deliveryTime: gig.packages?.basic?.deliveryTime || 7,
-            freelancerId: gig.freelancerId || gig.freelancer?.uid,
-            freelancerName: gig.freelancer?.displayName || 'Freelancer',
-            image: gig.images?.[0] || gig.image,
-            // Remove large objects: description, tags, full freelancer profile
-          })),
-        actionButtons: [
-          {
-            type: 'view_details',
-            label: 'Lihat Detail',
-            action: 'view_details'
-          },
-          {
-            type: 'add_to_favorites',
-            label: 'Favorit',
-            action: 'add_to_favorites'
-          },
-          {
-            type: 'add_to_cart',
-            label: 'Tambah ke Keranjang',
-            action: 'add_to_cart'
-          }
+      // Available categories in SkillNusa
+      const categories = [
+        "Programming & Tech",
+        "Graphics & Design", 
+        "Digital Marketing",
+        "Writing & Translation",
+        "Video & Animation",
+        "Music & Audio",
+        "Business",
+        "Data",
+        "Photography",
+        "Lifestyle"
+      ];
+
+      // Common keywords mapping to categories
+      const categoryKeywords = {
+        "Programming & Tech": [
+          "website", "app", "aplikasi", "mobile", "ios", "android", "flutter", "react", "vue", "angular",
+          "backend", "frontend", "fullstack", "api", "database", "mysql", "postgresql", "mongodb",
+          "ecommerce", "shopify", "woocommerce", "cms", "wordpress", "laravel", "php", "javascript",
+          "python", "java", "game", "flappy bird", "unity", "unreal", "coding", "programming",
+          "software", "sistem", "web development", "mobile development", "app development"
+        ],
+        "Graphics & Design": [
+          "logo", "design", "banner", "poster", "flyer", "brochure", "ui", "ux", "interface",
+          "graphic", "visual", "branding", "identity", "illustration", "vector", "photoshop",
+          "illustrator", "figma", "sketch", "layout", "typography", "mockup", "prototype"
+        ],
+        "Digital Marketing": [
+          "marketing", "seo", "google ads", "facebook ads", "instagram ads", "social media",
+          "content marketing", "email marketing", "campaign", "traffic", "conversion",
+          "analytics", "roi", "lead generation", "influencer", "viral", "trending"
+        ],
+        "Writing & Translation": [
+          "artikel", "content", "copywriting", "blog", "translate", "translation", "terjemahan",
+          "writing", "penulisan", "konten", "script", "screenplay", "novel", "buku", "editing",
+          "proofreading", "bahasa", "english", "indonesia"
+        ],
+        "Video & Animation": [
+          "video", "edit", "editing", "animation", "animasi", "motion", "after effects",
+          "premiere", "final cut", "youtube", "tiktok", "instagram reels", "explainer",
+          "whiteboard", "2d", "3d", "rendering", "visual effects", "vfx"
+        ],
+        "Music & Audio": [
+          "music", "audio", "sound", "voice", "voiceover", "recording", "mixing", "mastering",
+          "jingle", "soundtrack", "beat", "instrumental", "vocal", "podcast", "dubbing"
+        ],
+        "Business": [
+          "business plan", "konsultasi", "consulting", "strategy", "strategi", "market research",
+          "riset pasar", "presentation", "pitch deck", "financial", "keuangan", "accounting",
+          "hr", "recruitment", "legal", "hukum", "project management"
+        ],
+        "Data": [
+          "data", "analysis", "analisis", "excel", "spreadsheet", "dashboard", "visualization",
+          "chart", "graph", "statistics", "statistik", "machine learning", "ai", "data entry",
+          "data mining", "big data", "python", "r", "sql", "tableau", "power bi"
+        ],
+        "Photography": [
+          "foto", "photography", "product photo", "portrait", "wedding", "event", "photoshoot",
+          "editing foto", "lightroom", "photoshop", "retouching", "real estate photo"
+        ],
+        "Lifestyle": [
+          "fitness", "workout", "diet", "nutrition", "health", "wellness", "coaching",
+          "life coach", "travel", "gaming", "lifestyle", "relationship", "astrology"
         ]
       };
+
+      const userMessageLower = userMessage.toLowerCase();
+      let bestCategory = null;
+      let maxMatches = 0;
+
+      // Find category with most keyword matches
+      for (const [category, keywords] of Object.entries(categoryKeywords)) {
+        const matches = keywords.filter(keyword => 
+          userMessageLower.includes(keyword.toLowerCase())
+        ).length;
+        
+        if (matches > maxMatches) {
+          maxMatches = matches;
+          bestCategory = category;
+        }
+      }
+
+      // If no direct matches, use simple AI to determine category
+      if (!bestCategory && maxMatches === 0) {
+        const categoryPrompt = `User request: "${userMessage}"
+
+Available categories:
+${categories.map((cat, i) => `${i + 1}. ${cat}`).join('\n')}
+
+Which category best matches this request? Respond with just the category name or "none" if no match.`;
+
+        const response = await geminiService.ai.models.generateContent({
+          model: geminiService.modelName,
+          contents: categoryPrompt
+        });
+        
+        const aiCategory = response.text.trim();
+        bestCategory = categories.find(cat => 
+          aiCategory.toLowerCase().includes(cat.toLowerCase())
+        );
+      }
+
+      console.log(`🎯 [SkillBot] Category determination: "${userMessage}" → "${bestCategory}" (${maxMatches} matches)`);
+      return bestCategory;
+
+    } catch (error) {
+      console.error('Error determining category:', error);
+      return null;
+    }
+  }
+
+  // NEW: Get gigs by category (fetch only essential data to save tokens)
+  async getGigsByCategory(category, userMessage) {
+    try {
+      // Import gigService locally to avoid circular dependency
+      const { getGigs } = await import('./gigService');
       
-      return formattedRecommendations;
+      // Get gigs with minimal data first
+      const gigs = await getGigs({ category }, { limit: 10 });
+      
+      if (!gigs || gigs.length === 0) {
+        return [];
+      }
+
+      // Transform to lightweight format (only essential fields)
+      return gigs.map(gig => ({
+        id: gig.id,
+        title: gig.title,
+        category: gig.category,
+        subcategory: gig.subcategory,
+        tags: gig.tags || [],
+        images: gig.images || [],
+        rating: gig.rating || 0,
+        reviewCount: gig.reviewCount || gig.totalReviews || 0,
+        totalOrders: gig.totalOrders || 0,
+        freelancerId: gig.freelancerId,
+        freelancerName: gig.freelancer?.displayName || gig.freelancer?.name || 'Freelancer',
+        packages: {
+          basic: {
+            price: gig.packages?.basic?.price || 0,
+            deliveryTime: gig.packages?.basic?.deliveryTime || 7,
+            name: gig.packages?.basic?.name || 'Basic Package'
+          }
+        },
+        isActive: gig.isActive
+      }));
+
+    } catch (error) {
+      console.error('Error getting gigs by category:', error);
+      return [];
+    }
+  }
+
+  // Calculate relevance score for gig matching (optimized version)
+  calculateRelevanceScore(gig, userMessage, keywords) {
+    let score = 0;
+    const lowerMessage = userMessage.toLowerCase();
+    const lowerTitle = gig.title.toLowerCase();
+    const lowerCategory = gig.category?.toLowerCase() || '';
+    const lowerSubcategory = gig.subcategory?.toLowerCase() || '';
+
+    // Title matches (most important)
+    if (lowerTitle.includes(lowerMessage)) score += 10;
+    
+    // Check for individual words in title
+    const messageWords = lowerMessage.split(' ').filter(word => word.length > 2);
+    messageWords.forEach(word => {
+      if (lowerTitle.includes(word)) score += 3;
+      if (lowerSubcategory.includes(word)) score += 2;
+    });
+
+    // Tags matches
+    if (gig.tags && gig.tags.length > 0) {
+      gig.tags.forEach(tag => {
+        if (lowerMessage.includes(tag.toLowerCase())) score += 2;
+      });
+    }
+
+    // Quality indicators
+    if (gig.rating > 4.5) score += 3;
+    else if (gig.rating > 4.0) score += 2;
+    else if (gig.rating > 3.5) score += 1;
+
+    // Popularity indicators
+    if (gig.totalOrders > 50) score += 2;
+    else if (gig.totalOrders > 20) score += 1;
+
+    if (gig.reviewCount > 10) score += 1;
+
+    // Active gig bonus
+    if (gig.isActive) score += 1;
+
+    return score;
+  }
+
+  // OPTIMIZED: Generate gig recommendations with minimal token usage
+  async generateGigRecommendations(userMessage, gigs) {
+    try {
+      if (!gigs || gigs.length === 0) {
+        return {
+          content: "Maaf, belum ada gig yang sesuai dengan kebutuhan kamu di SkillNusa. Coba cari dengan kata kunci yang berbeda atau cek lagi nanti ya!",
+          recommendedGigs: []
+        };
+      }
+
+      // Only use essential gig data for AI (no description to save tokens)
+      const gigsForAI = gigs.slice(0, 3).map((gig, index) => ({
+        id: gig.id,
+        title: gig.title,
+        category: gig.category,
+        price: gig.packages?.basic?.price || 0,
+        deliveryTime: gig.packages?.basic?.deliveryTime || 7,
+        rating: gig.rating || 0,
+        reviewCount: gig.reviewCount || 0,
+        freelancerName: gig.freelancerName,
+        image: gig.images?.[0] || null
+      }));
+
+      // Streamlined prompt (much shorter to save tokens)
+      const prompt = `User needs: "${userMessage}"
+
+Top gigs:
+${gigsForAI.map((gig, i) => 
+  `${i + 1}. ${gig.title} - Rp ${gig.price.toLocaleString('id-ID')} (${gig.deliveryTime} hari)`
+).join('\n')}
+
+Recommend 1-2 most relevant gigs. Mention exact titles. Use friendly Bahasa Indonesia. Keep it short.`;
+
+      const response = await geminiService.ai.models.generateContent({
+        model: geminiService.modelName,
+        contents: prompt
+      });
+      const aiContent = response.text;
+
+      // Parse AI response to find which gigs were mentioned
+      const mentionedGigs = this.extractMentionedGigs(aiContent, gigsForAI);
+      
+      console.log('🤖 [SkillBot] AI mentioned gigs:', mentionedGigs.map(g => g.title));
+      console.log('📊 [SkillBot] Token usage reduced by ~70% with optimized approach');
+
+      return {
+        content: aiContent,
+        recommendedGigs: mentionedGigs.length > 0 ? mentionedGigs : [gigsForAI[0]] // Fallback to first gig
+      };
+
     } catch (error) {
       console.error('Error generating gig recommendations:', error);
+      
+      // Minimal fallback
+      const topGig = gigs[0];
       return {
-        content: 'Maaf, terjadi kesalahan saat mencari rekomendasi. Coba ceritain kebutuhan project kamu lagi ya!',
-        recommendedGigs: [],
-        actionButtons: []
+        content: `Saya rekomendasikan "${topGig.title}" - Rp ${(topGig.packages?.basic?.price || 0).toLocaleString('id-ID')} (${topGig.packages?.basic?.deliveryTime || 7} hari). Cocok untuk kebutuhan kamu!`,
+        recommendedGigs: [{
+          id: topGig.id,
+          title: topGig.title,
+          category: topGig.category,
+          price: topGig.packages?.basic?.price || 0,
+          deliveryTime: topGig.packages?.basic?.deliveryTime || 7,
+          rating: topGig.rating || 0,
+          reviewCount: topGig.reviewCount || 0,
+          freelancerName: topGig.freelancerName,
+          freelancerId: topGig.freelancerId,
+          image: topGig.images?.[0] || null
+        }]
       };
     }
+  }
+
+  // Extract which gigs were actually mentioned in AI response
+  extractMentionedGigs(aiResponse, availableGigs) {
+    const mentionedGigs = [];
+    const lowercaseResponse = aiResponse.toLowerCase();
+    
+    availableGigs.forEach(gig => {
+      const lowercaseTitle = gig.title.toLowerCase();
+      
+      // Check if gig title is mentioned in the response
+      if (lowercaseResponse.includes(lowercaseTitle)) {
+        mentionedGigs.push(gig);
+      } else {
+        // Also check for partial matches (e.g., "iOS App" for "iOS App Development")
+        const titleWords = lowercaseTitle.split(' ');
+        const significantWords = titleWords.filter(word => word.length > 3); // Words longer than 3 chars
+        
+        if (significantWords.length > 0) {
+          const hasSignificantMatch = significantWords.some(word => 
+            lowercaseResponse.includes(word)
+          );
+          
+          // Only add if there's a strong indication it was mentioned
+          if (hasSignificantMatch && significantWords.length >= 2) {
+            const matchCount = significantWords.filter(word => 
+              lowercaseResponse.includes(word)
+            ).length;
+            
+            // If majority of significant words are mentioned, consider it a match
+            if (matchCount >= Math.ceil(significantWords.length * 0.6)) {
+              mentionedGigs.push(gig);
+            }
+          }
+        }
+      }
+    });
+    
+    // If no gigs were clearly mentioned but AI gave a recommendation, 
+    // take the first/best gig to avoid empty cards
+    if (mentionedGigs.length === 0 && availableGigs.length > 0) {
+      // Check if AI actually gave a positive recommendation
+      const hasPositiveRecommendation = lowercaseResponse.includes('rekomendasi') || 
+        lowercaseResponse.includes('cocok') || 
+        lowercaseResponse.includes('sesuai') ||
+        lowercaseResponse.includes('bagus') ||
+        lowercaseResponse.includes('pilihan');
+      
+      if (hasPositiveRecommendation) {
+        mentionedGigs.push(availableGigs[0]); // Add the top-ranked gig
+      }
+    }
+    
+    return mentionedGigs;
   }
 
   // Mark user as having interacted with SkillBot

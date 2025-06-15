@@ -38,6 +38,16 @@ export const useOrderManagement = (currentUser, orderId = null) => {
       
       console.log('📥 [useOrderManagement] Fallback orders received:', ordersData.length);
 
+      // Debug: Check if fallback orders have client data
+      ordersData.forEach((order, index) => {
+        console.log(`🔍 [useOrderManagement] Fallback Order ${index + 1}:`, {
+          orderId: order.id,
+          hasClient: !!order.client,
+          clientDisplayName: order.client?.displayName,
+          clientId: order.clientId
+        });
+      });
+
       // Calculate stats
       const calculatedStats = calculateOrderStats(ordersData);
 
@@ -56,6 +66,16 @@ export const useOrderManagement = (currentUser, orderId = null) => {
   // Handle real-time order updates
   const handleOrdersUpdate = useCallback((ordersData) => {
     console.log('📡 [useOrderManagement] Real-time orders update received:', ordersData.length, 'orders');
+
+          // Debug: Check if orders have client data
+      ordersData.forEach((order, index) => {
+        console.log(`🔍 [useOrderManagement] Order ${index + 1}:`, {
+          orderId: order.id,
+          hasClient: !!order.client,
+          clientDisplayName: order.client?.displayName,
+          clientId: order.clientId
+        });
+      });
 
     // Track subscription update in monitor
     if (currentUser?.uid) {
@@ -392,6 +412,13 @@ export const useOrderManagement = (currentUser, orderId = null) => {
   useEffect(() => {
     if (orderId) {
       const order = orders.find(o => o.id === orderId);
+      console.log('🔍 [useOrderManagement] Setting selected order:', {
+        orderId,
+        foundOrder: !!order,
+        hasClient: !!order?.client,
+        clientDisplayName: order?.client?.displayName,
+        clientId: order?.clientId
+      });
       setSelectedOrder(order);
     }
   }, [orderId, orders]);

@@ -953,9 +953,12 @@ export default function Messages() {
                               <div className="p-4">
                                 <div className="flex items-start space-x-4">
                                   <img 
-                                    src={gig.image || '/images/default-gig.jpg'} 
+                                    src={gig.images?.[0] || gig.image || 'https://picsum.photos/400/300'} 
                                     alt={gig.title}
                                     className="w-20 h-20 rounded-lg object-cover flex-shrink-0"
+                                    onError={(e) => {
+                                      e.target.src = 'https://picsum.photos/400/300';
+                                    }}
                                   />
                                   <div className="flex-1 min-w-0">
                                     <h4 className="font-medium text-gray-900 text-base line-clamp-2 mb-2">

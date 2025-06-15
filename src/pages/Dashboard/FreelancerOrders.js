@@ -10,7 +10,11 @@ import {
   formatCurrency, 
   formatDate,
   getRevisionCountText,
-  isRevisionDisabled
+  isRevisionDisabled,
+  getOrderDeadline,
+  calculateWorkDeadline,
+  calculateAutoCompletionDeadline,
+  calculateRevisionDeadline
 } from '../../utils/orderUtils';
 import OrderCard from '../../components/orders/OrderCard';
 import OrderStats from '../../components/orders/OrderStats';
@@ -350,15 +354,15 @@ export default function FreelancerOrders() {
                       <span className="font-medium">{formatCurrency(selectedOrder.price || selectedOrder.amount || selectedOrder.totalPrice || 0)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Platform Fee (5%):</span>
+                      <span className="text-gray-600">Platform Fee (10%):</span>
                       <span className="font-medium text-red-600">
-                        -{formatCurrency(Math.round((selectedOrder.price || selectedOrder.amount || selectedOrder.totalPrice || 0) * 0.05))}
+                        -{formatCurrency(Math.round((selectedOrder.price || selectedOrder.amount || selectedOrder.totalPrice || 0) * 0.1))}
                       </span>
                     </div>
                     <div className="flex justify-between border-t pt-2">
                       <span className="text-gray-900 font-semibold">Penghasilan Anda:</span>
                       <span className="font-bold text-green-600">
-                        {formatCurrency(selectedOrder.freelancerEarning || Math.round((selectedOrder.price || selectedOrder.amount || selectedOrder.totalPrice || 0) * 0.95))}
+                        {formatCurrency(selectedOrder.freelancerEarning || Math.round((selectedOrder.price || selectedOrder.amount || selectedOrder.totalPrice || 0) * 0.9))}
                       </span>
                     </div>
                   </>
@@ -368,76 +372,69 @@ export default function FreelancerOrders() {
                   <span>{formatDate(selectedOrder.createdAt)}</span>
                 </div>
                 
-                {/* Show confirmation deadline countdown for pending orders */}
-                {selectedOrder.status === 'pending' && selectedOrder.confirmationDeadline && (
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Batas Konfirmasi:</span>
-                      <span className="font-medium text-red-600">
-                        {formatDate(selectedOrder.confirmationDeadline)}
-                      </span>
-                    </div>
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                      <CountdownTimer
-                        targetDate={selectedOrder.confirmationDeadline.seconds 
-                          ? new Date(selectedOrder.confirmationDeadline.seconds * 1000) 
-                          : new Date(selectedOrder.confirmationDeadline)
-                        }
-                        label="Waktu konfirmasi tersisa"
-                        type="danger"
-                        className="text-sm"
-                        onExpire={() => {
-                          console.log('⏰ [FreelancerOrders] Confirmation deadline expired for order:', selectedOrder.id);
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
                 
-                {/* Show warning if pending order doesn't have confirmation deadline */}
-                {selectedOrder.status === 'pending' && !selectedOrder.confirmationDeadline && (
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                    <div className="flex items-center gap-2 text-yellow-800">
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span className="text-sm font-medium">Menunggu Konfirmasi Pembayaran</span>
-                    </div>
-                    <p className="text-xs text-yellow-700 mt-1">
-                      Batas waktu konfirmasi akan muncul setelah pembayaran berhasil.
-                    </p>
-                  </div>
-                )}
-                {/* Only show deadline/completion date for non-cancelled orders */}
-                {selectedOrder.status !== 'cancelled' && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">
-                      {selectedOrder.status === 'completed' ? 'Tanggal Selesai:' : 'Deadline:'}
-                    </span>
-                    <div className="text-right">
-                      <span className="font-medium">
-                        {selectedOrder.status === 'completed' 
-                          ? formatDate(selectedOrder.completedAt || selectedOrder.timeline?.completed || selectedOrder.deliveredAt || selectedOrder.deadline)
-                          : formatDate(selectedOrder.deadline)
-                        }
-                      </span>
-                      {/* Only show countdown if order is not completed */}
-                      {selectedOrder.status !== 'completed' && selectedOrder.deadline && (
-                        <div className={`text-xs mt-1 ${
-                          calculateTimeRemaining(selectedOrder.deadline).includes('Terlambat') 
-                            ? 'text-red-600' 
-                            : calculateTimeRemaining(selectedOrder.deadline).includes('jam') && !calculateTimeRemaining(selectedOrder.deadline).includes('hari')
-                            ? 'text-orange-600' 
-                            : 'text-gray-500'
-                        }`}>
-                          Sisa: {calculateTimeRemaining(selectedOrder.deadline)}
+                {/* Show deadline based on status using new utility function */}
+                {selectedOrder.status !== 'cancelled' && (() => {
+                  const deadlineInfo = getOrderDeadline(selectedOrder);
+                  
+                  // Special handling for pending orders
+                  if (selectedOrder.status === 'pending') {
+                    if (selectedOrder.confirmationDeadline) {
+                      return (
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">{deadlineInfo.label}:</span>
+                            <span className="font-medium text-red-600">
+                              {formatDate(deadlineInfo.date)}
+                            </span>
+                          </div>
                         </div>
-                      )}
-                                           {/* Show completion indicator for completed orders */}
-                       {selectedOrder.status === 'completed'}
-                    </div>
-                  </div>
-                )}
+                      );
+                    } else {
+                      return (
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                          <div className="flex items-center gap-2 text-yellow-800">
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span className="text-sm font-medium">Menunggu Konfirmasi Pembayaran</span>
+                          </div>
+                          <p className="text-xs text-yellow-700 mt-1">
+                            Batas waktu konfirmasi akan muncul setelah pembayaran berhasil.
+                          </p>
+                        </div>
+                      );
+                    }
+                  }
+                  
+                  // For other statuses, show deadline if available
+                  if (deadlineInfo.date) {
+                    return (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">{deadlineInfo.label}:</span>
+                        <div className="text-right">
+                          <span className="font-medium">
+                            {formatDate(deadlineInfo.date)}
+                          </span>
+                          {/* Show countdown for active work deadlines */}
+                          {(deadlineInfo.type === 'work' || deadlineInfo.type === 'revision') && (
+                            <div className={`text-xs mt-1 ${
+                              calculateTimeRemaining(deadlineInfo.date).includes('Terlambat') 
+                                ? 'text-red-600' 
+                                : calculateTimeRemaining(deadlineInfo.date).includes('jam') && !calculateTimeRemaining(deadlineInfo.date).includes('hari')
+                                ? 'text-orange-600' 
+                                : 'text-gray-500'
+                            }`}>
+                              Sisa: {calculateTimeRemaining(deadlineInfo.date)}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  }
+                  
+                  return null;
+                })()}
                 {/* Show cancellation date for cancelled orders */}
                 {selectedOrder.status === 'cancelled' && selectedOrder.cancelledAt && (
                   <div className="flex justify-between">
@@ -654,48 +651,13 @@ export default function FreelancerOrders() {
                 />
                 <div className="ml-3">
                   <p className="font-medium text-gray-900">
-                    {selectedOrder.client?.displayName || 'Freelancer'}
+                    {selectedOrder.client?.displayName || 'Client'}
                   </p>
                   <p className="text-sm text-gray-500">
                     {selectedOrder.client?.email}
                   </p>
                 </div>
               </div>
-              
-              <Link 
-                to={`/messages/${selectedOrder.conversationId || selectedOrder.id}`}
-                className="w-full flex items-center justify-center gap-2 bg-[#010042] text-white py-2 px-4 rounded-lg hover:bg-blue-700"
-                onClick={async (e) => {
-                  // Prevent default navigation
-                  e.preventDefault();
-                  
-                  if (selectedOrder.clientId) {
-                    try {
-                      // Import chatService dynamically
-                      const { default: chatService } = await import('../../services/chatService');
-                      
-                      // Create or get chat with this client
-                      const chat = await chatService.createOrGetChat(
-                        currentUser.uid, 
-                        selectedOrder.clientId
-                      );
-                      
-                      // Navigate to the chat
-                      window.location.href = `/messages?chatId=${chat.id}`;
-                    } catch (error) {
-                      console.error('Error creating chat:', error);
-                      // Fallback to basic messages page
-                      window.location.href = `/messages`;
-                    }
-                  } else {
-                    // Fallback if no clientId
-                    window.location.href = `/messages`;
-                  }
-                }}
-              >
-                <ChatBubbleLeftRightIcon className="h-5 w-5" />
-                Chat
-              </Link>
             </motion.div>
 
             {/* Quick Actions */}
@@ -796,6 +758,44 @@ export default function FreelancerOrders() {
                     </p>
                   </div>
                 )}
+
+                {/* Chat Button - Always available */}
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <Link 
+                    to={`/messages/${selectedOrder.conversationId || selectedOrder.id}`}
+                    className="w-full flex items-center justify-center gap-2 bg-[#010042] text-white py-2 px-4 rounded-lg hover:bg-blue-700"
+                    onClick={async (e) => {
+                      // Prevent default navigation
+                      e.preventDefault();
+                      
+                      if (selectedOrder.clientId) {
+                        try {
+                          // Import chatService dynamically
+                          const { default: chatService } = await import('../../services/chatService');
+                          
+                          // Create or get chat with this client
+                          const chat = await chatService.createOrGetChat(
+                            currentUser.uid, 
+                            selectedOrder.clientId
+                          );
+                          
+                          // Navigate to the chat
+                          window.location.href = `/messages?chatId=${chat.id}`;
+                        } catch (error) {
+                          console.error('Error creating chat:', error);
+                          // Fallback to basic messages page
+                          window.location.href = `/messages`;
+                        }
+                      } else {
+                        // Fallback if no clientId
+                        window.location.href = `/messages`;
+                      }
+                    }}
+                  >
+                    <ChatBubbleLeftRightIcon className="h-5 w-5" />
+                    Chat dengan Client
+                  </Link>
+                </div>
               </div>
             </motion.div>
           </div>
