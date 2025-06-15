@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Link, useParams, useLocation } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { Link, useParams, useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import orderService from '../../services/orderService';
 import reviewService from '../../services/reviewService';
@@ -16,9 +16,9 @@ import {
   calculateRevisionDeadline
 } from '../../utils/orderUtils';
 import PageContainer from '../../components/common/PageContainer';
+import CountdownTimer from '../../components/common/CountdownTimer';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 
-import CountdownTimer from '../../components/common/CountdownTimer';
 import cleanPlaceholderQR from '../../scripts/cleanPlaceholderQR';
 
 // Make cleanup function available globally for debugging
@@ -31,6 +31,9 @@ export default function ClientTransactions() {
   const { transactionId } = useParams();
   const { currentUser } = useAuth();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  
   const [orders, setOrders] = useState([]);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -54,6 +57,10 @@ export default function ClientTransactions() {
 
 
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+
+  // Add payment polling state
+  const [pollingOrders, setPollingOrders] = useState(new Set());
+  const pollingTimeoutRef = useRef(null);
 
   useEffect(() => {
     if (currentUser && !isLoadingOrders) {
@@ -118,6 +125,27 @@ export default function ClientTransactions() {
     }
   }, [location.search]);
 
+  // Auto-refresh success message
+  useEffect(() => {
+    const paymentStatus = searchParams.get('payment');
+    if (paymentStatus === 'pending') {
+      setSuccess('Pembayaran sedang diproses. Halaman akan diperbarui otomatis.');
+      
+      // Auto-refresh orders every 10 seconds for pending payments
+      const refreshInterval = setInterval(() => {
+        console.log('🔄 [ClientTransactions] Auto-refreshing for pending payments');
+        loadOrders();
+      }, 10000);
+      
+      // Clear after 5 minutes
+      setTimeout(() => {
+        clearInterval(refreshInterval);
+      }, 300000);
+      
+      return () => clearInterval(refreshInterval);
+    }
+  }, [searchParams]);
+
   const loadOrders = async () => {
     console.log('🔍 [ClientTransactions] loadOrders called with currentUser:', currentUser?.uid);
     
@@ -161,32 +189,21 @@ export default function ClientTransactions() {
       
       // Ensure we always set an array, even if empty
       setOrders(Array.isArray(ordersWithDetails) ? ordersWithDetails : []);
-
-      // Check rating status for each order (with error handling)
-      if (ordersWithDetails && ordersWithDetails.length > 0) {
-        const ratingStatusMap = {};
-        
-        // Process rating status in parallel with timeout
-        await Promise.allSettled(
-          ordersWithDetails.map(async (order) => {
-            try {
-              const existingReviews = await reviewService.getGigReviews(order.gigId);
-              const userReview = existingReviews.find(review => 
-                review.clientId === currentUser.uid && review.orderId === order.id
-              );
-              ratingStatusMap[order.id] = !!userReview;
-            } catch (error) {
-              console.error('Error checking rating status for order:', order.id, error);
-              ratingStatusMap[order.id] = false;
-            }
-          })
-        );
-        
-        setOrderRatingStatus(ratingStatusMap);
-      }
+      
+      // Start polling for payment orders
+      startPaymentPolling(ordersWithDetails);
+      
+      console.log('✅ [ClientTransactions] Orders loaded successfully:', {
+        totalOrders: ordersWithDetails?.length || 0,
+        statuses: ordersWithDetails?.reduce((acc, order) => {
+          acc[order.status] = (acc[order.status] || 0) + 1;
+          return acc;
+        }, {})
+      });
+      
     } catch (error) {
-      console.error('💥 [ClientTransactions] Error loading orders:', error);
-      setError(`Gagal memuat transaksi: ${error.message}`);
+      console.error('❌ [ClientTransactions] Error loading orders:', error);
+      setError('Gagal memuat data transaksi. Silakan refresh halaman.');
       setOrders([]); // Set empty array on error
     } finally {
       clearTimeout(timeoutId);
@@ -195,95 +212,162 @@ export default function ClientTransactions() {
     }
   };
 
-  // Check and handle expired orders
-  const checkAndHandleExpiredOrders = async (ordersData) => {
+  // Start polling for payment status of unpaid orders
+  const startPaymentPolling = (ordersData) => {
+    if (!ordersData || !Array.isArray(ordersData)) return;
+    
+    const paymentOrders = ordersData.filter(order => 
+      order.status === 'payment' && 
+      order.merchantRef &&
+      !isOrderExpired(order)
+    );
+    
+    if (paymentOrders.length === 0) {
+      console.log('🔍 [ClientTransactions] No payment orders to poll');
+      return;
+    }
+    
+    console.log('🔄 [ClientTransactions] Starting payment polling for', paymentOrders.length, 'orders');
+    
+    // Clear existing polling
+    if (pollingTimeoutRef.current) {
+      clearTimeout(pollingTimeoutRef.current);
+    }
+    
+    // Start polling each payment order
+    paymentOrders.forEach(order => {
+      if (!pollingOrders.has(order.id)) {
+        pollPaymentStatus(order);
+      }
+    });
+  };
+
+  // Poll individual order payment status
+  const pollPaymentStatus = async (order) => {
     try {
-      const now = new Date();
-      const expiredOrders = ordersData.filter(order => {
-        if (order.status !== 'payment' || !order.paymentExpiredAt) return false;
+      setPollingOrders(prev => new Set(prev).add(order.id));
+      
+      console.log('🔍 [ClientTransactions] Polling payment status for order:', order.id);
+      
+      const statusResult = await paymentService.checkPaymentStatus(order.merchantRef);
+      
+      if (statusResult.success && statusResult.paid) {
+        console.log('✅ [ClientTransactions] Payment confirmed for order:', order.id);
         
+        // Refresh orders to get updated status
+        setTimeout(() => {
+          loadOrders();
+        }, 1000);
+        
+        setSuccess('Pembayaran berhasil dikonfirmasi! Pesanan telah diteruskan ke freelancer.');
+      } else {
+        // Continue polling if payment not confirmed and order not expired
+        if (!isOrderExpired(order)) {
+          pollingTimeoutRef.current = setTimeout(() => {
+            pollPaymentStatus(order);
+          }, 15000); // Poll every 15 seconds
+        }
+      }
+    } catch (error) {
+      console.error('❌ [ClientTransactions] Error polling payment status:', error);
+      // Stop polling on error
+      setPollingOrders(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(order.id);
+        return newSet;
+      });
+    }
+  };
+
+  // Check if order payment has expired
+  const isOrderExpired = (order) => {
+    if (!order.paymentExpiredAt) return false;
+    
+    const expiredAt = order.paymentExpiredAt.seconds 
+      ? new Date(order.paymentExpiredAt.seconds * 1000) 
+      : new Date(order.paymentExpiredAt);
+      
+    return expiredAt <= new Date();
+  };
+
+  // Enhanced expired order handling with better error management
+  const checkAndHandleExpiredOrders = async (ordersData) => {
+    if (!ordersData || !Array.isArray(ordersData)) {
+      console.log('⚠️ [ClientTransactions] No orders data provided for expiry check');
+      return;
+    }
+
+    const now = new Date();
+    const expiredOrders = ordersData.filter(order => {
+      // Check payment expired orders
+      if (order.status === 'payment' && order.paymentExpiredAt) {
         const expiredAt = order.paymentExpiredAt.seconds 
           ? new Date(order.paymentExpiredAt.seconds * 1000) 
           : new Date(order.paymentExpiredAt);
         
         return expiredAt <= now;
-      });
-
-      console.log('🔍 [ClientTransactions] Found expired orders:', {
-        total: expiredOrders.length,
-        orderIds: expiredOrders.map(o => o.id),
-        currentTime: now.toISOString(),
-        expiredOrdersDetails: expiredOrders.map(o => ({
-          id: o.id,
-          status: o.status,
-          expiredAt: o.paymentExpiredAt.seconds 
-            ? new Date(o.paymentExpiredAt.seconds * 1000).toISOString()
-            : new Date(o.paymentExpiredAt).toISOString()
-        }))
-      });
-
-      // Cancel expired orders
-      let successfulCancellations = 0;
-      for (const order of expiredOrders) {
-        try {
-          console.log('⏰ [ClientTransactions] Auto-cancelling expired order:', {
-            orderId: order.id,
-            expiredAt: order.paymentExpiredAt.seconds 
-              ? new Date(order.paymentExpiredAt.seconds * 1000).toISOString()
-              : new Date(order.paymentExpiredAt).toISOString(),
-            currentTime: now.toISOString(),
-            timeDifference: now - (order.paymentExpiredAt.seconds 
-              ? new Date(order.paymentExpiredAt.seconds * 1000) 
-              : new Date(order.paymentExpiredAt))
-          });
-          
-          // Use orderService to update status with proper validation
-          await orderService.updateOrderStatus(order.id, 'cancelled', currentUser.uid, {
-            statusMessage: 'Payment timeout - order cancelled automatically',
-            cancellationReason: 'Payment timeout (TESTING)',
-            cancelledAt: now.toISOString(),
-            autoCancel: true
-          });
-          
-          // Update the order in the local state immediately for better UX
-          order.status = 'cancelled';
-          order.cancellationReason = 'Payment timeout (TESTING)';
-          order.cancelledAt = now;
-          
-          successfulCancellations++;
-          console.log('✅ [ClientTransactions] Successfully cancelled expired order:', order.id);
-          
-        } catch (error) {
-          console.error('❌ [ClientTransactions] Error cancelling expired order:', order.id, error);
-          console.error('❌ [ClientTransactions] Error details:', {
-            errorMessage: error.message,
-            errorCode: error.code,
-            orderId: order.id,
-            orderStatus: order.status,
-            userId: currentUser.uid
-          });
-        }
       }
+      return false;
+    });
 
-      if (expiredOrders.length > 0) {
-        console.log('✅ [ClientTransactions] Auto-cancellation summary:', {
-          totalExpired: expiredOrders.length,
-          successfulCancellations,
-          failedCancellations: expiredOrders.length - successfulCancellations
+    if (expiredOrders.length === 0) {
+      console.log('✅ [ClientTransactions] No expired orders found');
+      return;
+    }
+
+    console.log('⏰ [ClientTransactions] Found', expiredOrders.length, 'expired orders to cancel');
+    
+    let successfulCancellations = 0;
+    
+    for (const order of expiredOrders) {
+      try {
+        console.log('⏰ [ClientTransactions] Auto-cancelling expired order:', {
+          orderId: order.id,
+          expiredAt: order.paymentExpiredAt.seconds 
+            ? new Date(order.paymentExpiredAt.seconds * 1000).toISOString()
+            : new Date(order.paymentExpiredAt).toISOString(),
+          currentTime: now.toISOString(),
+          timeDifference: now - (order.paymentExpiredAt.seconds 
+            ? new Date(order.paymentExpiredAt.seconds * 1000) 
+            : new Date(order.paymentExpiredAt))
         });
         
-        // Force a UI refresh if any orders were cancelled
-        if (successfulCancellations > 0) {
-          console.log('🔄 [ClientTransactions] Forcing UI refresh after cancellations');
-          setTimeout(() => {
-            loadOrders();
-          }, 2000); // Give time for database updates to propagate
-        }
+        // Use orderService to update status with proper validation
+        await orderService.updateOrderStatus(order.id, 'cancelled', currentUser.uid, {
+          statusMessage: 'Payment timeout - order cancelled automatically',
+          cancellationReason: 'Payment timeout',
+          cancelledAt: now.toISOString(),
+          autoCancel: true
+        });
+        
+        // Update the order in the local state immediately for better UX
+        order.status = 'cancelled';
+        order.cancellationReason = 'Payment timeout';
+        order.cancelledAt = now;
+        
+        successfulCancellations++;
+        console.log('✅ [ClientTransactions] Successfully cancelled expired order:', order.id);
+        
+      } catch (error) {
+        console.error('❌ [ClientTransactions] Error cancelling expired order:', order.id, error);
+        console.error('❌ [ClientTransactions] Error details:', {
+          errorMessage: error.message,
+          errorCode: error.code,
+          orderId: order.id,
+          orderStatus: order.status,
+          userId: currentUser.uid
+        });
       }
+    }
+
+    if (successfulCancellations > 0) {
+      console.log(`✅ [ClientTransactions] Successfully cancelled ${successfulCancellations}/${expiredOrders.length} expired orders`);
       
-    } catch (error) {
-      console.error('❌ [ClientTransactions] Error checking expired orders:', error);
-      console.error('❌ [ClientTransactions] Error stack:', error.stack);
+      // Show user notification
+      setSuccess(`${successfulCancellations} pesanan yang kedaluwarsa telah dibatalkan otomatis.`);
+      
+      // Clear success message after 5 seconds
+      setTimeout(() => setSuccess(''), 5000);
     }
   };
 
@@ -719,7 +803,7 @@ export default function ClientTransactions() {
       // Update order status to cancelled due to payment timeout
       await orderService.updateOrderStatus(orderId, 'cancelled', currentUser.uid, {
         statusMessage: 'Payment timeout - order cancelled automatically',
-        cancellationReason: 'Payment timeout (TESTING)',
+        cancellationReason: 'Payment timeout',
         cancelledAt: new Date().toISOString()
       });
       
