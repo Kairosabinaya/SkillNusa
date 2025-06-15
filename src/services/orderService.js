@@ -341,6 +341,42 @@ class OrderService {
         userId
       });
 
+      // Send notifications to both client and freelancer
+      try {
+        // Determine user types and send appropriate notifications
+        const isClientUpdate = userId === orderData.clientId;
+        const isFreelancerUpdate = userId === orderData.freelancerId;
+
+        if (isClientUpdate) {
+          // Client updated status, notify freelancer
+          await notificationService.createOrderStatusNotification(
+            orderId,
+            orderData.freelancerId,
+            'freelancer',
+            newStatus,
+            { updatedBy: 'client' }
+          );
+        } else if (isFreelancerUpdate) {
+          // Freelancer updated status, notify client
+          await notificationService.createOrderStatusNotification(
+            orderId,
+            orderData.clientId,
+            'client',
+            newStatus,
+            { updatedBy: 'freelancer' }
+          );
+        }
+
+        console.log('✅ [OrderService] Notification sent for status update:', {
+          orderId,
+          newStatus,
+          notifiedUser: isClientUpdate ? orderData.freelancerId : orderData.clientId
+        });
+      } catch (notificationError) {
+        console.error('❌ [OrderService] Error sending status notification:', notificationError);
+        // Don't fail the status update if notification fails
+      }
+
       return {
         success: true,
         orderId,
@@ -455,6 +491,23 @@ class OrderService {
         fileCount: deliveryData.files?.length || 0
       });
 
+      // Send notification to client about delivery
+      try {
+        await notificationService.createOrderStatusNotification(
+          orderId,
+          orderData.clientId,
+          'client',
+          'delivered',
+          { 
+            deliveryMessage: deliveryData.message,
+            fileCount: deliveryData.files?.length || 0
+          }
+        );
+        console.log('✅ [OrderService] Delivery notification sent to client');
+      } catch (notificationError) {
+        console.error('❌ [OrderService] Error sending delivery notification:', notificationError);
+      }
+
       return {
         success: true,
         orderId,
@@ -530,6 +583,24 @@ class OrderService {
         message: revisionMessage
       });
 
+      // Send notification to freelancer about revision request
+      try {
+        await notificationService.createOrderStatusNotification(
+          orderId,
+          orderData.freelancerId,
+          'freelancer',
+          'in_revision',
+          { 
+            revisionMessage: revisionMessage,
+            revisionCount: currentRevisions + 1,
+            maxRevisions
+          }
+        );
+        console.log('✅ [OrderService] Revision notification sent to freelancer');
+      } catch (notificationError) {
+        console.error('❌ [OrderService] Error sending revision notification:', notificationError);
+      }
+
       return {
         success: true,
         orderId,
@@ -599,6 +670,24 @@ class OrderService {
         message: deliveryData.message,
         fileCount: deliveryData.files?.length || 0
       });
+
+      // Send notification to client about revision completion
+      try {
+        await notificationService.createOrderStatusNotification(
+          orderId,
+          orderData.clientId,
+          'client',
+          'delivered',
+          { 
+            revisionCompleted: true,
+            deliveryMessage: deliveryData.message,
+            fileCount: deliveryData.files?.length || 0
+          }
+        );
+        console.log('✅ [OrderService] Revision completion notification sent to client');
+      } catch (notificationError) {
+        console.error('❌ [OrderService] Error sending revision completion notification:', notificationError);
+      }
 
       return {
         success: true,
@@ -1101,6 +1190,25 @@ class OrderService {
         updatedAt: serverTimestamp()
       });
 
+      // Send notification to freelancer about new order
+      try {
+        await notificationService.createOrderStatusNotification(
+          orderId,
+          order.freelancerId,
+          'freelancer',
+          'pending',
+          { 
+            paymentCompleted: true,
+            gigTitle: order.title,
+            packageType: order.packageType,
+            price: order.price
+          }
+        );
+        console.log('✅ [OrderService] Payment completion notification sent to freelancer');
+      } catch (notificationError) {
+        console.error('❌ [OrderService] Error sending payment notification:', notificationError);
+      }
+
       // Now create chat and send notification since payment is complete
       try {
         const chat = await chatService.createOrGetChat(
@@ -1156,7 +1264,27 @@ class OrderService {
         updatedAt: serverTimestamp()
       });
 
-      // Send cancellation notification
+      // Send notification to the other party about cancellation
+      try {
+        const notifyUserId = userId === order.clientId ? order.freelancerId : order.clientId;
+        const notifyUserType = userId === order.clientId ? 'freelancer' : 'client';
+        
+        await notificationService.createOrderStatusNotification(
+          orderId,
+          notifyUserId,
+          notifyUserType,
+          'cancelled',
+          { 
+            cancellationReason: reason,
+            cancelledBy: userId === order.clientId ? 'client' : 'freelancer'
+          }
+        );
+        console.log('✅ [OrderService] Cancellation notification sent');
+      } catch (notificationError) {
+        console.error('❌ [OrderService] Error sending cancellation notification:', notificationError);
+      }
+
+      // Send cancellation notification via chat
       try {
         const chat = await chatService.findChatBetweenUsers(order.clientId, order.freelancerId);
         if (chat) {
@@ -1169,7 +1297,7 @@ class OrderService {
           );
         }
       } catch (chatError) {
-        console.error('Error sending cancellation notification:', chatError);
+        console.error('Error sending chat cancellation notification:', chatError);
       }
 
       return await this.getOrder(orderId);
@@ -1575,6 +1703,30 @@ class OrderService {
 
     } catch (error) {
       console.error('❌ [OrderService] Error getting order by ID:', error);
+      throw error;
+    }
+  }
+
+  // Test function to create manual notification (for debugging)
+  async testCreateNotification(userId, userType = 'client') {
+    try {
+      console.log('🧪 [OrderService] Testing notification creation:', { userId, userType });
+      
+      const testNotification = await notificationService.createOrderStatusNotification(
+        'TEST_ORDER_ID',
+        userId,
+        userType,
+        'pending',
+        { 
+          test: true,
+          createdAt: new Date().toISOString()
+        }
+      );
+      
+      console.log('✅ [OrderService] Test notification created:', testNotification);
+      return testNotification;
+    } catch (error) {
+      console.error('❌ [OrderService] Error creating test notification:', error);
       throw error;
     }
   }

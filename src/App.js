@@ -15,6 +15,10 @@ import ErrorBoundary from './components/common/ErrorBoundary';
 // Import Firebase usage debugging utility for development
 
 
+// Import test scripts for debugging
+import './scripts/testNotifications';
+
+
 // Layouts
 import PublicLayout from './components/Layout/PublicLayout';
 import DashboardLayoutWrapper from './components/Layout/DashboardLayoutWrapper';
